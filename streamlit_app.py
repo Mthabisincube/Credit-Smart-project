@@ -32,18 +32,21 @@ with st.sidebar:
     Age = st.slider("Age", 18, 64, 50)
 
 # Create summary string
-summary = f"""
-**Location:** {Location}  
-**Gender:** {gender}  
-**Mobile Money Transactions:** {Mobile_Money_Txns}  
-**Airtime Spend (ZWL):** {Airtime_Spend_ZWL}  
-**Utility Payments (ZWL):** {Utility_Payments_ZWL}  
-**Loan Repayment History:** {Loan_Repayment_History}  
-**Age:** {Age}
-"""
+# Create a DataFrame for input summary
+input_summary_df = pd.DataFrame({
+    "Feature": ["Location", "Gender", "Mobile Money Transactions", "Airtime Spend (ZWL)",
+                "Utility Payments (ZWL)", "Loan Repayment History", "Age"],
+    "Value": [Location, gender, Mobile_Money_Txns, Airtime_Spend_ZWL,
+              Utility_Payments_ZWL, Loan_Repayment_History, Age]
+})
+
+# Display in dropdown-style expander with columns
+with st.expander("***Summary of Your Inputs***"):
+    st.write("** Summary**")
+    st.dataframe(input_summary_df, use_container_width=True)
 
 # Display summary
-with st.expander("📋 Summary of Your Inputs"):
+with st.expander("Summary of Your Inputs"):
     st.markdown(summary)
 
 
