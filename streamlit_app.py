@@ -1,5 +1,5 @@
 import streamlit as st
 
-st.title('🎈 App Name')
+st.title('Smart Credit App')
 
-st.write('Hello world!')
+st.write('Taking Credit Scoring to the next level')
