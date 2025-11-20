@@ -102,8 +102,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header Section
-st.markdown('<h1 class="main-header">💳🇿🇼 Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 🚀 Revolutionizing Credit Scoring with Alternative Data")
+st.markdown('<h1 class="main-header"> Zim Smart Credit App</h1>', unsafe_allow_html=True)
+st.markdown("### 🇿🇼 Revolutionizing Credit Scoring with Alternative Data")
 st.markdown("---")
 
 # Load data with caching
