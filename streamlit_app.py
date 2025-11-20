@@ -30,6 +30,20 @@ with st.sidebar:
     Utility_Payments_ZWL = st.slider ("Utility_Payments_ZWL",202.0,1499.0, 870.058)
     Loan_Repayment_History = st.selectbox("Loan_Repayment_History", ('Poor', 'Fair','Good','Excellent'))
     Age = st.slider ("Age",18,64, 50)
+
+#create a dataframe for the input features
+Data = {
+    "Location": Location,
+    "Gender": gender,
+    "Mobile_Money_Transactions": Mobile_Money_Txns,
+    "Airtime_Spend_ZWL": Airtime_Spend_ZWL,
+    "Utility_Payments_ZWL": Utility_Payments_ZWL,
+    "Loan_Repayment_History": Loan_Repayment_History,
+    "Age": Age
+Input_df = pd.Dataframe(Data,index[0])
+Input_Credit = pd.concate((input_df), axis=[0])
+Input Credit
+
     
                                           
 
