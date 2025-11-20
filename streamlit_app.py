@@ -28,7 +28,7 @@ with st.sidebar:
     Mobile_Money_Txns = st.slider("Mobile Money Transactions", 20.0, 299.0, 159.97)
     Airtime_Spend_ZWL = st.slider("Airtime_Spend_ZWL", 100.0,999.0, 552.6)
     Utility_Payments_ZWL = st.slider ("Utility_Payments_ZWL",202.0,1499.0, 870.058)
-    Loan_Repayment_History = st.selectbox("Loan_Repayment_History", ('Poor', 'Fair','Good','Excellent')
+    Loan_Repayment_History = st.selectbox("Loan_Repayment_History", ('Poor', 'Fair','Good','Excellent'))
     Age = st.slider ("Age",18,64, 50)
     
                                           
