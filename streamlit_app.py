@@ -103,7 +103,7 @@ st.markdown("""
 
 # Header Section
 st.markdown('<h1 class="main-header"> Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 🇿🇼 Revolutionizing Credit Scoring with Alternative Data")
+st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data")
 st.markdown("---")
 
 # Load data with caching
@@ -528,12 +528,4 @@ with tab4:
             except Exception as e:
                 st.error(f"❌ Error training model: {str(e)}")
 
-# Footer
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: #666; padding: 2rem;'>
-    <h3>💳 Smart Credit Assessment Platform</h3>
-    <p>Built with ❤️ using Streamlit & Scikit-learn | Revolutionizing credit scoring in Zimbabwe with alternative data</p>
-    <p><small>Empowering financial inclusion through innovative technology</small></p>
-</div>
-""", unsafe_allow_html=True)
+
