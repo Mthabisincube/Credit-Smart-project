@@ -10,15 +10,17 @@ with st.expander('Data'):
     st.write('**Raw Data**')
     st.write(df)
 
-st.write('**X**')
-X = df.drop("Credit_Score", axis=1)
-st.write(X)
+    st.write('**X**')
+    X = df.drop("Credit_Score", axis=1)
+    st.write(X)
 
-st.write('**Y**')
-Y = df.Credit_Score
-st.write(Y)
+    st.write('**Y**')
+    Y = df.Credit_Score
+    st.write(Y)
 
-         
+with st.expander('Data Visualisations'):
+    st.write("Scatter plot of Location vs Credit Score")
+    st.scatter_chart(df[['Location', 'Credit_Score']])
          
 
 
