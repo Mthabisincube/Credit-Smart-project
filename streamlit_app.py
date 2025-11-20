@@ -18,9 +18,19 @@ with st.expander('Data'):
     Y = df.Credit_Score
     st.write(Y)
 
-with st.expander('Data Visualisations'):
-    st.write("Scatter plot of Location vs Credit Score")
-    st.scatter_chart(df[['Location', 'Credit_Score']])
+# Data preparation
+with st.sidebar:
+    st.header ('Input features') 
+    Location = st.selectbox(
+    "Location",
+    ('Bulawayo', 'Chiredzi', 'Masvingo', 'Chinhoyi', 'Mutare', 'Harare', 'Gweru', 'Gokwe'))
+    gender = st.selectbox("Gender", ("Male","Female"))
+    Mobile_Money_Txns = st.slider (" Mobile_Money_Transactions",20, 299, 159.97)
+
+
+
+
+    
          
 
 
