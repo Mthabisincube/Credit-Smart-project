@@ -32,6 +32,7 @@ with st.sidebar:
     Age = st.slider ("Age",18,64, 50)
 
 #create a dataframe for the input features
+# Create a dictionary of input features
 Data = {
     "Location": Location,
     "Gender": gender,
@@ -40,9 +41,17 @@ Data = {
     "Utility_Payments_ZWL": Utility_Payments_ZWL,
     "Loan_Repayment_History": Loan_Repayment_History,
     "Age": Age
-Input_df = pd.Dataframe(Data,index[0])
-Input_Credit = pd.concate((input_df), axis=[0])
-Input Credit
+}
+
+# Convert to DataFrame
+Input_df = pd.DataFrame(Data, index=[0])
+
+# Concatenate (not necessary here, but fixed for correctness)
+Input_Credit = pd.concat([Input_df], axis=0)
+
+# Display the input
+st.subheader("User Input Summary")
+st.write(Input_Credit)
 
     
                                           
