@@ -1,4 +1,4 @@
-# 📦 Streamlit App Starter Kit 
+# Credit Smart Project
 ```
 ⬆️ (Replace above with your app's name)
 ```
