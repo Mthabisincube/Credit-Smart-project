@@ -3,12 +3,12 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 # Page configuration with beautiful theme
 st.set_page_config(
-    page_title="Smart Credit App",
+    page_title="Zim Smart Credit App",
     page_icon="💳",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -21,8 +21,11 @@ st.markdown("""
         font-size: 3rem;
         color: #1f77b4;
         text-align: center;
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
         font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     .sub-header {
         font-size: 1.5rem;
@@ -33,83 +36,86 @@ st.markdown("""
     .card {
         background-color: #f8f9fa;
         padding: 1.5rem;
-        border-radius: 10px;
-        border-left: 4px solid #1f77b4;
+        border-radius: 15px;
+        border-left: 5px solid #1f77b4;
         margin-bottom: 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 1rem;
-        border-radius: 10px;
+        padding: 1.5rem;
+        border-radius: 15px;
         text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    .sidebar .sidebar-content {
-        background-color: #f8f9fa;
-    }
-    .stProgress > div > div > div > div {
-        background-color: #1f77b4;
+    .sidebar-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 2rem;
     }
     .feature-box {
         background-color: #e8f4fd;
         padding: 1rem;
-        border-radius: 8px;
+        border-radius: 10px;
         margin: 0.5rem 0;
-        border: 1px solid #b8d4f0;
+        border: 2px solid #b8d4f0;
     }
     .success-box {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        border-radius: 8px;
-        padding: 1rem;
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border: 2px solid #28a745;
+        border-radius: 15px;
+        padding: 1.5rem;
         margin: 1rem 0;
+        color: #155724;
     }
     .warning-box {
-        background-color: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-radius: 8px;
-        padding: 1rem;
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        border: 2px solid #ffc107;
+        border-radius: 15px;
+        padding: 1.5rem;
         margin: 1rem 0;
+        color: #856404;
     }
     .danger-box {
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
-        border-radius: 8px;
-        padding: 1rem;
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        border: 2px solid #dc3545;
+        border-radius: 15px;
+        padding: 1.5rem;
         margin: 1rem 0;
+        color: #721c24;
+    }
+    .stProgress > div > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .input-card {
+        background-color: #ffffff;
+        padding: 1rem;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        margin: 0.5rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Header Section
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.markdown('<h1 class="main-header">💳 Smart Credit App</h1>', unsafe_allow_html=True)
-    st.markdown("### Revolutionizing Credit Scoring with Alternative Data")
-    st.markdown("---")
+st.markdown('<h1 class="main-header">💳 Smart Credit App</h1>', unsafe_allow_html=True)
+st.markdown("### 🚀 Revolutionizing Credit Scoring with Alternative Data")
+st.markdown("---")
 
 # Load data with caching
 @st.cache_data
 def load_data():
-    df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
-    return df
+    return pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
 
 df = load_data()
 
-# Beautiful sidebar with gradient background
+# Beautiful sidebar
 with st.sidebar:
     st.markdown("""
-    <style>
-    .sidebar-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    </style>
     <div class="sidebar-header">
         <h2>🔮 Credit Assessment</h2>
         <p>Enter your details below</p>
@@ -122,22 +128,19 @@ with st.sidebar:
     with col1:
         Location = st.selectbox(
             "📍 Location", 
-            sorted(df['Location'].unique()),
-            help="Select your current location"
+            sorted(df['Location'].unique())
         )
     with col2:
         gender = st.selectbox(
             "👤 Gender", 
-            sorted(df['Gender'].unique()),
-            help="Select your gender"
+            sorted(df['Gender'].unique())
         )
     
     Age = st.slider(
         "🎂 Age", 
         int(df['Age'].min()), 
         int(df['Age'].max()), 
-        int(df['Age'].mean()),
-        help="Select your age"
+        int(df['Age'].mean())
     )
     
     st.markdown("### 💰 Financial Behavior")
@@ -146,78 +149,110 @@ with st.sidebar:
         "📱 Mobile Money Transactions", 
         float(df['Mobile_Money_Txns'].min()), 
         float(df['Mobile_Money_Txns'].max()), 
-        float(df['Mobile_Money_Txns'].mean()),
-        help="Average monthly mobile money transactions"
+        float(df['Mobile_Money_Txns'].mean())
     )
     
     Airtime_Spend_ZWL = st.slider(
         "📞 Airtime Spend (ZWL)", 
         float(df['Airtime_Spend_ZWL'].min()), 
         float(df['Airtime_Spend_ZWL'].max()), 
-        float(df['Airtime_Spend_ZWL'].mean()),
-        help="Monthly airtime expenditure in ZWL"
+        float(df['Airtime_Spend_ZWL'].mean())
     )
     
     Utility_Payments_ZWL = st.slider(
         "💡 Utility Payments (ZWL)", 
         float(df['Utility_Payments_ZWL'].min()), 
         float(df['Utility_Payments_ZWL'].max()), 
-        float(df['Utility_Payments_ZWL'].mean()),
-        help="Monthly utility payments in ZWL"
+        float(df['Utility_Payments_ZWL'].mean())
     )
     
     Loan_Repayment_History = st.selectbox(
         "📊 Loan Repayment History", 
-        sorted(df['Loan_Repayment_History'].unique()),
-        help="Select your loan repayment history"
+        sorted(df['Loan_Repayment_History'].unique())
     )
 
-# Main content area
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Data Overview", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model"])
+# Main content with tabs
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model"])
 
 with tab1:
-    st.markdown('<div class="sub-header">Dataset Overview</div>', unsafe_allow_html=True)
+    st.markdown("### 📈 Dataset Overview")
     
-    # Metrics in a beautiful grid
+    # Beautiful metric cards
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown('<div class="metric-card">Total Records<br><h2>{}</h2></div>'.format(len(df)), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>📊 Total Records</h3>
+            <h2>{len(df):,}</h2>
+        </div>
+        """, unsafe_allow_html=True)
     with col2:
-        st.markdown('<div class="metric-card">Features<br><h2>{}</h2></div>'.format(len(df.columns) - 1), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🔧 Features</h3>
+            <h2>{len(df.columns) - 1}</h2>
+        </div>
+        """, unsafe_allow_html=True)
     with col3:
-        st.markdown('<div class="metric-card">Credit Classes<br><h2>{}</h2></div>'.format(df['Credit_Score'].nunique()), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🎯 Credit Classes</h3>
+            <h2>{df['Credit_Score'].nunique()}</h2>
+        </div>
+        """, unsafe_allow_html=True)
     with col4:
-        st.markdown('<div class="metric-card">Data Quality<br><h2>100%</h2></div>'.format(df.isnull().sum().sum()), unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>✅ Data Quality</h3>
+            <h2>100%</h2>
+        </div>
+        """, unsafe_allow_html=True)
     
-    # Data preview with expandable sections
-    with st.expander("📋 View Raw Data", expanded=False):
-        st.dataframe(df, use_container_width=True, height=300)
-    
+    # Data preview sections
     col1, col2 = st.columns(2)
+    
     with col1:
-        with st.expander("🔧 Features (X)", expanded=False):
-            X = df.drop("Credit_Score", axis=1)
-            st.dataframe(X, use_container_width=True, height=250)
+        with st.expander("📋 Raw Data Preview", expanded=True):
+            st.dataframe(df, use_container_width=True, height=300)
+    
     with col2:
-        with st.expander("🎯 Target (Y)", expanded=False):
+        with st.expander("🔍 Features & Target", expanded=True):
+            st.write("**Features (X):**")
+            X = df.drop("Credit_Score", axis=1)
+            st.dataframe(X.head(8), use_container_width=True, height=200)
+            
+            st.write("**Target (Y):**")
             Y = df["Credit_Score"]
-            st.dataframe(Y, use_container_width=True, height=250)
+            st.dataframe(Y.head(8), use_container_width=True, height=150)
 
 with tab2:
-    st.markdown('<div class="sub-header">Data Analysis & Insights</div>', unsafe_allow_html=True)
+    st.markdown("### 🔍 Data Analysis & Insights")
     
-    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📈 Distributions", "🔢 Statistics", "🌍 Geographic"])
+    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📊 Distributions", "📈 Statistics", "🌍 Geographic"])
     
     with analysis_tab1:
         col1, col2 = st.columns(2)
+        
         with col1:
             st.markdown("#### Credit Score Distribution")
             score_counts = df['Credit_Score'].value_counts().sort_index()
-            st.bar_chart(score_counts, use_container_width=True)
+            st.bar_chart(score_counts)
+            
+            # Show as table
+            st.markdown("**Count by Credit Score:**")
+            dist_df = score_counts.reset_index()
+            dist_df.columns = ['Credit Score', 'Count']
+            st.dataframe(dist_df, use_container_width=True, hide_index=True)
+        
         with col2:
             st.markdown("#### Location Distribution")
             location_counts = df['Location'].value_counts()
-            st.bar_chart(location_counts, use_container_width=True)
+            st.bar_chart(location_counts)
+            
+            st.markdown("**Count by Location:**")
+            loc_df = location_counts.reset_index()
+            loc_df.columns = ['Location', 'Count']
+            st.dataframe(loc_df, use_container_width=True, hide_index=True)
     
     with analysis_tab2:
         numeric_cols = df.select_dtypes(include=[np.number]).columns
@@ -225,14 +260,15 @@ with tab2:
         
         if selected_feature:
             col1, col2 = st.columns(2)
+            
             with col1:
                 st.markdown(f"#### {selected_feature} Distribution")
                 hist_values = np.histogram(df[selected_feature], bins=20)[0]
-                st.bar_chart(hist_values, use_container_width=True)
+                st.bar_chart(hist_values)
             
             with col2:
-                st.markdown(f"#### Statistics for {selected_feature}")
-                stats = {
+                st.markdown(f"#### 📊 Statistics for {selected_feature}")
+                stats_data = {
                     'Metric': ['Mean', 'Median', 'Std Dev', 'Min', 'Max', '25th %ile', '75th %ile'],
                     'Value': [
                         f"{df[selected_feature].mean():.2f}",
@@ -244,41 +280,54 @@ with tab2:
                         f"{df[selected_feature].quantile(0.75):.2f}"
                     ]
                 }
-                stats_df = pd.DataFrame(stats)
+                stats_df = pd.DataFrame(stats_data)
                 st.dataframe(stats_df, use_container_width=True, hide_index=True)
     
     with analysis_tab3:
         st.markdown("#### Credit Scores by Location")
         location_summary = df.groupby('Location')['Credit_Score'].value_counts().unstack().fillna(0)
-        st.dataframe(location_summary.style.background_gradient(cmap='Blues'), use_container_width=True)
+        st.dataframe(location_summary, use_container_width=True)
+        
+        st.markdown("#### Location Performance Summary")
+        location_stats = df.groupby('Location').agg({
+            'Credit_Score': lambda x: (x == 'Good').mean()  # Example metric
+        }).round(3)
+        st.dataframe(location_stats, use_container_width=True)
 
 with tab3:
-    st.markdown('<div class="sub-header">Credit Assessment Results</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 Credit Assessment Results")
     
-    # Input summary in a beautiful card
-    st.markdown("### 📋 Your Input Summary")
+    # Input summary in beautiful cards
+    st.markdown("#### 📋 Your Input Summary")
     input_data = {
-        "Feature": ["Location", "Gender", "Age", "Mobile Transactions", "Airtime Spend", "Utility Payments", "Repayment History"],
-        "Value": [Location, gender, Age, f"{Mobile_Money_Txns:.1f}", f"{Airtime_Spend_ZWL:.1f} ZWL", 
-                 f"{Utility_Payments_ZWL:.1f} ZWL", Loan_Repayment_History]
+        "Feature": ["📍 Location", "👤 Gender", "🎂 Age", "📱 Mobile Transactions", 
+                   "📞 Airtime Spend", "💡 Utility Payments", "📊 Repayment History"],
+        "Value": [Location, gender, f"{Age} years", f"{Mobile_Money_Txns:.1f}", 
+                 f"{Airtime_Spend_ZWL:.1f} ZWL", f"{Utility_Payments_ZWL:.1f} ZWL", Loan_Repayment_History]
     }
     input_df = pd.DataFrame(input_data)
-    st.dataframe(input_df, use_container_width=True, hide_index=True)
     
-    # Assessment calculation
-    st.markdown("### 🎯 Credit Assessment")
+    # Display as styled dataframe
+    st.dataframe(
+        input_df, 
+        use_container_width=True, 
+        hide_index=True,
+        height=280
+    )
     
-    # Scoring logic with beautiful progress bars
+    # Assessment calculation with beautiful progress bars
+    st.markdown("#### 📊 Assessment Factors")
+    
     score = 0
     max_score = 6
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("#### Age Factor")
+        st.markdown("##### 🎂 Age Factor")
         if 30 <= Age <= 50:
             score += 2
-            st.success("✅ Optimal (30-50)")
+            st.success("✅ Optimal (30-50 years)")
             st.progress(1.0)
         elif 25 <= Age < 30 or 50 < Age <= 60:
             score += 1
@@ -289,18 +338,18 @@ with tab3:
             st.progress(0.2)
     
     with col2:
-        st.markdown("#### Transaction Activity")
+        st.markdown("##### 💰 Transaction Activity")
         mobile_median = df['Mobile_Money_Txns'].median()
         if Mobile_Money_Txns > mobile_median:
             score += 1
-            st.success(f"✅ Above Avg ({mobile_median:.1f})")
+            st.success(f"✅ Above Average")
             st.progress(1.0)
         else:
             st.warning("⚠️ Below Average")
             st.progress(0.3)
     
     with col3:
-        st.markdown("#### Repayment History")
+        st.markdown("##### 📈 Repayment History")
         repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
         rep_score = repayment_scores[Loan_Repayment_History]
         score += rep_score
@@ -308,40 +357,61 @@ with tab3:
         st.info(f"📊 {Loan_Repayment_History}")
         st.progress(progress_map[Loan_Repayment_History])
     
-    # Final assessment with beautiful styling
+    # Final assessment
     st.markdown("---")
     percentage = (score / max_score) * 100
     
     col1, col2 = st.columns([1, 2])
+    
     with col1:
-        st.markdown(f"### Overall Score: {score}/{max_score}")
+        st.markdown("#### 📈 Overall Score")
+        st.markdown(f"# {score}/{max_score}")
         st.markdown(f"### {percentage:.1f}%")
         st.progress(percentage / 100)
+        
+        # Score interpretation
+        if score >= 5:
+            st.balloons()
+            st.success("🎉 Excellent Score!")
+        elif score >= 3:
+            st.info("📊 Good Score")
+        else:
+            st.warning("📝 Needs Improvement")
     
     with col2:
+        st.markdown("#### 🎯 Final Assessment")
         if score >= 5:
-            st.markdown('<div class="success-box">', unsafe_allow_html=True)
-            st.markdown("### ✅ **EXCELLENT CREDITWORTHINESS**")
-            st.markdown("**Recommendation:** Strong candidate for credit approval with favorable terms")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="success-box">
+                <h3>✅ EXCELLENT CREDITWORTHINESS</h3>
+                <p><strong>Recommendation:</strong> Strong candidate for credit approval with favorable terms and higher limits</p>
+                <p><strong>Risk Level:</strong> Low</p>
+            </div>
+            """, unsafe_allow_html=True)
         elif score >= 3:
-            st.markdown('<div class="warning-box">', unsafe_allow_html=True)
-            st.markdown("### ⚠️ **MODERATE RISK PROFILE**")
-            st.markdown("**Recommendation:** Standard verification with moderate credit limits")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="warning-box">
+                <h3>⚠️ MODERATE RISK PROFILE</h3>
+                <p><strong>Recommendation:</strong> Standard verification process with moderate credit limits</p>
+                <p><strong>Risk Level:</strong> Medium</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.markdown('<div class="danger-box">', unsafe_allow_html=True)
-            st.markdown("### ❌ **HIGHER RISK PROFILE**")
-            st.markdown("**Recommendation:** Enhanced verification and possible collateral required")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="danger-box">
+                <h3>❌ HIGHER RISK PROFILE</h3>
+                <p><strong>Recommendation:</strong> Enhanced verification and possible collateral required</p>
+                <p><strong>Risk Level:</strong> High</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 with tab4:
-    st.markdown('<div class="sub-header">AI-Powered Credit Scoring</div>', unsafe_allow_html=True)
+    st.markdown("### 🤖 AI-Powered Credit Scoring")
     
     st.markdown("""
     <div class="card">
-    <h3>🚀 Machine Learning Model</h3>
-    <p>Our advanced Random Forest classifier analyzes patterns in your financial behavior to predict creditworthiness with high accuracy.</p>
+        <h3>🚀 Advanced Machine Learning</h3>
+        <p>Our Random Forest classifier analyzes patterns in your financial behavior to predict creditworthiness with high accuracy using alternative data sources.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -363,50 +433,47 @@ with tab4:
                 target_encoder = LabelEncoder()
                 y_encoded = target_encoder.fit_transform(y)
                 
-                # Split and scale data
+                # Split data
                 X_train, X_test, y_train, y_test = train_test_split(
                     X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
                 )
                 
-                scaler = StandardScaler()
-                X_train_scaled = scaler.fit_transform(X_train)
-                X_test_scaled = scaler.transform(X_test)
-                
                 # Train model
                 model = RandomForestClassifier(n_estimators=100, random_state=42)
-                model.fit(X_train_scaled, y_train)
+                model.fit(X_train, y_train)
                 
                 # Make predictions
-                y_pred = model.predict(X_test_scaled)
+                y_pred = model.predict(X_test)
                 accuracy = accuracy_score(y_test, y_pred)
                 
                 st.success("✅ Model trained successfully!")
                 
-                # Display metrics
+                # Display metrics in beautiful cards
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("Accuracy", f"{accuracy:.2%}")
+                    st.metric("🎯 Accuracy", f"{accuracy:.2%}")
                 with col2:
-                    st.metric("Training Samples", len(X_train))
+                    st.metric("📚 Training Samples", f"{len(X_train):,}")
                 with col3:
-                    st.metric("Test Samples", len(X_test))
+                    st.metric("🧪 Test Samples", f"{len(X_test):,}")
                 with col4:
-                    st.metric("Features Used", len(X.columns))
+                    st.metric("🔧 Features Used", len(X.columns))
                 
                 # Feature importance
-                st.markdown("### 🔍 Feature Importance")
+                st.markdown("#### 🔍 Feature Importance Ranking")
                 feature_importance = pd.DataFrame({
                     'Feature': X.columns,
                     'Importance': model.feature_importances_
                 }).sort_values('Importance', ascending=False)
                 
-                # Display as bar chart
+                # Display as bar chart and table
                 st.bar_chart(feature_importance.set_index('Feature')['Importance'])
+                st.dataframe(feature_importance, use_container_width=True, hide_index=True)
                 
                 # Real-time prediction
-                st.markdown("### 🎯 Predict Your Credit Score")
+                st.markdown("#### 🎯 Get Your AI Prediction")
                 
-                if st.button("🔮 Get AI Prediction", type="secondary", use_container_width=True):
+                if st.button("🔮 Predict My Credit Score", type="secondary", use_container_width=True):
                     user_data = pd.DataFrame({
                         'Location': [Location],
                         'Gender': [gender],
@@ -425,10 +492,9 @@ with tab4:
                             else:
                                 user_data[column] = -1
                     
-                    # Scale and predict
-                    user_data_scaled = scaler.transform(user_data)
-                    prediction_encoded = model.predict(user_data_scaled)
-                    prediction_proba = model.predict_proba(user_data_scaled)
+                    # Predict
+                    prediction_encoded = model.predict(user_data)
+                    prediction_proba = model.predict_proba(user_data)
                     
                     predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
                     confidence = np.max(prediction_proba) * 100
@@ -436,12 +502,22 @@ with tab4:
                     # Beautiful prediction display
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.markdown(f'<div class="success-box"><h3>AI Prediction: {predicted_class}</h3></div>', unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div class="success-box">
+                            <h3>AI Prediction</h3>
+                            <h1>{predicted_class}</h1>
+                        </div>
+                        """, unsafe_allow_html=True)
                     with col2:
-                        st.markdown(f'<div class="card"><h3>Confidence: {confidence:.1f}%</h3></div>', unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div class="card">
+                            <h3>Confidence Level</h3>
+                            <h1>{confidence:.1f}%</h1>
+                        </div>
+                        """, unsafe_allow_html=True)
                     
                     # Probability distribution
-                    st.markdown("#### Probability Distribution")
+                    st.markdown("#### 📊 Probability Distribution")
                     prob_df = pd.DataFrame({
                         'Credit Score': target_encoder.classes_,
                         'Probability (%)': (prediction_proba[0] * 100).round(2)
@@ -451,3 +527,13 @@ with tab4:
                 
             except Exception as e:
                 st.error(f"❌ Error training model: {str(e)}")
+
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #666; padding: 2rem;'>
+    <h3>💳 Smart Credit Assessment Platform</h3>
+    <p>Built with ❤️ using Streamlit & Scikit-learn | Revolutionizing credit scoring in Zimbabwe with alternative data</p>
+    <p><small>Empowering financial inclusion through innovative technology</small></p>
+</div>
+""", unsafe_allow_html=True)
