@@ -20,7 +20,7 @@ with st.expander('Data'):
 
 # Data preparation
 with st.sidebar:
-    st.header ('Input features') 
+    st.header ('**Alternative Data**') 
     Location = st.selectbox(
     "Location",
     ('Bulawayo', 'Chiredzi', 'Masvingo', 'Chinhoyi', 'Mutare', 'Harare', 'Gweru', 'Gokwe'))
