@@ -31,4 +31,20 @@ with st.sidebar:
     Loan_Repayment_History = st.selectbox("Loan Repayment History", ('Poor', 'Fair', 'Good', 'Excellent'))
     Age = st.slider("Age", 18, 64, 50)
 
+# Create summary string
+summary = f"""
+**Location:** {Location}  
+**Gender:** {gender}  
+**Mobile Money Transactions:** {Mobile_Money_Txns}  
+**Airtime Spend (ZWL):** {Airtime_Spend_ZWL}  
+**Utility Payments (ZWL):** {Utility_Payments_ZWL}  
+**Loan Repayment History:** {Loan_Repayment_History}  
+**Age:** {Age}
+"""
+
+# Display summary
+with st.expander("📋 Summary of Your Inputs"):
+    st.markdown(summary)
+
+
 # Create input
