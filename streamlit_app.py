@@ -49,9 +49,11 @@ Input_df = pd.DataFrame(Data, index=[0])
 # Concatenate (not necessary here, but fixed for correctness)
 Input_Credit = pd.concat([Input_df], axis=0)
 
-# Display the input
-st.subheader("User Input Summary")
-st.write(Input_Credit)
+with st.expander(" Alternative Data")
+    st.write("**Alternative Data**")
+    Input_df
+    st.write("**Combined Data**")
+    Input_Credit
 
     
                                           
