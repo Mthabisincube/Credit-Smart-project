@@ -11,12 +11,12 @@ with st.expander('Data'):
     st.write(df)
 
 st.write('**X**')
-X = df.drop ("Credit_Score", axis=1)
-X
+X = df.drop("Credit_Score", axis=1)
+st.write(X)
 
-st.write('**Y**)
+st.write('**Y**')
 Y = df.Credit_Score
-Y
+st.write(Y)
 
          
          
