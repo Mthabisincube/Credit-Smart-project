@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 
 st.set_page_config(page_title="Smart Credit App", page_icon="💳", layout="wide")
 
-st.title('💳 Smart Credit App')
+st.title('💳 Zimbabwe Smart Credit App')
 st.write('Taking Credit Scoring to the next level with Alternative Data')
 
 # Load data
