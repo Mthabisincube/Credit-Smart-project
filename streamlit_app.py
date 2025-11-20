@@ -46,8 +46,7 @@ with st.expander("***Summary of Your Inputs***"):
     st.dataframe(input_summary_df, use_container_width=True)
 
 # Display summary
-with st.expander("Summary of Your Inputs"):
-    st.markdown(summary)
+
 
 
 # Create input
