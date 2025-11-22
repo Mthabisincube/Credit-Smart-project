@@ -6,156 +6,165 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-# Page configuration with beautiful theme
+# Page configuration with corporate theme
 st.set_page_config(
-    page_title="Zim Smart Credit App",
-    page_icon="💳",
+    page_title="ZimSmart Credit - Corporate Banking",
+    page_icon="🏦",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for beautiful styling with background image
+# Custom CSS for corporate banking theme
 st.markdown("""
 <style>
     .stApp {
-        background-image: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)), 
-                          url('https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1920&q=80');
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        background-repeat: no-repeat;
+        background: linear-gradient(135deg, #0c2c4a 0%, #1a4b6d 50%, #0c2c4a 100%);
+        color: #ffffff;
+    }
+    
+    /* Corporate Header */
+    .corporate-header {
+        background: linear-gradient(90deg, #0c2c4a 0%, #1a5276 50%, #0c2c4a 100%);
+        padding: 1rem 2rem;
+        border-bottom: 3px solid #f39c12;
+        margin-bottom: 2rem;
     }
     
     .main-header {
-        font-size: 3.5rem;
-        color: #1f77b4;
+        font-size: 2.5rem;
+        color: #ffffff;
         text-align: center;
-        margin-bottom: 1rem;
-        font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        padding: 1rem;
+        font-weight: 700;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 2px;
     }
     
     .sub-header {
-        font-size: 1.5rem;
-        color: #2e86ab;
-        margin-bottom: 1rem;
-        font-weight: 600;
+        font-size: 1rem;
+        color: #f39c12;
         text-align: center;
+        font-weight: 300;
+        margin: 0;
+        letter-spacing: 1px;
     }
     
-    .card {
-        background-color: rgba(248, 249, 250, 0.95);
-        padding: 1.5rem;
+    /* Navigation Bar */
+    .nav-bar {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Main Content Container */
+    .main-container {
+        background: rgba(255, 255, 255, 0.95);
         border-radius: 15px;
-        border-left: 5px solid #1f77b4;
-        margin-bottom: 1rem;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin: 1rem 0;
+        color: #2c3e50;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Credit Assessment Widget */
+    .assessment-widget {
+        background: linear-gradient(135deg, #1a5276 0%, #2e86c1 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin: 1rem 0;
+        border-left: 5px solid #f39c12;
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: linear-gradient(135deg, #2e86c1 0%, #1a5276 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+        border: 1px solid #3498db;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Form Styling */
+    .form-section {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin: 1rem 0;
         backdrop-filter: blur(5px);
     }
     
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Result Cards */
+    .result-excellent {
+        background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
         color: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        text-align: center;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        transition: transform 0.3s ease;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-    }
-    
-    .sidebar-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        text-align: center;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .feature-box {
-        background-color: rgba(232, 244, 253, 0.9);
-        padding: 1rem;
+        padding: 2rem;
         border-radius: 10px;
-        margin: 0.5rem 0;
-        border: 2px solid #b8d4f0;
+        border-left: 5px solid #f39c12;
+    }
+    
+    .result-moderate {
+        background: linear-gradient(135deg, #f39c12 0%, #f1c40f 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        border-left: 5px solid #e67e22;
+    }
+    
+    .result-poor {
+        background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        border-left: 5px solid #f39c12;
+    }
+    
+    /* Corporate Footer */
+    .corporate-footer {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2rem;
+        border-radius: 10px;
+        margin-top: 3rem;
+        text-align: center;
+        border-top: 2px solid #f39c12;
+    }
+    
+    /* Button Styling */
+    .stButton>button {
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
         transition: all 0.3s ease;
     }
     
-    .feature-box:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(243, 156, 18, 0.4);
     }
     
-    .success-box {
-        background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
-        border: 2px solid #28a745;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        color: #155724;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .warning-box {
-        background: linear-gradient(135deg, rgba(255, 243, 205, 0.95) 0%, rgba(255, 234, 167, 0.95) 100%);
-        border: 2px solid #ffc107;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        color: #856404;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .danger-box {
-        background: linear-gradient(135deg, rgba(248, 215, 218, 0.95) 0%, rgba(245, 198, 203, 0.95) 100%);
-        border: 2px solid #dc3545;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        color: #721c24;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
+    /* Progress Bar */
     .stProgress > div > div > div > div {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
     }
     
-    .input-card {
-        background-color: rgba(255, 255, 255, 0.95);
-        padding: 1rem;
-        border-radius: 10px;
-        border: 2px solid #e9ecef;
-        margin: 0.5rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    /* Slider Styling */
+    .stSlider {
+        color: #2c3e50;
     }
     
-    .tab-content {
-        background-color: rgba(255, 255, 255, 0.9);
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-top: 1rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .glowing-text {
-        text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+    /* Selectbox Styling */
+    .stSelectbox {
+        color: #2c3e50;
     }
 </style>
 """, unsafe_allow_html=True)
-
-# Header Section
-st.markdown('<h1 class="main-header glowing-text">Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data")
-st.markdown("---")
 
 # Load data with caching
 @st.cache_data
@@ -164,426 +173,294 @@ def load_data():
 
 df = load_data()
 
-# Beautiful sidebar
-with st.sidebar:
-    st.markdown("""
-    <div class="sidebar-header">
-        <h2>🔮 Credit Assessment</h2>
-        <p>Enter your details below</p>
+# Corporate Header
+st.markdown("""
+<div class="corporate-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 class="main-header">🏦 ZimSmart Credit</h1>
+            <p class="sub-header">Corporate Banking & Investment Solutions</p>
+        </div>
+        <div style="text-align: right;">
+            <p style="margin: 0; color: #f39c12; font-weight: 600;">Zimbabwe 🇿🇼</p>
+            <p style="margin: 0; font-size: 0.9rem;">Digital Banking Platform</p>
+        </div>
     </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("### 📋 Personal Information")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        Location = st.selectbox(
-            "📍 Location", 
-            sorted(df['Location'].unique())
-        )
-    with col2:
-        gender = st.selectbox(
-            "👤 Gender", 
-            sorted(df['Gender'].unique())
-        )
-    
-    Age = st.slider(
-        "🎂 Age", 
-        int(df['Age'].min()), 
-        int(df['Age'].max()), 
-        int(df['Age'].mean())
-    )
-    
-    st.markdown("### 💰 Financial Behavior")
-    
-    Mobile_Money_Txns = st.slider(
-        "📱 Mobile Money Transactions", 
-        float(df['Mobile_Money_Txns'].min()), 
-        float(df['Mobile_Money_Txns'].max()), 
-        float(df['Mobile_Money_Txns'].mean())
-    )
-    
-    Airtime_Spend_ZWL = st.slider(
-        "📞 Airtime Spend (ZWL)", 
-        float(df['Airtime_Spend_ZWL'].min()), 
-        float(df['Airtime_Spend_ZWL'].max()), 
-        float(df['Airtime_Spend_ZWL'].mean())
-    )
-    
-    Utility_Payments_ZWL = st.slider(
-        "💡 Utility Payments (ZWL)", 
-        float(df['Utility_Payments_ZWL'].min()), 
-        float(df['Utility_Payments_ZWL'].max()), 
-        float(df['Utility_Payments_ZWL'].mean())
-    )
-    
-    Loan_Repayment_History = st.selectbox(
-        "📊 Loan Repayment History", 
-        sorted(df['Loan_Repayment_History'].unique())
-    )
+</div>
+""", unsafe_allow_html=True)
 
-# Main content with tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model"])
+# Navigation Bar
+st.markdown("""
+<div class="nav-bar">
+    <div style="display: flex; justify-content: space-around; align-items: center;">
+        <a href="#assessment" style="color: #f39c12; text-decoration: none; font-weight: 600;">Credit Assessment</a>
+        <a href="#analytics" style="color: #ffffff; text-decoration: none; font-weight: 600;">Portfolio Analytics</a>
+        <a href="#reports" style="color: #ffffff; text-decoration: none; font-weight: 600;">Financial Reports</a>
+        <a href="#about" style="color: #ffffff; text-decoration: none; font-weight: 600;">About Us</a>
+        <a href="#contact" style="color: #ffffff; text-decoration: none; font-weight: 600;">Contact Us</a>
+        <a href="#locate" style="color: #ffffff; text-decoration: none; font-weight: 600;">Locate Us</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-with tab1:
-    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 📈 Dataset Overview")
+# Main Content Container
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
+
+# Credit Assessment as First Widget
+st.markdown("""
+<div class="assessment-widget">
+    <h2 style="color: white; margin-bottom: 1rem;">🔍 Instant Credit Assessment</h2>
+    <p style="color: rgba(255,255,255,0.9);">Complete the form below for an immediate creditworthiness evaluation using our advanced scoring algorithm.</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Two-column layout for the assessment form
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.markdown("### 📋 Client Information")
     
-    # Beautiful metric cards
+    with st.container():
+        st.markdown('<div class="form-section">', unsafe_allow_html=True)
+        col1a, col1b = st.columns(2)
+        with col1a:
+            Location = st.selectbox(
+                "📍 Business Location", 
+                sorted(df['Location'].unique()),
+                key="location"
+            )
+        with col1b:
+            gender = st.selectbox(
+                "👤 Client Gender", 
+                sorted(df['Gender'].unique()),
+                key="gender"
+            )
+        
+        Age = st.slider(
+            "🎂 Client Age", 
+            int(df['Age'].min()), 
+            int(df['Age'].max()), 
+            int(df['Age'].mean()),
+            key="age"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    st.markdown("### 💰 Financial Profile")
+    
+    with st.container():
+        st.markdown('<div class="form-section">', unsafe_allow_html=True)
+        Mobile_Money_Txns = st.slider(
+            "📱 Monthly Mobile Transactions", 
+            float(df['Mobile_Money_Txns'].min()), 
+            float(df['Mobile_Money_Txns'].max()), 
+            float(df['Mobile_Money_Txns'].mean()),
+            key="mobile"
+        )
+        
+        Airtime_Spend_ZWL = st.slider(
+            "📞 Monthly Airtime Spend (ZWL)", 
+            float(df['Airtime_Spend_ZWL'].min()), 
+            float(df['Airtime_Spend_ZWL'].max()), 
+            float(df['Airtime_Spend_ZWL'].mean()),
+            key="airtime"
+        )
+        
+        Utility_Payments_ZWL = st.slider(
+            "💡 Monthly Utility Payments (ZWL)", 
+            float(df['Utility_Payments_ZWL'].min()), 
+            float(df['Utility_Payments_ZWL'].max()), 
+            float(df['Utility_Payments_ZWL'].mean()),
+            key="utility"
+        )
+        
+        Loan_Repayment_History = st.selectbox(
+            "📊 Loan Repayment History", 
+            sorted(df['Loan_Repayment_History'].unique()),
+            key="repayment"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# Assessment Button
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    assess_button = st.button("🚀 **RUN CREDIT ASSESSMENT**", use_container_width=True)
+
+# Assessment Results
+if assess_button:
+    st.markdown("---")
+    st.markdown("## 📊 Assessment Results")
+    
+    # Calculate score
+    score = 0
+    max_score = 6
+    
+    # Age scoring
+    if 30 <= Age <= 50:
+        score += 2
+    elif 25 <= Age < 30 or 50 < Age <= 60:
+        score += 1
+    
+    # Transaction activity scoring
+    mobile_median = df['Mobile_Money_Txns'].median()
+    if Mobile_Money_Txns > mobile_median:
+        score += 1
+    
+    # Repayment history scoring
+    repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
+    score += repayment_scores[Loan_Repayment_History]
+    
+    percentage = (score / max_score) * 100
+    
+    # Display metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <h3>📊 Total Records</h3>
-            <h2>{len(df):,}</h2>
+            <h3>Credit Score</h3>
+            <h1>{score}/{max_score}</h1>
         </div>
         """, unsafe_allow_html=True)
+    
     with col2:
         st.markdown(f"""
         <div class="metric-card">
-            <h3>🔧 Features</h3>
-            <h2>{len(df.columns) - 1}</h2>
+            <h3>Success Rate</h3>
+            <h1>{percentage:.1f}%</h1>
         </div>
         """, unsafe_allow_html=True)
+    
     with col3:
+        risk_level = "Low" if score >= 5 else "Medium" if score >= 3 else "High"
         st.markdown(f"""
         <div class="metric-card">
-            <h3>🎯 Credit Classes</h3>
-            <h2>{df['Credit_Score'].nunique()}</h2>
+            <h3>Risk Level</h3>
+            <h1>{risk_level}</h1>
         </div>
         """, unsafe_allow_html=True)
+    
     with col4:
+        status = "Approved" if score >= 4 else "Review" if score >= 2 else "Declined"
         st.markdown(f"""
         <div class="metric-card">
-            <h3>✅ Data Quality</h3>
-            <h2>100%</h2>
+            <h3>Status</h3>
+            <h1>{status}</h1>
         </div>
         """, unsafe_allow_html=True)
     
-    # Data preview sections
-    col1, col2 = st.columns(2)
+    # Progress bar
+    st.markdown("### 📈 Credit Score Progress")
+    st.progress(percentage / 100)
     
-    with col1:
-        with st.expander("📋 Raw Data Preview", expanded=True):
-            st.dataframe(df, use_container_width=True, height=300)
+    # Final recommendation
+    st.markdown("### 🎯 Credit Recommendation")
     
-    with col2:
-        with st.expander("🔍 Features & Target", expanded=True):
-            st.write("**Features (X):**")
-            X = df.drop("Credit_Score", axis=1)
-            st.dataframe(X.head(8), use_container_width=True, height=200)
-            
-            st.write("**Target (Y):**")
-            Y = df["Credit_Score"]
-            st.dataframe(Y.head(8), use_container_width=True, height=150)
-    st.markdown('</div>', unsafe_allow_html=True)
+    if score >= 5:
+        st.markdown("""
+        <div class="result-excellent">
+            <h3>✅ EXCELLENT CREDIT PROFILE</h3>
+            <p><strong>Recommendation:</strong> Credit application APPROVED with preferential terms</p>
+            <p><strong>Credit Limit:</strong> Up to ZWL 50,000</p>
+            <p><strong>Interest Rate:</strong> Prime + 2%</p>
+            <p><strong>Next Steps:</strong> Document verification for immediate disbursement</p>
+        </div>
+        """, unsafe_allow_html=True)
+    elif score >= 3:
+        st.markdown("""
+        <div class="result-moderate">
+            <h3>⚠️ STANDARD CREDIT PROFILE</h3>
+            <p><strong>Recommendation:</strong> Credit application APPROVED with standard terms</p>
+            <p><strong>Credit Limit:</strong> Up to ZWL 25,000</p>
+            <p><strong>Interest Rate:</strong> Prime + 4%</p>
+            <p><strong>Next Steps:</strong> Additional documentation and collateral assessment required</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="result-poor">
+            <h3>❌ CREDIT APPLICATION UNDER REVIEW</h3>
+            <p><strong>Recommendation:</strong> Application requires additional review</p>
+            <p><strong>Credit Limit:</strong> Subject to further assessment</p>
+            <p><strong>Interest Rate:</strong> To be determined after full review</p>
+            <p><strong>Next Steps:</strong> Contact our credit department for personalized assessment</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-with tab2:
-    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🔍 Data Analysis & Insights")
-    
-    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📊 Distributions", "📈 Statistics", "🌍 Geographic"])
-    
-    with analysis_tab1:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### Credit Score Distribution")
-            score_counts = df['Credit_Score'].value_counts().sort_index()
-            st.bar_chart(score_counts)
-            
-            # Show as table
-            st.markdown("**Count by Credit Score:**")
-            dist_df = score_counts.reset_index()
-            dist_df.columns = ['Credit Score', 'Count']
-            st.dataframe(dist_df, use_container_width=True, hide_index=True)
-        
-        with col2:
-            st.markdown("#### Location Distribution")
-            location_counts = df['Location'].value_counts()
-            st.bar_chart(location_counts)
-            
-            st.markdown("**Count by Location:**")
-            loc_df = location_counts.reset_index()
-            loc_df.columns = ['Location', 'Count']
-            st.dataframe(loc_df, use_container_width=True, hide_index=True)
-    
-    with analysis_tab2:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        selected_feature = st.selectbox("Select feature for detailed analysis:", numeric_cols)
-        
-        if selected_feature:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown(f"#### {selected_feature} Distribution")
-                hist_values = np.histogram(df[selected_feature], bins=20)[0]
-                st.bar_chart(hist_values)
-            
-            with col2:
-                st.markdown(f"#### 📊 Statistics for {selected_feature}")
-                stats_data = {
-                    'Metric': ['Mean', 'Median', 'Std Dev', 'Min', 'Max', '25th %ile', '75th %ile'],
-                    'Value': [
-                        f"{df[selected_feature].mean():.2f}",
-                        f"{df[selected_feature].median():.2f}",
-                        f"{df[selected_feature].std():.2f}",
-                        f"{df[selected_feature].min():.2f}",
-                        f"{df[selected_feature].max():.2f}",
-                        f"{df[selected_feature].quantile(0.25):.2f}",
-                        f"{df[selected_feature].quantile(0.75):.2f}"
-                    ]
-                }
-                stats_df = pd.DataFrame(stats_data)
-                st.dataframe(stats_df, use_container_width=True, hide_index=True)
-    
-    with analysis_tab3:
-        st.markdown("#### Credit Scores by Location")
-        location_summary = df.groupby('Location')['Credit_Score'].value_counts().unstack().fillna(0)
-        st.dataframe(location_summary, use_container_width=True)
-        
-        st.markdown("#### Location Performance Summary")
-        location_stats = df.groupby('Location').agg({
-            'Credit_Score': lambda x: (x == 'Good').mean()  # Example metric
-        }).round(3)
-        st.dataframe(location_stats, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+# Portfolio Analytics Section
+st.markdown("---")
+st.markdown("## 📈 Portfolio Analytics Dashboard")
 
-with tab3:
-    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🎯 Credit Assessment Results")
-    
-    # Input summary in beautiful cards
-    st.markdown("#### 📋 Your Input Summary")
-    input_data = {
-        "Feature": ["📍 Location", "👤 Gender", "🎂 Age", "📱 Mobile Transactions", 
-                   "📞 Airtime Spend", "💡 Utility Payments", "📊 Repayment History"],
-        "Value": [Location, gender, f"{Age} years", f"{Mobile_Money_Txns:.1f}", 
-                 f"{Airtime_Spend_ZWL:.1f} ZWL", f"{Utility_Payments_ZWL:.1f} ZWL", Loan_Repayment_History]
-    }
-    input_df = pd.DataFrame(input_data)
-    
-    # Display as styled dataframe
-    st.dataframe(
-        input_df, 
-        use_container_width=True, 
-        hide_index=True,
-        height=280
-    )
-    
-    # Assessment calculation with beautiful progress bars
-    st.markdown("#### 📊 Assessment Factors")
-    
-    score = 0
-    max_score = 6
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("##### 🎂 Age Factor")
-        if 30 <= Age <= 50:
-            score += 2
-            st.success("✅ Optimal (30-50 years)")
-            st.progress(1.0)
-        elif 25 <= Age < 30 or 50 < Age <= 60:
-            score += 1
-            st.warning("⚠️ Moderate")
-            st.progress(0.5)
-        else:
-            st.error("❌ Higher Risk")
-            st.progress(0.2)
-    
-    with col2:
-        st.markdown("##### 💰 Transaction Activity")
-        mobile_median = df['Mobile_Money_Txns'].median()
-        if Mobile_Money_Txns > mobile_median:
-            score += 1
-            st.success(f"✅ Above Average")
-            st.progress(1.0)
-        else:
-            st.warning("⚠️ Below Average")
-            st.progress(0.3)
-    
-    with col3:
-        st.markdown("##### 📈 Repayment History")
-        repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-        rep_score = repayment_scores[Loan_Repayment_History]
-        score += rep_score
-        progress_map = {'Poor': 0.2, 'Fair': 0.4, 'Good': 0.7, 'Excellent': 1.0}
-        st.info(f"📊 {Loan_Repayment_History}")
-        st.progress(progress_map[Loan_Repayment_History])
-    
-    # Final assessment
-    st.markdown("---")
-    percentage = (score / max_score) * 100
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.markdown("#### 📈 Overall Score")
-        st.markdown(f"# {score}/{max_score}")
-        st.markdown(f"### {percentage:.1f}%")
-        st.progress(percentage / 100)
-        
-        # Score interpretation (removed balloons)
-        if score >= 5:
-            st.success("🎉 Excellent Score!")
-        elif score >= 3:
-            st.info("📊 Good Score")
-        else:
-            st.warning("📝 Needs Improvement")
-    
-    with col2:
-        st.markdown("#### 🎯 Final Assessment")
-        if score >= 5:
-            st.markdown("""
-            <div class="success-box">
-                <h3>✅ EXCELLENT CREDITWORTHINESS</h3>
-                <p><strong>Recommendation:</strong> Strong candidate for credit approval with favorable terms and higher limits</p>
-                <p><strong>Risk Level:</strong> Low</p>
-            </div>
-            """, unsafe_allow_html=True)
-        elif score >= 3:
-            st.markdown("""
-            <div class="warning-box">
-                <h3>⚠️ MODERATE RISK PROFILE</h3>
-                <p><strong>Recommendation:</strong> Standard verification process with moderate credit limits</p>
-                <p><strong>Risk Level:</strong> Medium</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="danger-box">
-                <h3>❌ HIGHER RISK PROFILE</h3>
-                <p><strong>Recommendation:</strong> Enhanced verification and possible collateral required</p>
-                <p><strong>Risk Level:</strong> High</p>
-            </div>
-            """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with tab4:
-    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🤖 AI-Powered Credit Scoring")
-    
-    st.markdown("""
-    <div class="card">
-        <h3>🚀 Advanced Machine Learning</h3>
-        <p>Our Random Forest classifier analyzes patterns in your financial behavior to predict creditworthiness with high accuracy using alternative data sources.</p>
+# Metrics row
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.markdown(f"""
+    <div class="metric-card">
+        <h4>Total Applications</h4>
+        <h2>{len(df):,}</h2>
     </div>
     """, unsafe_allow_html=True)
-    
-    if st.button("🎯 Train AI Model", type="primary", use_container_width=True):
-        with st.spinner("🤖 Training model... This may take a few moments."):
-            try:
-                # Prepare data
-                X = df.drop("Credit_Score", axis=1)
-                y = df["Credit_Score"]
-                
-                # Encode categorical variables
-                label_encoders = {}
-                for column in X.select_dtypes(include=['object']).columns:
-                    le = LabelEncoder()
-                    X[column] = le.fit_transform(X[column])
-                    label_encoders[column] = le
-                
-                # Encode target
-                target_encoder = LabelEncoder()
-                y_encoded = target_encoder.fit_transform(y)
-                
-                # Split data
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
-                )
-                
-                # Train model
-                model = RandomForestClassifier(n_estimators=100, random_state=42)
-                model.fit(X_train, y_train)
-                
-                # Make predictions
-                y_pred = model.predict(X_test)
-                accuracy = accuracy_score(y_test, y_pred)
-                
-                st.success("✅ Model trained successfully!")
-                
-                # Display metrics in beautiful cards
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("🎯 Accuracy", f"{accuracy:.2%}")
-                with col2:
-                    st.metric("📚 Training Samples", f"{len(X_train):,}")
-                with col3:
-                    st.metric("🧪 Test Samples", f"{len(X_test):,}")
-                with col4:
-                    st.metric("🔧 Features Used", len(X.columns))
-                
-                # Feature importance
-                st.markdown("#### 🔍 Feature Importance Ranking")
-                feature_importance = pd.DataFrame({
-                    'Feature': X.columns,
-                    'Importance': model.feature_importances_
-                }).sort_values('Importance', ascending=False)
-                
-                # Display as bar chart and table
-                st.bar_chart(feature_importance.set_index('Feature')['Importance'])
-                st.dataframe(feature_importance, use_container_width=True, hide_index=True)
-                
-                # Real-time prediction
-                st.markdown("#### 🎯 Get Your AI Prediction")
-                
-                if st.button("🔮 Predict My Credit Score", type="secondary", use_container_width=True):
-                    user_data = pd.DataFrame({
-                        'Location': [Location],
-                        'Gender': [gender],
-                        'Mobile_Money_Txns': [Mobile_Money_Txns],
-                        'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
-                        'Utility_Payments_ZWL': [Utility_Payments_ZWL],
-                        'Loan_Repayment_History': [Loan_Repayment_History],
-                        'Age': [Age]
-                    })
-                    
-                    # Encode user input
-                    for column in user_data.select_dtypes(include=['object']).columns:
-                        if column in label_encoders:
-                            if user_data[column].iloc[0] in label_encoders[column].classes_:
-                                user_data[column] = label_encoders[column].transform(user_data[column])
-                            else:
-                                user_data[column] = -1
-                    
-                    # Predict
-                    prediction_encoded = model.predict(user_data)
-                    prediction_proba = model.predict_proba(user_data)
-                    
-                    predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
-                    confidence = np.max(prediction_proba) * 100
-                    
-                    # Beautiful prediction display
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f"""
-                        <div class="success-box">
-                            <h3>AI Prediction</h3>
-                            <h1>{predicted_class}</h1>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    with col2:
-                        st.markdown(f"""
-                        <div class="card">
-                            <h3>Confidence Level</h3>
-                            <h1>{confidence:.1f}%</h1>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # Probability distribution
-                    st.markdown("#### 📊 Probability Distribution")
-                    prob_df = pd.DataFrame({
-                        'Credit Score': target_encoder.classes_,
-                        'Probability (%)': (prediction_proba[0] * 100).round(2)
-                    }).sort_values('Probability (%)', ascending=False)
-                    
-                    st.dataframe(prob_df, use_container_width=True, hide_index=True)
-                
-            except Exception as e:
-                st.error(f"❌ Error training model: {str(e)}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
+with col2:
+    good_ratio = (df['Credit_Score'] == 'Good').mean()
+    st.markdown(f"""
+    <div class="metric-card">
+        <h4>Approval Rate</h4>
+        <h2>{good_ratio:.1%}</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
+with col3:
+    st.markdown(f"""
+    <div class="metric-card">
+        <h4>Active Clients</h4>
+        <h2>{(len(df) * 0.65):.0f}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col4:
+    st.markdown(f"""
+    <div class="metric-card">
+        <h4>Portfolio Value</h4>
+        <h2>ZWL {(len(df) * 15000):,}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Charts and Data
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("#### Credit Score Distribution")
+    score_counts = df['Credit_Score'].value_counts().sort_index()
+    st.bar_chart(score_counts)
+
+with col2:
+    st.markdown("#### Location Performance")
+    location_counts = df['Location'].value_counts()
+    st.dataframe(location_counts, use_container_width=True)
+
+# Close main container
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Corporate Footer
+st.markdown("""
+<div class="corporate-footer">
+    <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap;">
+        <div>
+            <h4 style="color: #f39c12; margin-bottom: 0.5rem;">ZimSmart Credit</h4>
+            <p style="margin: 0; font-size: 0.8rem;">Corporate Banking Division</p>
+        </div>
+        <div>
+            <p style="margin: 0; font-size: 0.8rem;">📍 Harare, Zimbabwe</p>
+            <p style="margin: 0; font-size: 0.8rem;">📞 +263 24 123 4567</p>
+        </div>
+        <div>
+            <p style="margin: 0; font-size: 0.8rem;">✉️ corporate@zimscredit.co.zw</p>
+            <p style="margin: 0; font-size: 0.8rem;">🕒 Mon-Fri: 8AM-5PM</p>
+        </div>
+    </div>
+    <hr style="border-color: #f39c12; margin: 1rem 0;">
+    <p style="margin: 0; font-size: 0.7rem; color: rgba(255,255,255,0.7);">
+        © 2024 ZimSmart Credit. All rights reserved. | Member of Zimbabwe Banking Association
+    </p>
+</div>
+""", unsafe_allow_html=True)
