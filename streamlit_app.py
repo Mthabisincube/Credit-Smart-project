@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -76,6 +75,15 @@ st.markdown("""
         border-radius: 10px;
         text-align: center;
         margin-bottom: 1rem;
+    }
+    
+    .feature-importance-bar {
+        background: linear-gradient(90deg, #3498db var(--importance), #f8f9fa var(--importance));
+        padding: 0.5rem;
+        margin: 0.2rem 0;
+        border-radius: 4px;
+        color: #2c3e50;
+        font-weight: 500;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -170,26 +178,57 @@ def display_data_simulation():
             st.subheader("📋 Generated Data Preview")
             st.dataframe(df.head(10), use_container_width=True)
             
-            # Data distribution visualizations
+            # Data distribution visualizations using Streamlit native charts
             col1, col2 = st.columns(2)
             
             with col1:
                 st.markdown("#### Credit Score Distribution")
-                fig, ax = plt.subplots(figsize=(8, 4))
-                df['Credit_Score'].value_counts().plot(kind='bar', ax=ax, color=['#2ecc71', '#f39c12', '#e74c3c'])
-                ax.set_title('Distribution of Credit Scores')
-                ax.set_xlabel('Credit Score')
-                ax.set_ylabel('Count')
-                st.pyplot(fig)
+                score_counts = df['Credit_Score'].value_counts()
+                st.bar_chart(score_counts)
+                
+                # Show distribution table
+                dist_df = pd.DataFrame({
+                    'Credit Score': score_counts.index,
+                    'Count': score_counts.values,
+                    'Percentage': (score_counts.values / len(df) * 100).round(1)
+                })
+                st.dataframe(dist_df, use_container_width=True, hide_index=True)
             
             with col2:
                 st.markdown("#### Mobile Money Transactions")
-                fig, ax = plt.subplots(figsize=(8, 4))
-                ax.hist(df['Mobile_Money_Txns'], bins=20, alpha=0.7, color='#3498db')
-                ax.set_title('Distribution of Mobile Money Transactions')
-                ax.set_xlabel('Number of Transactions')
-                ax.set_ylabel('Frequency')
-                st.pyplot(fig)
+                # Create histogram using bar chart
+                hist_data = pd.cut(df['Mobile_Money_Txns'], bins=20).value_counts().sort_index()
+                st.bar_chart(hist_data)
+                
+                # Show statistics
+                st.markdown("**Transaction Statistics:**")
+                stats_data = {
+                    'Metric': ['Mean', 'Median', 'Std Dev', 'Min', 'Max'],
+                    'Value': [
+                        f"{df['Mobile_Money_Txns'].mean():.1f}",
+                        f"{df['Mobile_Money_Txns'].median():.1f}",
+                        f"{df['Mobile_Money_Txns'].std():.1f}",
+                        f"{df['Mobile_Money_Txns'].min():.1f}",
+                        f"{df['Mobile_Money_Txns'].max():.1f}"
+                    ]
+                }
+                stats_df = pd.DataFrame(stats_data)
+                st.dataframe(stats_df, use_container_width=True, hide_index=True)
+            
+            # Additional visualizations
+            st.markdown("#### 📈 Financial Behavior Patterns")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("##### Airtime Spending by Location")
+                location_airtime = df.groupby('Location')['Airtime_Spend_ZWL'].mean().sort_values(ascending=False)
+                st.bar_chart(location_airtime)
+            
+            with col2:
+                st.markdown("##### Utility Payments Distribution")
+                utility_bins = pd.cut(df['Utility_Payments_ZWL'], bins=10).value_counts().sort_index()
+                st.bar_chart(utility_bins)
             
             # Save dataset for later use
             st.session_state.synthetic_data = df
@@ -276,29 +315,48 @@ def display_model_training():
             with col4:
                 st.metric("Features Used", len(feature_selection))
             
-            # Feature importance
+            # Feature importance using Streamlit native charts
             st.subheader("🔍 Feature Importance")
             feature_importance = pd.DataFrame({
                 'Feature': feature_selection,
                 'Importance': model.feature_importances_
-            }).sort_values('Importance', ascending=False)
+            }).sort_values('Importance', ascending=True)  # Sort for horizontal bar chart
             
-            fig, ax = plt.subplots(figsize=(10, 6))
-            sns.barplot(data=feature_importance, x='Importance', y='Feature', ax=ax, palette='viridis')
-            ax.set_title('Feature Importance in Credit Scoring Model')
-            st.pyplot(fig)
+            # Display as bar chart
+            importance_chart_data = feature_importance.set_index('Feature')['Importance']
+            st.bar_chart(importance_chart_data)
             
-            # Confusion Matrix
-            st.subheader("📊 Confusion Matrix")
-            fig, ax = plt.subplots(figsize=(6, 4))
+            # Display feature importance as table with visual bars
+            st.markdown("#### Feature Importance Ranking")
+            for _, row in feature_importance.sort_values('Importance', ascending=False).iterrows():
+                importance_percent = row['Importance'] * 100
+                st.markdown(
+                    f"""
+                    <div class="feature-importance-bar" style="--importance: {importance_percent}%">
+                        {row['Feature']}: {importance_percent:.1f}%
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+            
+            # Confusion Matrix using Streamlit
+            st.subheader("📊 Model Performance Details")
+            
+            # Classification report
+            st.markdown("##### Classification Report")
+            report = classification_report(y_test, y_pred, target_names=target_encoder.classes_, output_dict=True)
+            report_df = pd.DataFrame(report).transpose()
+            st.dataframe(report_df, use_container_width=True)
+            
+            # Confusion matrix as table
+            st.markdown("##### Confusion Matrix")
             cm = confusion_matrix(y_test, y_pred)
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
-                       xticklabels=target_encoder.classes_,
-                       yticklabels=target_encoder.classes_)
-            ax.set_xlabel('Predicted')
-            ax.set_ylabel('Actual')
-            ax.set_title('Confusion Matrix')
-            st.pyplot(fig)
+            cm_df = pd.DataFrame(
+                cm,
+                index=[f'Actual {cls}' for cls in target_encoder.classes_],
+                columns=[f'Predicted {cls}' for cls in target_encoder.classes_]
+            )
+            st.dataframe(cm_df, use_container_width=True)
             
             # Save model and encoders
             st.session_state.model = model
@@ -374,11 +432,20 @@ def display_credit_assessment():
             col1, col2 = st.columns(2)
             
             with col1:
+                # Determine color based on credit score
+                score_colors = {
+                    'Excellent': '#2ecc71',
+                    'Good': '#27ae60', 
+                    'Fair': '#f39c12',
+                    'Poor': '#e74c3c'
+                }
+                color = score_colors.get(predicted_class, '#3498db')
+                
                 st.markdown(f"""
                 <div class="result-card">
                     <h3>Predicted Credit Score</h3>
-                    <h1 style="text-align: center; color: #2ecc71;">{predicted_class}</h1>
-                    <p style="text-align: center;">Confidence: {confidence:.1f}%</p>
+                    <h1 style="text-align: center; color: {color}; font-size: 3rem;">{predicted_class}</h1>
+                    <p style="text-align: center; font-size: 1.2rem;">Confidence: {confidence:.1f}%</p>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -389,12 +456,12 @@ def display_credit_assessment():
                     'Probability (%)': (prediction_proba[0] * 100).round(2)
                 }).sort_values('Probability (%)', ascending=False)
                 
-                fig, ax = plt.subplots(figsize=(8, 4))
-                colors = ['#2ecc71' if x == predicted_class else '#3498db' for x in prob_df['Credit Score']]
-                sns.barplot(data=prob_df, x='Credit Score', y='Probability (%)', ax=ax, palette=colors)
-                ax.set_title('Credit Score Probabilities')
-                ax.set_ylim(0, 100)
-                st.pyplot(fig)
+                # Display as bar chart
+                prob_chart_data = prob_df.set_index('Credit Score')['Probability (%)']
+                st.bar_chart(prob_chart_data)
+                
+                # Display as table
+                st.dataframe(prob_df, use_container_width=True, hide_index=True)
             
             # Financial Inclusion Impact
             st.markdown("#### 🌍 Financial Inclusion Impact")
@@ -405,14 +472,33 @@ def display_credit_assessment():
                 
                 This individual demonstrates strong financial behavior patterns through alternative data.
                 Recommended for credit facility consideration, promoting financial inclusion for the unbanked population.
+                
+                **Recommended Actions:**
+                - Consider for micro-loan approval
+                - Eligible for higher credit limits  
+                - Fast-track application process
                 """)
             else:
                 st.info("""
                 📋 **Opportunities for Financial Inclusion**
                 
                 While current credit assessment shows room for improvement, continued positive financial behaviors
-                can lead to improved creditworthiness. Consider micro-loan products or financial literacy programs.
+                can lead to improved creditworthiness. 
+                
+                **Recommendations:**
+                - Consider starter micro-loan products
+                - Financial literacy programs
+                - Graduated credit access based on behavior
+                - Regular monitoring for improvement
                 """)
+            
+            # Show input summary
+            st.markdown("#### 📋 Assessment Input Summary")
+            input_summary = pd.DataFrame({
+                'Feature': ['Location', 'Gender', 'Age', 'Mobile Transactions', 'Airtime Spend', 'Utility Payments', 'Repayment History'],
+                'Value': [Location, Gender, f"{Age} years", f"{Mobile_Money_Txns}", f"ZWL {Airtime_Spend_ZWL}", f"ZWL {Utility_Payments_ZWL}", Loan_Repayment_History]
+            })
+            st.dataframe(input_summary, use_container_width=True, hide_index=True)
 
 def display_research_insights():
     st.markdown("""
@@ -432,6 +518,7 @@ def display_research_insights():
             <h4>✅ Objective 1: Data Simulation</h4>
             <p><strong>Success:</strong> Synthetic dataset generation representing Zimbabwe's unbanked population</p>
             <p><strong>Features:</strong> Mobile money, airtime spend, utility payments, repayment history</p>
+            <p><strong>Impact:</strong> Realistic alternative data for credit assessment</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -440,6 +527,7 @@ def display_research_insights():
             <h4>✅ Objective 2: Model Training</h4>
             <p><strong>Success:</strong> Random Forest classifier trained on alternative data</p>
             <p><strong>Performance:</strong> High accuracy in creditworthiness prediction</p>
+            <p><strong>Innovation:</strong> Machine learning for financial inclusion</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -448,6 +536,7 @@ def display_research_insights():
             <h4>✅ Objective 3: User Interface</h4>
             <p><strong>Success:</strong> Interactive credit assessment platform</p>
             <p><strong>Impact:</strong> Accessible financial inclusion tool</p>
+            <p><strong>Usability:</strong> User-friendly interface for non-technical users</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -457,18 +546,20 @@ def display_research_insights():
         st.markdown("""
         <div class="data-card">
             <h4>🎓 Theoretical Framework</h4>
-            <p>• Alternative data for credit scoring</p>
-            <p>• Machine learning in financial inclusion</p>
-            <p>• Zimbabwe-specific financial behaviors</p>
+            <p>• Alternative data sources for credit scoring</p>
+            <p>• Machine learning applications in financial inclusion</p>
+            <p>• Zimbabwe-specific financial behavior analysis</p>
+            <p>• Ethical AI implementation in emerging markets</p>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("""
         <div class="data-card">
             <h4>🌍 Practical Implications</h4>
-            <p>• Tool for microfinance institutions</p>
+            <p>• Tool for microfinance institutions and banks</p>
             <p>• Financial inclusion for unbanked populations</p>
             <p>• Risk assessment using mobile money data</p>
+            <p>• Scalable solution for emerging markets</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -478,8 +569,50 @@ def display_research_insights():
             <p>• Synthetic data generation techniques</p>
             <p>• Feature engineering for alternative data</p>
             <p>• Model evaluation in emerging markets context</p>
+            <p>• User-centered interface design</p>
         </div>
         """, unsafe_allow_html=True)
+    
+    # Key Findings Summary
+    st.markdown("---")
+    st.subheader("🔍 Key Research Findings")
+    
+    findings_col1, findings_col2 = st.columns(2)
+    
+    with findings_col1:
+        st.markdown("""
+        **📊 Data Insights:**
+        - Mobile money transactions strongly correlate with creditworthiness
+        - Utility payment consistency is a reliable predictor
+        - Airtime spending patterns reveal financial discipline
+        - Behavioral data provides rich insights for risk assessment
+        """)
+        
+        st.markdown("""
+        **🤖 Model Performance:**
+        - Random Forest effectively handles alternative data
+        - Feature importance reveals key behavioral indicators
+        - Model adapts well to Zimbabwe's financial context
+        - High accuracy in credit classification
+        """)
+    
+    with findings_col2:
+        st.markdown("""
+        **🌍 Social Impact:**
+        - Bridges financial inclusion gap for unbanked populations
+        - Enables credit access based on actual financial behavior
+        - Supports micro-entrepreneurs and small businesses
+        - Promotes economic empowerment through technology
+        """)
+        
+        st.markdown("""
+        **🚀 Future Research Directions:**
+        - Integration with real mobile money APIs
+        - Longitudinal behavior tracking
+        - Multi-country model adaptation
+        - Regulatory framework development
+        - Ethical AI governance models
+        """)
 
 def generate_synthetic_data(n_samples=1000, locations=None):
     """Generate synthetic financial behavior data for Zimbabwe"""
