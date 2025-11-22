@@ -1,4 +1,4 @@
-from the code below , can make it very beautiful , ad a background image that fits the descriptions of the project and remove balloons    import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -14,11 +14,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for beautiful styling
+# Custom CSS for beautiful styling with background image
 st.markdown("""
 <style>
+    .stApp {
+        background-image: linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)), 
+                          url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1911&q=80');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+    }
+    
     .main-header {
-        font-size: 3rem;
+        font-size: 3.5rem;
         color: #1f77b4;
         text-align: center;
         margin-bottom: 1rem;
@@ -26,29 +35,42 @@ st.markdown("""
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        padding: 1rem;
     }
+    
     .sub-header {
         font-size: 1.5rem;
         color: #2e86ab;
         margin-bottom: 1rem;
         font-weight: 600;
+        text-align: center;
     }
+    
     .card {
-        background-color: #f8f9fa;
+        background-color: rgba(248, 249, 250, 0.95);
         padding: 1.5rem;
         border-radius: 15px;
         border-left: 5px solid #1f77b4;
         margin-bottom: 1rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        backdrop-filter: blur(5px);
     }
+    
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 1.5rem;
         border-radius: 15px;
         text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        transition: transform 0.3s ease;
     }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
     .sidebar-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -56,54 +78,93 @@ st.markdown("""
         border-radius: 15px;
         text-align: center;
         margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
+    
     .feature-box {
-        background-color: #e8f4fd;
+        background-color: rgba(232, 244, 253, 0.9);
         padding: 1rem;
         border-radius: 10px;
         margin: 0.5rem 0;
         border: 2px solid #b8d4f0;
+        transition: all 0.3s ease;
     }
+    
+    .feature-box:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
     .success-box {
-        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
         border: 2px solid #28a745;
         border-radius: 15px;
         padding: 1.5rem;
         margin: 1rem 0;
         color: #155724;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
+    
     .warning-box {
-        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        background: linear-gradient(135deg, rgba(255, 243, 205, 0.95) 0%, rgba(255, 234, 167, 0.95) 100%);
         border: 2px solid #ffc107;
         border-radius: 15px;
         padding: 1.5rem;
         margin: 1rem 0;
         color: #856404;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
+    
     .danger-box {
-        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        background: linear-gradient(135deg, rgba(248, 215, 218, 0.95) 0%, rgba(245, 198, 203, 0.95) 100%);
         border: 2px solid #dc3545;
         border-radius: 15px;
         padding: 1.5rem;
         margin: 1rem 0;
         color: #721c24;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
+    
     .stProgress > div > div > div > div {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
+    
     .input-card {
-        background-color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.95);
         padding: 1rem;
         border-radius: 10px;
         border: 2px solid #e9ecef;
         margin: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .tab-content {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .glowing-text {
+        text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+    }
+    
+    .assessment-highlight {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Header Section
-st.markdown('<h1 class="main-header"> Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data")
+st.markdown('<h1 class="main-header glowing-text">🏦 Zim Smart Credit App</h1>', unsafe_allow_html=True)
+st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data in Zimbabwe")
 st.markdown("---")
 
 # Load data with caching
@@ -175,6 +236,7 @@ with st.sidebar:
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model"])
 
 with tab1:
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
     st.markdown("### 📈 Dataset Overview")
     
     # Beautiful metric cards
@@ -224,8 +286,10 @@ with tab1:
             st.write("**Target (Y):**")
             Y = df["Credit_Score"]
             st.dataframe(Y.head(8), use_container_width=True, height=150)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with tab2:
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
     st.markdown("### 🔍 Data Analysis & Insights")
     
     analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📊 Distributions", "📈 Statistics", "🌍 Geographic"])
@@ -293,8 +357,10 @@ with tab2:
             'Credit_Score': lambda x: (x == 'Good').mean()  # Example metric
         }).round(3)
         st.dataframe(location_stats, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with tab3:
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
     st.markdown("### 🎯 Credit Assessment Results")
     
     # Input summary in beautiful cards
@@ -369,9 +435,8 @@ with tab3:
         st.markdown(f"### {percentage:.1f}%")
         st.progress(percentage / 100)
         
-        # Score interpretation
+        # Score interpretation (balloons removed)
         if score >= 5:
-            st.balloons()
             st.success("🎉 Excellent Score!")
         elif score >= 3:
             st.info("📊 Good Score")
@@ -404,8 +469,10 @@ with tab3:
                 <p><strong>Risk Level:</strong> High</p>
             </div>
             """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with tab4:
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
     st.markdown("### 🤖 AI-Powered Credit Scoring")
     
     st.markdown("""
@@ -527,3 +594,4 @@ with tab4:
                 
             except Exception as e:
                 st.error(f"❌ Error training model: {str(e)}")
+    st.markdown('</div>', unsafe_allow_html=True)
