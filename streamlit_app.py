@@ -1,519 +1,546 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import warnings
+warnings.filterwarnings('ignore')
 
-# Page configuration with FNB theme
+# Page configuration
 st.set_page_config(
-    page_title="FNB Smart Credit - Corporate Banking",
+    page_title="Smart Credit Scoring for Financial Inclusion",
     page_icon="🏦",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for FNB banking theme
+# Custom CSS for professional academic styling
 st.markdown("""
 <style>
     .stApp {
-        background: #ffffff;
-        color: #333333;
+        background: #f8f9fa;
         font-family: 'Arial', sans-serif;
     }
     
-    /* FNB Header */
-    .fnb-header {
-        background: linear-gradient(90deg, #000000 0%, #8B0000 100%);
-        padding: 1.5rem 2rem;
-        border-bottom: 4px solid #FF0000;
-        margin-bottom: 1rem;
-    }
-    
-    .main-header {
-        font-size: 2.2rem;
-        color: #ffffff;
-        text-align: center;
-        font-weight: 700;
-        margin: 0;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-    }
-    
-    .sub-header {
-        font-size: 1rem;
-        color: #FFD700;
-        text-align: center;
-        font-weight: 300;
-        margin: 0;
-        letter-spacing: 1px;
-    }
-    
-    /* FNB Navigation Bar */
-    .fnb-nav {
-        background: #8B0000;
-        padding: 1rem 2rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* Main Content Container */
-    .main-container {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 2rem;
-        margin: 1rem 0;
-        color: #333333;
-        border: 1px solid #ddd;
-    }
-    
-    /* FNB Assessment Widget */
-    .fnb-assessment {
-        background: linear-gradient(135deg, #8B0000 0%, #000000 100%);
+    .academic-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
         color: white;
         padding: 2rem;
         border-radius: 10px;
-        margin: 1rem 0;
-        border-left: 5px solid #FF0000;
-        box-shadow: 0 4px 8px rgba(139, 0, 0, 0.3);
+        margin-bottom: 2rem;
+        border-left: 5px solid #e74c3c;
     }
     
-    /* FNB Metric Cards */
-    .fnb-metric {
-        background: linear-gradient(135deg, #8B0000 0%, #A52A2A 100%);
-        color: white;
+    .objective-card {
+        background: white;
         padding: 1.5rem;
-        border-radius: 8px;
-        text-align: center;
-        border: 2px solid #FF0000;
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
-    }
-    
-    /* Form Styling */
-    .fnb-form {
-        background: #ffffff;
-        padding: 1.5rem;
-        border-radius: 8px;
+        border-radius: 10px;
         margin: 1rem 0;
-        border-left: 4px solid #8B0000;
+        border-left: 4px solid #3498db;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    /* Result Cards */
-    .fnb-excellent {
-        background: linear-gradient(135deg, #006400 0%, #228B22 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 8px;
-        border-left: 5px solid #FFD700;
-    }
-    
-    .fnb-moderate {
-        background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 8px;
-        border-left: 5px solid #FF8C00;
-    }
-    
-    .fnb-poor {
-        background: linear-gradient(135deg, #8B0000 0%, #B22222 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 8px;
-        border-left: 5px solid #FF0000;
-    }
-    
-    /* FNB Footer */
-    .fnb-footer {
-        background: linear-gradient(90deg, #000000 0%, #8B0000 100%);
-        padding: 2rem;
-        border-radius: 8px;
-        margin-top: 3rem;
-        text-align: center;
-        border-top: 3px solid #FF0000;
-    }
-    
-    /* FNB Button Styling */
-    .stButton>button {
-        background: linear-gradient(135deg, #8B0000 0%, #FF0000 100%);
-        color: white;
-        border: none;
-        padding: 0.75rem 2rem;
-        border-radius: 25px;
-        font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(139, 0, 0, 0.3);
-    }
-    
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(139, 0, 0, 0.4);
-        background: linear-gradient(135deg, #FF0000 0%, #8B0000 100%);
-    }
-    
-    /* Progress Bar */
-    .stProgress > div > div > div > div {
-        background: linear-gradient(135deg, #8B0000 0%, #FF0000 100%);
-    }
-    
-    /* Slider Styling */
-    .stSlider {
-        color: #8B0000;
-    }
-    
-    /* Selectbox Styling */
-    .stSelectbox {
-        color: #8B0000;
-    }
-    
-    /* Navigation Links */
-    .nav-link {
-        color: #ffffff !important;
-        text-decoration: none;
-        font-weight: 600;
-        padding: 0.5rem 1rem;
-        border-radius: 5px;
-        transition: all 0.3s ease;
-    }
-    
-    .nav-link:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #FFD700 !important;
-    }
-    
-    /* FNB Gold Accent */
-    .gold-text {
-        color: #FFD700;
-        font-weight: 600;
-    }
-    
-    /* Corporate Metrics */
-    .corporate-stats {
-        background: #ffffff;
-        border: 2px solid #8B0000;
-        border-radius: 8px;
+    .data-card {
+        background: #e8f4f8;
         padding: 1rem;
+        border-radius: 8px;
         margin: 0.5rem 0;
+        border: 1px solid #b8d4f0;
+    }
+    
+    .result-card {
+        background: #2c3e50;
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+    }
+    
+    .metric-box {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+        margin: 0.5rem;
+    }
+    
+    .university-colors {
+        background: linear-gradient(135deg, #8B0000 0%, #FF0000 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Load data with caching
-@st.cache_data
-def load_data():
-    return pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
-
-df = load_data()
-
-# FNB Corporate Header
-st.markdown("""
-<div class="fnb-header">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-        <div style="flex: 1;">
-            <h1 class="main-header">🏦 FNB Smart Credit</h1>
-            <p class="sub-header">Corporate & Business Banking Solutions</p>
-        </div>
-        <div style="text-align: right;">
-            <p style="margin: 0; color: #FFD700; font-weight: 600; font-size: 1.1rem;">Zimbabwe 🇿🇼</p>
-            <p style="margin: 0; font-size: 0.9rem; color: #ffffff;">Digital Banking Excellence</p>
-        </div>
+def main():
+    # Academic Header
+    st.markdown("""
+    <div class="academic-header">
+        <h1 style="margin:0; text-align:center;">Smart Credit Scoring for Financial Inclusion in Zimbabwe</h1>
+        <p style="margin:0; text-align:center; font-size:1.2rem;">
+            Using Alternative Data and Machine Learning
+        </p>
+        <p style="margin:0; text-align:center; font-size:1rem;">
+            National University of Science and Technology • Department of Informatics
+        </p>
     </div>
-</div>
-""", unsafe_allow_html=True)
-
-# FNB Navigation Bar
-st.markdown("""
-<div class="fnb-nav">
-    <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap;">
-        <a href="#assessment" class="nav-link" style="background: rgba(255,255,255,0.1);">Credit Assessment</a>
-        <a href="#analytics" class="nav-link">Business Analytics</a>
-        <a href="#loans" class="nav-link">Loan Products</a>
-        <a href="#reports" class="nav-link">Financial Reports</a>
-        <a href="#support" class="nav-link">Client Support</a>
-        <a href="#locations" class="nav-link">Branch Locator</a>
+    """, unsafe_allow_html=True)
+    
+    # Research Objectives Overview
+    st.markdown("""
+    <div class="university-colors">
+        <h3 style="margin:0;">Research Objectives</h3>
+        <p style="margin:0.5rem 0 0 0;">
+            1. Simulate alternative financial behavior data • 2. Train ML model for creditworthiness • 3. Predict scores with user interface
+        </p>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+    
+    # Create tabs for each objective
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📊 Objective 1: Data Simulation", 
+        "🤖 Objective 2: Model Training", 
+        "🎯 Objective 3: Credit Assessment",
+        "📈 Research Insights"
+    ])
 
-# Main Content Container
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
+    with tab1:
+        display_data_simulation()
+    
+    with tab2:
+        display_model_training()
+    
+    with tab3:
+        display_credit_assessment()
+    
+    with tab4:
+        display_research_insights()
 
-# Credit Assessment as First Widget - FNB Style
-st.markdown("""
-<div class="fnb-assessment">
-    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
-        <div style="flex: 1;">
-            <h2 style="color: white; margin: 0; font-size: 1.8rem;">🔍 FNB Instant Credit Assessment</h2>
-            <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">Complete your business credit profile assessment in minutes</p>
-        </div>
-        <div style="background: #FF0000; padding: 0.5rem 1rem; border-radius: 20px;">
-            <span style="color: white; font-weight: 600;">BUSINESS BANKING</span>
-        </div>
+def display_data_simulation():
+    st.markdown("""
+    <div class="objective-card">
+        <h3>📊 Objective 1: Simulate Alternative Financial Behavior Data</h3>
+        <p>Generate synthetic mobile money transactions and behavioral patterns representing Zimbabwe's unbanked population.</p>
     </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Two-column layout for the assessment form
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.markdown("### 📋 Business Information")
+    """, unsafe_allow_html=True)
     
-    with st.container():
-        st.markdown('<div class="fnb-form">', unsafe_allow_html=True)
-        col1a, col1b = st.columns(2)
-        with col1a:
-            Location = st.selectbox(
-                "📍 Business Location", 
-                sorted(df['Location'].unique()),
-                key="location"
-            )
-        with col1b:
-            gender = st.selectbox(
-                "👤 Primary Contact", 
-                sorted(df['Gender'].unique()),
-                key="gender"
-            )
-        
-        Age = st.slider(
-            "🎂 Business Owner Age", 
-            int(df['Age'].min()), 
-            int(df['Age'].max()), 
-            int(df['Age'].mean()),
-            key="age"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-with col2:
-    st.markdown("### 💰 Financial Profile")
+    # Data generation parameters
+    col1, col2 = st.columns(2)
     
-    with st.container():
-        st.markdown('<div class="fnb-form">', unsafe_allow_html=True)
-        Mobile_Money_Txns = st.slider(
-            "📱 Monthly Mobile Transactions", 
-            float(df['Mobile_Money_Txns'].min()), 
-            float(df['Mobile_Money_Txns'].max()), 
-            float(df['Mobile_Money_Txns'].mean()),
-            key="mobile"
-        )
-        
-        Airtime_Spend_ZWL = st.slider(
-            "📞 Monthly Airtime Spend (ZWL)", 
-            float(df['Airtime_Spend_ZWL'].min()), 
-            float(df['Airtime_Spend_ZWL'].max()), 
-            float(df['Airtime_Spend_ZWL'].mean()),
-            key="airtime"
-        )
-        
-        Utility_Payments_ZWL = st.slider(
-            "💡 Monthly Utility Payments (ZWL)", 
-            float(df['Utility_Payments_ZWL'].min()), 
-            float(df['Utility_Payments_ZWL'].max()), 
-            float(df['Utility_Payments_ZWL'].mean()),
-            key="utility"
-        )
-        
-        Loan_Repayment_History = st.selectbox(
-            "📊 Previous Loan History", 
-            sorted(df['Loan_Repayment_History'].unique()),
-            key="repayment"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# Assessment Button - FNB Style
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    assess_button = st.button("🚀 **PROCEED WITH CREDIT ASSESSMENT**", use_container_width=True)
-
-# Assessment Results
-if assess_button:
-    st.markdown("---")
-    st.markdown("## 📊 FNB Credit Assessment Results")
-    
-    # Calculate score
-    score = 0
-    max_score = 6
-    
-    # Age scoring
-    if 30 <= Age <= 50:
-        score += 2
-    elif 25 <= Age < 30 or 50 < Age <= 60:
-        score += 1
-    
-    # Transaction activity scoring
-    mobile_median = df['Mobile_Money_Txns'].median()
-    if Mobile_Money_Txns > mobile_median:
-        score += 1
-    
-    # Repayment history scoring
-    repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-    score += repayment_scores[Loan_Repayment_History]
-    
-    percentage = (score / max_score) * 100
-    
-    # Display FNB metrics
-    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(f"""
-        <div class="fnb-metric">
-            <h4>FNB Credit Score</h4>
-            <h2>{score}/{max_score}</h2>
+        st.subheader("Data Generation Parameters")
+        sample_size = st.slider("Sample Size", 100, 5000, 1000)
+        locations = st.multiselect(
+            "Locations",
+            ["Harare", "Bulawayo", "Gweru", "Mutare", "Masvingo", "Chinhoyi"],
+            default=["Harare", "Bulawayo", "Gweru"]
+        )
+    
+    with col2:
+        st.subheader("Behavioral Features")
+        include_mobile_money = st.checkbox("Mobile Money Transactions", True)
+        include_airtime = st.checkbox("Airtime Spending", True)
+        include_utilities = st.checkbox("Utility Payments", True)
+        include_repayment = st.checkbox("Loan Repayment History", True)
+    
+    if st.button("🔄 Generate Synthetic Dataset", use_container_width=True):
+        with st.spinner("Generating synthetic financial behavior data..."):
+            df = generate_synthetic_data(sample_size, locations)
+            
+            st.success(f"✅ Successfully generated {len(df)} synthetic records")
+            
+            # Display dataset overview
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Records", len(df))
+            with col2:
+                st.metric("Features", len(df.columns))
+            with col3:
+                st.metric("Credit Classes", df['Credit_Score'].nunique())
+            
+            # Show data preview
+            st.subheader("📋 Generated Data Preview")
+            st.dataframe(df.head(10), use_container_width=True)
+            
+            # Data distribution visualizations
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### Credit Score Distribution")
+                fig, ax = plt.subplots(figsize=(8, 4))
+                df['Credit_Score'].value_counts().plot(kind='bar', ax=ax, color=['#2ecc71', '#f39c12', '#e74c3c'])
+                ax.set_title('Distribution of Credit Scores')
+                ax.set_xlabel('Credit Score')
+                ax.set_ylabel('Count')
+                st.pyplot(fig)
+            
+            with col2:
+                st.markdown("#### Mobile Money Transactions")
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.hist(df['Mobile_Money_Txns'], bins=20, alpha=0.7, color='#3498db')
+                ax.set_title('Distribution of Mobile Money Transactions')
+                ax.set_xlabel('Number of Transactions')
+                ax.set_ylabel('Frequency')
+                st.pyplot(fig)
+            
+            # Save dataset for later use
+            st.session_state.synthetic_data = df
+            st.session_state.data_generated = True
+
+def display_model_training():
+    st.markdown("""
+    <div class="objective-card">
+        <h3>🤖 Objective 2: Train Machine Learning Model</h3>
+        <p>Develop and train predictive models using alternative data features to assess creditworthiness.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if 'data_generated' not in st.session_state:
+        st.warning("⚠️ Please generate synthetic data first in Objective 1 tab.")
+        return
+    
+    df = st.session_state.synthetic_data
+    
+    # Model configuration
+    st.subheader("Model Configuration")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        test_size = st.slider("Test Set Size (%)", 10, 40, 20)
+        n_estimators = st.slider("Number of Trees", 50, 200, 100)
+    
+    with col2:
+        max_depth = st.slider("Max Depth", 3, 20, 10)
+        random_state = st.number_input("Random State", 0, 100, 42)
+    
+    with col3:
+        feature_selection = st.multiselect(
+            "Select Features for Model",
+            df.columns.tolist()[:-1],  # Exclude target
+            default=df.columns.tolist()[:-1]
+        )
+    
+    if st.button("🚀 Train Machine Learning Model", use_container_width=True):
+        with st.spinner("Training Random Forest model..."):
+            # Prepare data
+            X = df[feature_selection]
+            y = df['Credit_Score']
+            
+            # Encode categorical variables
+            label_encoders = {}
+            for column in X.select_dtypes(include=['object']).columns:
+                le = LabelEncoder()
+                X[column] = le.fit_transform(X[column])
+                label_encoders[column] = le
+            
+            # Encode target
+            target_encoder = LabelEncoder()
+            y_encoded = target_encoder.fit_transform(y)
+            
+            # Split data
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y_encoded, test_size=test_size/100, random_state=random_state, stratify=y_encoded
+            )
+            
+            # Train model
+            model = RandomForestClassifier(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                random_state=random_state
+            )
+            model.fit(X_train, y_train)
+            
+            # Make predictions
+            y_pred = model.predict(X_test)
+            accuracy = accuracy_score(y_test, y_pred)
+            
+            st.success("✅ Model trained successfully!")
+            
+            # Display performance metrics
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Accuracy", f"{accuracy:.2%}")
+            with col2:
+                st.metric("Training Samples", len(X_train))
+            with col3:
+                st.metric("Test Samples", len(X_test))
+            with col4:
+                st.metric("Features Used", len(feature_selection))
+            
+            # Feature importance
+            st.subheader("🔍 Feature Importance")
+            feature_importance = pd.DataFrame({
+                'Feature': feature_selection,
+                'Importance': model.feature_importances_
+            }).sort_values('Importance', ascending=False)
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            sns.barplot(data=feature_importance, x='Importance', y='Feature', ax=ax, palette='viridis')
+            ax.set_title('Feature Importance in Credit Scoring Model')
+            st.pyplot(fig)
+            
+            # Confusion Matrix
+            st.subheader("📊 Confusion Matrix")
+            fig, ax = plt.subplots(figsize=(6, 4))
+            cm = confusion_matrix(y_test, y_pred)
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
+                       xticklabels=target_encoder.classes_,
+                       yticklabels=target_encoder.classes_)
+            ax.set_xlabel('Predicted')
+            ax.set_ylabel('Actual')
+            ax.set_title('Confusion Matrix')
+            st.pyplot(fig)
+            
+            # Save model and encoders
+            st.session_state.model = model
+            st.session_state.label_encoders = label_encoders
+            st.session_state.target_encoder = target_encoder
+            st.session_state.feature_selection = feature_selection
+            st.session_state.model_trained = True
+
+def display_credit_assessment():
+    st.markdown("""
+    <div class="objective-card">
+        <h3>🎯 Objective 3: Predict Individual Credit Scores</h3>
+        <p>User-friendly interface for credit assessment using the trained machine learning model.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if 'model_trained' not in st.session_state:
+        st.warning("⚠️ Please train the machine learning model first in Objective 2 tab.")
+        return
+    
+    st.subheader("📝 Credit Assessment Form")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### Personal Information")
+        Location = st.selectbox("📍 Location", ["Harare", "Bulawayo", "Gweru", "Mutare", "Masvingo", "Chinhoyi"])
+        Gender = st.selectbox("👤 Gender", ["Male", "Female"])
+        Age = st.slider("🎂 Age", 18, 70, 35)
+    
+    with col2:
+        st.markdown("#### Financial Behavior")
+        Mobile_Money_Txns = st.slider("📱 Monthly Mobile Transactions", 0, 100, 25)
+        Airtime_Spend_ZWL = st.slider("📞 Monthly Airtime Spend (ZWL)", 0, 500, 100)
+        Utility_Payments_ZWL = st.slider("💡 Monthly Utility Payments (ZWL)", 0, 1000, 300)
+        Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", ["Poor", "Fair", "Good", "Excellent"])
+    
+    if st.button("🔮 Get Credit Assessment", use_container_width=True):
+        with st.spinner("Analyzing credit profile..."):
+            # Prepare user data
+            user_data = pd.DataFrame({
+                'Location': [Location],
+                'Gender': [Gender],
+                'Age': [Age],
+                'Mobile_Money_Txns': [Mobile_Money_Txns],
+                'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
+                'Utility_Payments_ZWL': [Utility_Payments_ZWL],
+                'Loan_Repayment_History': [Loan_Repayment_History]
+            })
+            
+            # Encode user input
+            X_user = user_data[st.session_state.feature_selection].copy()
+            for column in X_user.select_dtypes(include=['object']).columns:
+                if column in st.session_state.label_encoders:
+                    le = st.session_state.label_encoders[column]
+                    if X_user[column].iloc[0] in le.classes_:
+                        X_user[column] = le.transform(X_user[column])
+                    else:
+                        X_user[column] = -1  # Handle unseen labels
+            
+            # Predict
+            model = st.session_state.model
+            prediction_encoded = model.predict(X_user)
+            prediction_proba = model.predict_proba(X_user)
+            
+            predicted_class = st.session_state.target_encoder.inverse_transform(prediction_encoded)[0]
+            confidence = np.max(prediction_proba) * 100
+            
+            # Display results
+            st.markdown("---")
+            st.markdown("## 📊 Credit Assessment Results")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="result-card">
+                    <h3>Predicted Credit Score</h3>
+                    <h1 style="text-align: center; color: #2ecc71;">{predicted_class}</h1>
+                    <p style="text-align: center;">Confidence: {confidence:.1f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("#### 📈 Probability Distribution")
+                prob_df = pd.DataFrame({
+                    'Credit Score': st.session_state.target_encoder.classes_,
+                    'Probability (%)': (prediction_proba[0] * 100).round(2)
+                }).sort_values('Probability (%)', ascending=False)
+                
+                fig, ax = plt.subplots(figsize=(8, 4))
+                colors = ['#2ecc71' if x == predicted_class else '#3498db' for x in prob_df['Credit Score']]
+                sns.barplot(data=prob_df, x='Credit Score', y='Probability (%)', ax=ax, palette=colors)
+                ax.set_title('Credit Score Probabilities')
+                ax.set_ylim(0, 100)
+                st.pyplot(fig)
+            
+            # Financial Inclusion Impact
+            st.markdown("#### 🌍 Financial Inclusion Impact")
+            
+            if predicted_class in ['Good', 'Excellent']:
+                st.success("""
+                ✅ **Credit-Worthy Profile Detected**
+                
+                This individual demonstrates strong financial behavior patterns through alternative data.
+                Recommended for credit facility consideration, promoting financial inclusion for the unbanked population.
+                """)
+            else:
+                st.info("""
+                📋 **Opportunities for Financial Inclusion**
+                
+                While current credit assessment shows room for improvement, continued positive financial behaviors
+                can lead to improved creditworthiness. Consider micro-loan products or financial literacy programs.
+                """)
+
+def display_research_insights():
+    st.markdown("""
+    <div class="objective-card">
+        <h3>📈 Research Insights & Academic Contributions</h3>
+        <p>Key findings and implications for financial inclusion in Zimbabwe.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🎯 Research Objectives Achieved")
+        
+        st.markdown("""
+        <div class="data-card">
+            <h4>✅ Objective 1: Data Simulation</h4>
+            <p><strong>Success:</strong> Synthetic dataset generation representing Zimbabwe's unbanked population</p>
+            <p><strong>Features:</strong> Mobile money, airtime spend, utility payments, repayment history</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="data-card">
+            <h4>✅ Objective 2: Model Training</h4>
+            <p><strong>Success:</strong> Random Forest classifier trained on alternative data</p>
+            <p><strong>Performance:</strong> High accuracy in creditworthiness prediction</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="data-card">
+            <h4>✅ Objective 3: User Interface</h4>
+            <p><strong>Success:</strong> Interactive credit assessment platform</p>
+            <p><strong>Impact:</strong> Accessible financial inclusion tool</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown(f"""
-        <div class="fnb-metric">
-            <h4>Approval Probability</h4>
-            <h2>{percentage:.1f}%</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        risk_level = "Low" if score >= 5 else "Medium" if score >= 3 else "High"
-        risk_color = "#228B22" if score >= 5 else "#DAA520" if score >= 3 else "#B22222"
-        st.markdown(f"""
-        <div class="fnb-metric">
-            <h4>Risk Category</h4>
-            <h2 style="color: {risk_color};">{risk_level}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        status = "Approved" if score >= 4 else "Under Review" if score >= 2 else "Referred"
-        status_color = "#228B22" if score >= 4 else "#DAA520" if score >= 2 else "#B22222"
-        st.markdown(f"""
-        <div class="fnb-metric">
-            <h4>Application Status</h4>
-            <h2 style="color: {status_color};">{status}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Progress bar
-    st.markdown("### 📈 Credit Score Progress")
-    st.progress(percentage / 100)
-    
-    # Final FNB recommendation
-    st.markdown("### 🎯 FNB Credit Decision")
-    
-    if score >= 5:
+        st.subheader("📚 Academic Contributions")
+        
         st.markdown("""
-        <div class="fnb-excellent">
-            <h3>✅ CREDIT APPLICATION APPROVED</h3>
-            <p><strong>FNB Recommendation:</strong> Full credit approval with preferential terms</p>
-            <p><strong>Credit Facility:</strong> Up to ZWL 75,000 revolving credit</p>
-            <p><strong>Interest Rate:</strong> Prime + 1.5% (Preferential Rate)</p>
-            <p><strong>Next Steps:</strong> Visit any FNB branch for immediate document processing</p>
-            <p style="margin-top: 1rem; font-style: italic;">🎉 Welcome to FNB Business Banking Premium</p>
+        <div class="data-card">
+            <h4>🎓 Theoretical Framework</h4>
+            <p>• Alternative data for credit scoring</p>
+            <p>• Machine learning in financial inclusion</p>
+            <p>• Zimbabwe-specific financial behaviors</p>
         </div>
         """, unsafe_allow_html=True)
-    elif score >= 3:
+        
         st.markdown("""
-        <div class="fnb-moderate">
-            <h3>⚠️ CREDIT APPLICATION APPROVED</h3>
-            <p><strong>FNB Recommendation:</strong> Standard credit approval with monitoring</p>
-            <p><strong>Credit Facility:</strong> Up to ZWL 35,000 term loan</p>
-            <p><strong>Interest Rate:</strong> Prime + 3.5% (Standard Rate)</p>
-            <p><strong>Next Steps:</strong> Additional business documentation required</p>
-            <p style="margin-top: 1rem; font-style: italic;">📞 Your relationship manager will contact you</p>
+        <div class="data-card">
+            <h4>🌍 Practical Implications</h4>
+            <p>• Tool for microfinance institutions</p>
+            <p>• Financial inclusion for unbanked populations</p>
+            <p>• Risk assessment using mobile money data</p>
         </div>
         """, unsafe_allow_html=True)
-    else:
+        
         st.markdown("""
-        <div class="fnb-poor">
-            <h3>📋 APPLICATION REQUIRES REVIEW</h3>
-            <p><strong>FNB Recommendation:</strong> Application referred for manual assessment</p>
-            <p><strong>Credit Facility:</strong> Subject to further evaluation</p>
-            <p><strong>Next Steps:</strong> Contact FNB Business Banking for personalized assistance</p>
-            <p style="margin-top: 1rem; font-style: italic;">💼 Consider our Business Starter packages</p>
+        <div class="data-card">
+            <h4>🔬 Research Methodology</h4>
+            <p>• Synthetic data generation techniques</p>
+            <p>• Feature engineering for alternative data</p>
+            <p>• Model evaluation in emerging markets context</p>
         </div>
         """, unsafe_allow_html=True)
 
-# FNB Business Analytics Section
-st.markdown("---")
-st.markdown("## 📈 FNB Business Analytics")
+def generate_synthetic_data(n_samples=1000, locations=None):
+    """Generate synthetic financial behavior data for Zimbabwe"""
+    if locations is None:
+        locations = ["Harare", "Bulawayo", "Gweru"]
+    
+    np.random.seed(42)
+    
+    data = {
+        'Location': np.random.choice(locations, n_samples),
+        'Gender': np.random.choice(['Male', 'Female'], n_samples),
+        'Age': np.random.randint(18, 65, n_samples),
+        'Mobile_Money_Txns': np.random.poisson(25, n_samples) + np.random.exponential(5, n_samples),
+        'Airtime_Spend_ZWL': np.random.normal(150, 50, n_samples).clip(0),
+        'Utility_Payments_ZWL': np.random.normal(400, 150, n_samples).clip(0),
+        'Loan_Repayment_History': np.random.choice(['Poor', 'Fair', 'Good', 'Excellent'], n_samples, p=[0.2, 0.3, 0.35, 0.15])
+    }
+    
+    df = pd.DataFrame(data)
+    
+    # Generate credit scores based on features (simplified rules)
+    def calculate_credit_score(row):
+        score = 0
+        
+        # Age factor (prime earning years)
+        if 30 <= row['Age'] <= 50:
+            score += 2
+        elif 25 <= row['Age'] < 30 or 50 < row['Age'] <= 60:
+            score += 1
+        
+        # Mobile transactions (more activity = better)
+        if row['Mobile_Money_Txns'] > 30:
+            score += 2
+        elif row['Mobile_Money_Txns'] > 15:
+            score += 1
+        
+        # Airtime spend (moderate spending = better)
+        if 100 <= row['Airtime_Spend_ZWL'] <= 200:
+            score += 1
+        
+        # Utility payments (consistent payments = better)
+        if row['Utility_Payments_ZWL'] > 300:
+            score += 1
+        
+        # Repayment history
+        repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
+        score += repayment_scores[row['Loan_Repayment_History']]
+        
+        # Determine credit score category
+        if score >= 7:
+            return 'Excellent'
+        elif score >= 5:
+            return 'Good'
+        elif score >= 3:
+            return 'Fair'
+        else:
+            return 'Poor'
+    
+    df['Credit_Score'] = df.apply(calculate_credit_score, axis=1)
+    
+    return df
 
-# Corporate metrics row
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.markdown(f"""
-    <div class="corporate-stats">
-        <h4 style="color: #8B0000; margin: 0;">Total Applications</h4>
-        <h2 style="color: #8B0000; margin: 0;">{len(df):,}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    good_ratio = (df['Credit_Score'] == 'Good').mean()
-    st.markdown(f"""
-    <div class="corporate-stats">
-        <h4 style="color: #8B0000; margin: 0;">Approval Rate</h4>
-        <h2 style="color: #8B0000; margin: 0;">{good_ratio:.1%}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    st.markdown(f"""
-    <div class="corporate-stats">
-        <h4 style="color: #8B0000; margin: 0;">Active Business Clients</h4>
-        <h2 style="color: #8B0000; margin: 0;">{(len(df) * 0.72):.0f}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col4:
-    st.markdown(f"""
-    <div class="corporate-stats">
-        <h4 style="color: #8B0000; margin: 0;">Portfolio Value</h4>
-        <h2 style="color: #8B0000; margin: 0;">ZWL {(len(df) * 25000):,}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Charts and Data
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("#### Credit Distribution")
-    score_counts = df['Credit_Score'].value_counts().sort_index()
-    st.bar_chart(score_counts)
-
-with col2:
-    st.markdown("#### Regional Performance")
-    location_counts = df['Location'].value_counts()
-    st.dataframe(location_counts, use_container_width=True)
-
-# Close main container
-st.markdown('</div>', unsafe_allow_html=True)
-
-# FNB Corporate Footer
-st.markdown("""
-<div class="fnb-footer">
-    <div style="display: flex; justify-content: space-around; align-items: start; flex-wrap: wrap; text-align: left;">
-        <div style="margin: 0 1rem 1rem 0;">
-            <h4 style="color: #FFD700; margin-bottom: 0.5rem;">FNB Business Banking</h4>
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">Corporate & Investment Division</p>
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">First National Bank Zimbabwe</p>
-        </div>
-        <div style="margin: 0 1rem 1rem 0;">
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">📍 FNB House, Harare</p>
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">📞 +263 24 275 0000</p>
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">📱 FNB App Available</p>
-        </div>
-        <div style="margin: 0 1rem 1rem 0;">
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">✉️ businessbanking@fnb.co.zw</p>
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">🕒 Mon-Fri: 8AM-4:30PM</p>
-            <p style="margin: 0; font-size: 0.8rem; color: #ffffff;">Sat: 8AM-12PM</p>
-        </div>
-    </div>
-    <hr style="border-color: #FF0000; margin: 1rem 0;">
-    <p style="margin: 0; font-size: 0.7rem; color: rgba(255,255,255,0.7);">
-        © 2024 First National Bank Zimbabwe. A subsidiary of FirstRand Limited. | Registered Commercial Bank
-    </p>
-    <p style="margin: 0; font-size: 0.7rem; color: #FFD700;">
-        How can we help you? | Call 0800 1100 | Use FNB App | Visit fnb.co.zw
-    </p>
-</div>
-""", unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()
