@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for beautiful styling with new color scheme
+# Custom CSS for beautiful styling
 st.markdown("""
 <style>
     .main-header {
@@ -23,7 +23,7 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1rem;
         font-weight: bold;
-        background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
@@ -33,26 +33,16 @@ st.markdown("""
         margin-bottom: 1rem;
         font-weight: 600;
     }
-    .contact-bar {
-        background: linear-gradient(135deg, #2E86AB 0%, #4AA8D8 100%);
-        color: white;
-        padding: 0.8rem;
-        border-radius: 10px;
-        margin-bottom: 1rem;
-        text-align: center;
-        font-size: 0.9rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
     .card {
         background-color: #f8f9fa;
         padding: 1.5rem;
         border-radius: 15px;
-        border-left: 5px solid #FF6B35;
+        border-left: 5px solid #1f77b4;
         margin-bottom: 1rem;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .metric-card {
-        background: linear-gradient(135deg, #2E86AB 0%, #4AA8D8 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 1.5rem;
         border-radius: 15px;
@@ -60,7 +50,7 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .sidebar-header {
-        background: linear-gradient(135deg, #2E86AB 0%, #4AA8D8 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 1.5rem;
         border-radius: 15px;
@@ -72,34 +62,34 @@ st.markdown("""
         padding: 1rem;
         border-radius: 10px;
         margin: 0.5rem 0;
-        border: 2px solid #A7D8E8;
+        border: 2px solid #b8d4f0;
     }
     .success-box {
-        background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%);
-        border: 2px solid #229954;
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border: 2px solid #28a745;
         border-radius: 15px;
         padding: 1.5rem;
         margin: 1rem 0;
-        color: white;
+        color: #155724;
     }
     .warning-box {
-        background: linear-gradient(135deg, #F39C12 0%, #F7DC6F 100%);
-        border: 2px solid #D68910;
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        border: 2px solid #ffc107;
         border-radius: 15px;
         padding: 1.5rem;
         margin: 1rem 0;
-        color: #7D6608;
+        color: #856404;
     }
     .danger-box {
-        background: linear-gradient(135deg, #E74C3C 0%, #F1948A 100%);
-        border: 2px solid #CB4335;
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        border: 2px solid #dc3545;
         border-radius: 15px;
         padding: 1.5rem;
         margin: 1rem 0;
-        color: white;
+        color: #721c24;
     }
     .stProgress > div > div > div > div {
-        background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     .input-card {
         background-color: #ffffff;
@@ -108,36 +98,16 @@ st.markdown("""
         border: 2px solid #e9ecef;
         margin: 0.5rem 0;
     }
-    .contact-info {
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    .contact-item {
-        margin: 0 10px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
+    .assessment-widget {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
-
-# Header Section with Contact Details
-st.markdown("""
-<div class="contact-bar">
-    <div class="contact-info">
-        <div class="contact-item">📞 +263 24 275 0000</div>
-        <div class="contact-item">✉️ info@zimscredit.co.zw</div>
-        <div class="contact-item">📍 Harare, Zimbabwe</div>
-        <div class="contact-item">🕒 Mon-Fri: 8AM-5PM</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown('<h1 class="main-header">Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data")
-st.markdown("---")
 
 # Load data with caching
 @st.cache_data
@@ -146,16 +116,24 @@ def load_data():
 
 df = load_data()
 
+# Credit Assessment as First Widget
+st.markdown("""
+<div class="assessment-widget">
+    <h2 style="color: white; margin: 0;">🔮 Instant Credit Assessment</h2>
+    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">Get your credit score in minutes using alternative data</p>
+</div>
+""", unsafe_allow_html=True)
+
 # Beautiful sidebar
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-header">
-        <h2>🔮 Credit Assessment</h2>
-        <p>Enter your details below</p>
+        <h2>📋 Enter Your Details</h2>
+        <p>Complete the form for assessment</p>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("### 📋 Personal Information")
+    st.markdown("### 👤 Personal Information")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -204,130 +182,10 @@ with st.sidebar:
         sorted(df['Loan_Repayment_History'].unique())
     )
 
-# Main content with tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model"])
+# Main content with tabs - Assessment first
+tab1, tab2, tab3, tab4 = st.tabs(["🎯 Assessment", "📊 Dashboard", "🔍 Analysis", "🤖 AI Model"])
 
 with tab1:
-    st.markdown("### 📈 Dataset Overview")
-    
-    # Beautiful metric cards
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>📊 Total Records</h3>
-            <h2>{len(df):,}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>🔧 Features</h3>
-            <h2>{len(df.columns) - 1}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>🎯 Credit Classes</h3>
-            <h2>{df['Credit_Score'].nunique()}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>✅ Data Quality</h3>
-            <h2>100%</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Data preview sections
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        with st.expander("📋 Raw Data Preview", expanded=True):
-            st.dataframe(df, use_container_width=True, height=300)
-    
-    with col2:
-        with st.expander("🔍 Features & Target", expanded=True):
-            st.write("**Features (X):**")
-            X = df.drop("Credit_Score", axis=1)
-            st.dataframe(X.head(8), use_container_width=True, height=200)
-            
-            st.write("**Target (Y):**")
-            Y = df["Credit_Score"]
-            st.dataframe(Y.head(8), use_container_width=True, height=150)
-
-with tab2:
-    st.markdown("### 🔍 Data Analysis & Insights")
-    
-    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📊 Distributions", "📈 Statistics", "🌍 Geographic"])
-    
-    with analysis_tab1:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### Credit Score Distribution")
-            score_counts = df['Credit_Score'].value_counts().sort_index()
-            st.bar_chart(score_counts)
-            
-            # Show as table
-            st.markdown("**Count by Credit Score:**")
-            dist_df = score_counts.reset_index()
-            dist_df.columns = ['Credit Score', 'Count']
-            st.dataframe(dist_df, use_container_width=True, hide_index=True)
-        
-        with col2:
-            st.markdown("#### Location Distribution")
-            location_counts = df['Location'].value_counts()
-            st.bar_chart(location_counts)
-            
-            st.markdown("**Count by Location:**")
-            loc_df = location_counts.reset_index()
-            loc_df.columns = ['Location', 'Count']
-            st.dataframe(loc_df, use_container_width=True, hide_index=True)
-    
-    with analysis_tab2:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        selected_feature = st.selectbox("Select feature for detailed analysis:", numeric_cols)
-        
-        if selected_feature:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown(f"#### {selected_feature} Distribution")
-                hist_values = np.histogram(df[selected_feature], bins=20)[0]
-                st.bar_chart(hist_values)
-            
-            with col2:
-                st.markdown(f"#### 📊 Statistics for {selected_feature}")
-                stats_data = {
-                    'Metric': ['Mean', 'Median', 'Std Dev', 'Min', 'Max', '25th %ile', '75th %ile'],
-                    'Value': [
-                        f"{df[selected_feature].mean():.2f}",
-                        f"{df[selected_feature].median():.2f}",
-                        f"{df[selected_feature].std():.2f}",
-                        f"{df[selected_feature].min():.2f}",
-                        f"{df[selected_feature].max():.2f}",
-                        f"{df[selected_feature].quantile(0.25):.2f}",
-                        f"{df[selected_feature].quantile(0.75):.2f}"
-                    ]
-                }
-                stats_df = pd.DataFrame(stats_data)
-                st.dataframe(stats_df, use_container_width=True, hide_index=True)
-    
-    with analysis_tab3:
-        st.markdown("#### Credit Scores by Location")
-        location_summary = df.groupby('Location')['Credit_Score'].value_counts().unstack().fillna(0)
-        st.dataframe(location_summary, use_container_width=True)
-        
-        st.markdown("#### Location Performance Summary")
-        location_stats = df.groupby('Location').agg({
-            'Credit_Score': lambda x: (x == 'Good').mean()  # Example metric
-        }).round(3)
-        st.dataframe(location_stats, use_container_width=True)
-
-with tab3:
     st.markdown("### 🎯 Credit Assessment Results")
     
     # Input summary in beautiful cards
@@ -402,7 +260,7 @@ with tab3:
         st.markdown(f"### {percentage:.1f}%")
         st.progress(percentage / 100)
         
-        # Score interpretation (balloons removed)
+        # Score interpretation
         if score >= 5:
             st.success("🎉 Excellent Score!")
         elif score >= 3:
@@ -418,7 +276,6 @@ with tab3:
                 <h3>✅ EXCELLENT CREDITWORTHINESS</h3>
                 <p><strong>Recommendation:</strong> Strong candidate for credit approval with favorable terms and higher limits</p>
                 <p><strong>Risk Level:</strong> Low</p>
-                <p><strong>Contact:</strong> Visit our nearest branch or call +263 24 275 0000</p>
             </div>
             """, unsafe_allow_html=True)
         elif score >= 3:
@@ -427,7 +284,6 @@ with tab3:
                 <h3>⚠️ MODERATE RISK PROFILE</h3>
                 <p><strong>Recommendation:</strong> Standard verification process with moderate credit limits</p>
                 <p><strong>Risk Level:</strong> Medium</p>
-                <p><strong>Contact:</strong> Schedule an appointment with our credit advisors</p>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -436,9 +292,128 @@ with tab3:
                 <h3>❌ HIGHER RISK PROFILE</h3>
                 <p><strong>Recommendation:</strong> Enhanced verification and possible collateral required</p>
                 <p><strong>Risk Level:</strong> High</p>
-                <p><strong>Contact:</strong> Consult with our financial advisors for improvement strategies</p>
             </div>
             """, unsafe_allow_html=True)
+
+with tab2:
+    st.markdown("### 📈 Dataset Overview")
+    
+    # Beautiful metric cards
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>📊 Total Records</h3>
+            <h2>{len(df):,}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🔧 Features</h3>
+            <h2>{len(df.columns) - 1}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🎯 Credit Classes</h3>
+            <h2>{df['Credit_Score'].nunique()}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>✅ Data Quality</h3>
+            <h2>100%</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Data preview sections
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        with st.expander("📋 Raw Data Preview", expanded=True):
+            st.dataframe(df, use_container_width=True, height=300)
+    
+    with col2:
+        with st.expander("🔍 Features & Target", expanded=True):
+            st.write("**Features (X):**")
+            X = df.drop("Credit_Score", axis=1)
+            st.dataframe(X.head(8), use_container_width=True, height=200)
+            
+            st.write("**Target (Y):**")
+            Y = df["Credit_Score"]
+            st.dataframe(Y.head(8), use_container_width=True, height=150)
+
+with tab3:
+    st.markdown("### 🔍 Data Analysis & Insights")
+    
+    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📊 Distributions", "📈 Statistics", "🌍 Geographic"])
+    
+    with analysis_tab1:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Credit Score Distribution")
+            score_counts = df['Credit_Score'].value_counts().sort_index()
+            st.bar_chart(score_counts)
+            
+            # Show as table
+            st.markdown("**Count by Credit Score:**")
+            dist_df = score_counts.reset_index()
+            dist_df.columns = ['Credit Score', 'Count']
+            st.dataframe(dist_df, use_container_width=True, hide_index=True)
+        
+        with col2:
+            st.markdown("#### Location Distribution")
+            location_counts = df['Location'].value_counts()
+            st.bar_chart(location_counts)
+            
+            st.markdown("**Count by Location:**")
+            loc_df = location_counts.reset_index()
+            loc_df.columns = ['Location', 'Count']
+            st.dataframe(loc_df, use_container_width=True, hide_index=True)
+    
+    with analysis_tab2:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        selected_feature = st.selectbox("Select feature for detailed analysis:", numeric_cols)
+        
+        if selected_feature:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"#### {selected_feature} Distribution")
+                hist_values = np.histogram(df[selected_feature], bins=20)[0]
+                st.bar_chart(hist_values)
+            
+            with col2:
+                st.markdown(f"#### 📊 Statistics for {selected_feature}")
+                stats_data = {
+                    'Metric': ['Mean', 'Median', 'Std Dev', 'Min', 'Max', '25th %ile', '75th %ile'],
+                    'Value': [
+                        f"{df[selected_feature].mean():.2f}",
+                        f"{df[selected_feature].median():.2f}",
+                        f"{df[selected_feature].std():.2f}",
+                        f"{df[selected_feature].min():.2f}",
+                        f"{df[selected_feature].max():.2f}",
+                        f"{df[selected_feature].quantile(0.25):.2f}",
+                        f"{df[selected_feature].quantile(0.75):.2f}"
+                    ]
+                }
+                stats_df = pd.DataFrame(stats_data)
+                st.dataframe(stats_df, use_container_width=True, hide_index=True)
+    
+    with analysis_tab3:
+        st.markdown("#### Credit Scores by Location")
+        location_summary = df.groupby('Location')['Credit_Score'].value_counts().unstack().fillna(0)
+        st.dataframe(location_summary, use_container_width=True)
+        
+        st.markdown("#### Location Performance Summary")
+        location_stats = df.groupby('Location').agg({
+            'Credit_Score': lambda x: (x == 'Good').mean()  # Example metric
+        }).round(3)
+        st.dataframe(location_stats, use_container_width=True)
 
 with tab4:
     st.markdown("### 🤖 AI-Powered Credit Scoring")
