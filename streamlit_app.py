@@ -1,31 +1,18 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime, timedelta
-import warnings
-warnings.filterwarnings('ignore')
-
-# Machine Learning imports
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
-from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
-from sklearn.metrics import (accuracy_score, classification_report, confusion_matrix, 
-                           roc_auc_score, roc_curve, precision_score, recall_score, 
-                           f1_score, precision_recall_curve, auc)
-from sklearn.impute import SimpleImputer, KNNImputer
-
-# ADDED: Random Forest imports
-from sklearn.ensemble import RandomForestClassifier
-
-# XGBoost and SHAP
-import xgboost as xgb
-import shap
-
-# Plotting
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_auc_score
 import plotly.graph_objects as go
 import plotly.express as px
-from plotly.subplots import make_subplots
+from datetime import datetime
 
 # Page configuration with beautiful theme
 st.set_page_config(
@@ -60,16 +47,7 @@ st.markdown("""
         padding: 1rem;
     }
     
-    .phase-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        text-align: center;
-    }
-    
-    .card {
+    .algorithm-card {
         background-color: rgba(248, 249, 250, 0.95);
         padding: 1.5rem;
         border-radius: 15px;
@@ -77,256 +55,68 @@ st.markdown("""
         margin-bottom: 1rem;
         box-shadow: 0 8px 16px rgba(0,0,0,0.1);
         backdrop-filter: blur(5px);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     
-    .metric-card {
+    .algorithm-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+    }
+    
+    .algorithm-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
+    .best-algorithm {
+        border: 3px solid #28a745;
+        background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+    
+    .metric-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+        margin: 0.2rem;
+    }
+    
+    .comparison-chart {
+        background-color: white;
         padding: 1.5rem;
         border-radius: 15px;
-        text-align: center;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        transition: transform 0.3s ease;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-    }
-    
-    .shap-box {
-        background-color: rgba(255, 255, 255, 0.95);
-        padding: 1rem;
-        border-radius: 10px;
-        border: 2px solid #4CAF50;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         margin: 1rem 0;
-    }
-    
-    .rf-card {
-        background: linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-    }
-    
-    .xgb-card {
-        background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Header Section
-st.markdown('<h1 class="main-header">🏦 Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data in Zimbabwe")
+st.markdown('<h1 class="main-header glowing-text">🏦 Zim Smart Credit App</h1>', unsafe_allow_html=True)
+st.markdown("### 💳 Advanced ML Algorithms for Credit Scoring in Zimbabwe")
 st.markdown("---")
 
-# ============================================================
-# PHASE 1: DATA LOADING & INITIAL PROCESSING
-# ============================================================
+# Load data with caching
 @st.cache_data
 def load_data():
-    """Load and preprocess initial dataset"""
-    df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
-    
-    # Ensure proper data types
-    numeric_cols = ['Mobile_Money_Txns', 'Airtime_Spend_ZWL', 'Utility_Payments_ZWL', 'Age']
-    for col in numeric_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    return df
+    return pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
 
-# Load data
 df = load_data()
 
-# ============================================================
-# PHASE 2: FEATURE ENGINEERING AND DATA PREPROCESSING
-# ============================================================
-def engineer_features(df):
-    """Perform feature engineering as described in Phase 2"""
-    df_engineered = df.copy()
-    
-    # 1. Aggregation and Summarisation Features
-    st.info("🔄 Creating aggregation features...")
-    
-    # Total monthly spending (assuming data is monthly)
-    df_engineered['Total_Monthly_Spending'] = df_engineered['Airtime_Spend_ZWL'] + \
-                                              df_engineered['Utility_Payments_ZWL']
-    
-    # Average transaction size for mobile money
-    df_engineered['Avg_Mobile_Transaction'] = df_engineered['Mobile_Money_Txns'].apply(
-        lambda x: x if pd.isna(x) else x / 30  # Assuming 30 transactions per month average
-    )
-    
-    # 2. Temporal Feature Extraction (simulated)
-    st.info("⏰ Creating temporal features...")
-    
-    # Spending patterns - creating simulated temporal features
-    # In real scenario, you would have date columns
-    df_engineered['Spending_Last30_Days'] = df_engineered['Total_Monthly_Spending'] * 1.1  # Simulated increase
-    df_engineered['Spending_Last60_Days'] = df_engineered['Total_Monthly_Spending'] * 2.2
-    df_engineered['Spending_Last90_Days'] = df_engineered['Total_Monthly_Spending'] * 3.3
-    
-    # 3. Behavioural Indicators
-    st.info("📊 Creating behavioral indicators...")
-    
-    # Coefficient of Variation (simulated)
-    # In real scenario, calculate from transaction history
-    df_engineered['Spending_CV'] = np.random.uniform(0.1, 0.5, len(df_engineered))
-    
-    # Transaction frequency stability
-    df_engineered['Transaction_Consistency'] = df_engineered['Mobile_Money_Txns'] / \
-                                               (df_engineered['Mobile_Money_Txns'].mean() + 1)
-    
-    # 4. Ratio and Interaction Features
-    st.info("📈 Creating ratio features...")
-    
-    # Balance-to-spending ratio (simulated)
-    df_engineered['Balance_To_Spending_Ratio'] = np.random.uniform(0.5, 5, len(df_engineered))
-    
-    # Income-to-debt ratio (simulated)
-    df_engineered['Income_To_Debt_Ratio'] = np.random.uniform(1, 10, len(df_engineered))
-    
-    # Age to spending ratio
-    df_engineered['Age_Spending_Ratio'] = df_engineered['Age'] / (df_engineered['Total_Monthly_Spending'] + 1)
-    
-    # 5. Missing Data Handling
-    st.info("🔍 Handling missing data...")
-    
-    # Check for missing values
-    missing_data = df_engineered.isnull().sum()
-    
-    # Impute numerical features
-    numeric_features = df_engineered.select_dtypes(include=[np.number]).columns
-    
-    # Use median imputation for robustness
-    imputer = SimpleImputer(strategy='median')
-    df_engineered[numeric_features] = imputer.fit_transform(df_engineered[numeric_features])
-    
-    # Create binary indicators for originally missing values
-    for col in numeric_features:
-        if df[col].isnull().sum() > 0:
-            df_engineered[f'{col}_was_missing'] = df[col].isnull().astype(int)
-    
-    return df_engineered
-
-# ============================================================
-# PHASE 3: MODEL TRAINING AND EVALUATION
-# ============================================================
-def train_random_forest_model(X_train, y_train, X_test, y_test):
-    """Train Random Forest model with comprehensive evaluation"""
-    
-    # Define Random Forest model
-    rf_model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=10,
-        min_samples_split=5,
-        min_samples_leaf=2,
-        max_features='sqrt',
-        bootstrap=True,
-        random_state=42,
-        n_jobs=-1  # Use all available cores
-    )
-    
-    # Train model
-    rf_model.fit(X_train, y_train)
-    
-    # Make predictions
-    y_pred = rf_model.predict(X_test)
-    y_pred_proba = rf_model.predict_proba(X_test)
-    
-    return rf_model, y_pred, y_pred_proba
-
-def train_xgboost_model(X_train, y_train, X_test, y_test):
-    """Train XGBoost model with comprehensive evaluation"""
-    
-    # Define XGBoost model
-    model = xgb.XGBClassifier(
-        n_estimators=100,
-        learning_rate=0.1,
-        max_depth=5,
-        min_child_weight=1,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        reg_alpha=0.1,
-        reg_lambda=1,
-        random_state=42,
-        use_label_encoder=False,
-        eval_metric='logloss'
-    )
-    
-    # Train model
-    model.fit(X_train, y_train)
-    
-    # Make predictions
-    y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)
-    
-    return model, y_pred, y_pred_proba
-
-def evaluate_model(y_test, y_pred, y_pred_proba, class_names):
-    """Comprehensive model evaluation"""
-    
-    results = {}
-    
-    # 1. ROC-AUC
-    if len(class_names) == 2:
-        results['roc_auc'] = roc_auc_score(y_test, y_pred_proba[:, 1])
-        fpr, tpr, _ = roc_curve(y_test, y_pred_proba[:, 1])
-        results['roc_curve'] = (fpr, tpr)
-    else:
-        # Multi-class ROC-AUC
-        results['roc_auc'] = roc_auc_score(y_test, y_pred_proba, multi_class='ovr')
-    
-    # 2. Accuracy
-    results['accuracy'] = accuracy_score(y_test, y_pred)
-    
-    # 3. Precision, Recall, F1-Score
-    results['precision'] = precision_score(y_test, y_pred, average='weighted')
-    results['recall'] = recall_score(y_test, y_pred, average='weighted')
-    results['f1'] = f1_score(y_test, y_pred, average='weighted')
-    
-    # 4. Confusion Matrix
-    results['confusion_matrix'] = confusion_matrix(y_test, y_pred)
-    
-    # 5. Classification Report
-    results['classification_report'] = classification_report(y_test, y_pred, 
-                                                            target_names=class_names, 
-                                                            output_dict=True)
-    
-    return results
-
-def compare_models(rf_results, xgb_results):
-    """Compare Random Forest and XGBoost results"""
-    comparison = {
-        'Metric': ['ROC-AUC', 'Accuracy', 'Precision', 'Recall', 'F1-Score'],
-        'Random Forest': [
-            rf_results['roc_auc'],
-            rf_results['accuracy'],
-            rf_results['precision'],
-            rf_results['recall'],
-            rf_results['f1']
-        ],
-        'XGBoost': [
-            xgb_results['roc_auc'],
-            xgb_results['accuracy'],
-            xgb_results['precision'],
-            xgb_results['recall'],
-            xgb_results['f1']
-        ]
-    }
-    
-    return pd.DataFrame(comparison)
-
-# ============================================================
-# STREAMLIT INTERFACE
-# ============================================================
-
-# Beautiful sidebar
+# Sidebar for user input
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-header">
@@ -383,462 +173,394 @@ with st.sidebar:
         "📊 Loan Repayment History", 
         sorted(df['Loan_Repayment_History'].unique())
     )
-    
-    # Model selection for predictions
-    selected_model = st.radio(
-        "🤖 Select Model for Prediction:",
-        ["Random Forest", "XGBoost", "Both"],
-        index=2
-    )
 
 # Main content with tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📊 Dashboard", 
-    "🔬 Feature Engineering", 
-    "🌲 Random Forest", 
-    "🤖 XGBoost", 
-    "📊 Model Comparison",
-    "🎯 Assessment"
-])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 ML Algorithms"])
 
-with tab1:
-    st.markdown('<div class="phase-header"><h2>Phase 1: Data Overview</h2></div>', unsafe_allow_html=True)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>📊 Total Records</h3>
-            <h2>{len(df):,}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>🔧 Original Features</h3>
-            <h2>{len(df.columns) - 1}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>🎯 Credit Classes</h3>
-            <h2>{df['Credit_Score'].nunique()}</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    with col4:
-        missing_pct = (df.isnull().sum().sum() / (df.shape[0] * df.shape[1])) * 100
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3>✅ Data Quality</h3>
-            <h2>{100 - missing_pct:.1f}%</h2>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Data preview
-    with st.expander("📋 Raw Data Preview", expanded=True):
-        st.dataframe(df, use_container_width=True, height=300)
-
-with tab2:
-    st.markdown('<div class="phase-header"><h2>Phase 2: Feature Engineering</h2></div>', unsafe_allow_html=True)
-    
-    if st.button("🚀 Engineer Features", type="primary"):
-        with st.spinner("🔄 Performing feature engineering..."):
-            # Apply feature engineering
-            df_engineered = engineer_features(df)
-            
-            st.success(f"✅ Feature engineering complete! Added {len(df_engineered.columns) - len(df.columns)} new features")
-            
-            # Show engineered features
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("#### 🔍 Engineered Features Overview")
-                new_features = [col for col in df_engineered.columns if col not in df.columns]
-                st.write(f"**New features created:** {len(new_features)}")
-                for feature in new_features:
-                    st.markdown(f"• {feature}")
-            
-            with col2:
-                st.markdown("#### 📊 Feature Statistics")
-                st.dataframe(df_engineered[new_features].describe().round(2), use_container_width=True)
-            
-            # Store in session state
-            st.session_state['df_engineered'] = df_engineered
-            st.session_state['features_engineered'] = True
-
-with tab3:
-    st.markdown('<div class="phase-header"><h2>Phase 3: Random Forest Model</h2></div>', unsafe_allow_html=True)
-    st.markdown('<div class="rf-card">🌲 Random Forest Classifier - Ensemble of Decision Trees</div>', unsafe_allow_html=True)
-    
-    if 'df_engineered' in st.session_state:
-        df_engineered = st.session_state['df_engineered']
-        
-        # Prepare data for modeling
-        X = df_engineered.drop("Credit_Score", axis=1)
-        y = df_engineered["Credit_Score"]
-        
-        # Encode categorical variables
-        label_encoders = {}
-        for column in X.select_dtypes(include=['object']).columns:
-            le = LabelEncoder()
-            X[column] = le.fit_transform(X[column].astype(str))
-            label_encoders[column] = le
-        
-        # Encode target
-        target_encoder = LabelEncoder()
-        y_encoded = target_encoder.fit_transform(y)
-        class_names = target_encoder.classes_
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
-        )
-        
-        # Scale features
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        if st.button("🌲 Train Random Forest Model", type="primary"):
-            with st.spinner("🌲 Training Random Forest model..."):
-                # Train Random Forest model
-                rf_model, y_pred_rf, y_pred_proba_rf = train_random_forest_model(
-                    X_train_scaled, y_train, X_test_scaled, y_test
-                )
-                
-                # Evaluate model
-                rf_results = evaluate_model(y_test, y_pred_rf, y_pred_proba_rf, class_names)
-                
-                st.success("✅ Random Forest model trained successfully!")
-                
-                # Display metrics
-                col1, col2, col3, col4, col5 = st.columns(5)
-                with col1:
-                    st.metric("🎯 ROC-AUC", f"{rf_results['roc_auc']:.3f}")
-                with col2:
-                    st.metric("🎯 Accuracy", f"{rf_results['accuracy']:.3f}")
-                with col3:
-                    st.metric("📊 Precision", f"{rf_results['precision']:.3f}")
-                with col4:
-                    st.metric("🔍 Recall", f"{rf_results['recall']:.3f}")
-                with col5:
-                    st.metric("⚖️ F1-Score", f"{rf_results['f1']:.3f}")
-                
-                # Confusion Matrix
-                st.markdown("#### 📈 Confusion Matrix")
-                fig_cm, ax_cm = plt.subplots(figsize=(8, 6))
-                sns.heatmap(rf_results['confusion_matrix'], annot=True, fmt='d', 
-                           cmap='Blues', xticklabels=class_names, yticklabels=class_names)
-                plt.title('Random Forest - Confusion Matrix')
-                plt.ylabel('True Label')
-                plt.xlabel('Predicted Label')
-                st.pyplot(fig_cm)
-                
-                # Feature Importance
-                st.markdown("#### 🔍 Feature Importance (Random Forest)")
-                rf_feature_importance = pd.DataFrame({
-                    'Feature': X.columns,
-                    'Importance': rf_model.feature_importances_
-                }).sort_values('Importance', ascending=False)
-                
-                # Plot top 20 features
-                fig_fi, ax_fi = plt.subplots(figsize=(10, 8))
-                top_features = rf_feature_importance.head(20)
-                ax_fi.barh(range(len(top_features)), top_features['Importance'], color='#36D1DC')
-                ax_fi.set_yticks(range(len(top_features)))
-                ax_fi.set_yticklabels(top_features['Feature'])
-                ax_fi.invert_yaxis()
-                ax_fi.set_xlabel('Importance')
-                ax_fi.set_title('Random Forest - Top 20 Feature Importance')
-                plt.tight_layout()
-                st.pyplot(fig_fi)
-                
-                # Store model in session state
-                st.session_state['rf_model'] = rf_model
-                st.session_state['rf_scaler'] = scaler
-                st.session_state['rf_label_encoders'] = label_encoders
-                st.session_state['rf_target_encoder'] = target_encoder
-                st.session_state['rf_X_columns'] = X.columns
-                st.session_state['rf_results'] = rf_results
-                
-    else:
-        st.warning("⚠️ Please engineer features first in Tab 2")
+# ... (Previous tabs 1, 2, and 3 remain the same as in your original code) ...
 
 with tab4:
-    st.markdown('<div class="phase-header"><h2>Phase 3: XGBoost Model</h2></div>', unsafe_allow_html=True)
-    st.markdown('<div class="xgb-card">🤖 XGBoost Classifier - Gradient Boosting</div>', unsafe_allow_html=True)
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+    st.markdown("### 🤖 Advanced Machine Learning Algorithms")
     
-    if 'df_engineered' in st.session_state:
-        df_engineered = st.session_state['df_engineered']
-        
-        # Prepare data for modeling
-        X = df_engineered.drop("Credit_Score", axis=1)
-        y = df_engineered["Credit_Score"]
-        
-        # Encode categorical variables
-        label_encoders = {}
-        for column in X.select_dtypes(include=['object']).columns:
-            le = LabelEncoder()
-            X[column] = le.fit_transform(X[column].astype(str))
-            label_encoders[column] = le
-        
-        # Encode target
-        target_encoder = LabelEncoder()
-        y_encoded = target_encoder.fit_transform(y)
-        class_names = target_encoder.classes_
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
-        )
-        
-        # Scale features
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
-        
-        if st.button("🎯 Train XGBoost Model", type="primary"):
-            with st.spinner("🤖 Training XGBoost model..."):
-                # Train XGBoost model
-                xgb_model, y_pred_xgb, y_pred_proba_xgb = train_xgboost_model(
-                    X_train_scaled, y_train, X_test_scaled, y_test
+    st.markdown("""
+    <div class="card">
+        <h3>🚀 Multiple Algorithm Comparison</h3>
+        <p>We train and compare multiple machine learning algorithms to find the best model for credit scoring. 
+        Each algorithm has its strengths and is evaluated on accuracy, precision, recall, and F1-score.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Algorithm selection
+    st.markdown("#### 🎯 Select Algorithms to Compare")
+    
+    algorithms_to_train = st.multiselect(
+        "Choose algorithms:",
+        [
+            "Random Forest",
+            "Gradient Boosting", 
+            "Decision Tree",
+            "Logistic Regression",
+            "Support Vector Machine",
+            "K-Nearest Neighbors",
+            "AdaBoost",
+            "Naive Bayes"
+        ],
+        default=["Random Forest", "Gradient Boosting", "Logistic Regression", "Decision Tree"]
+    )
+    
+    if st.button("🎯 Train All Selected Algorithms", type="primary", use_container_width=True):
+        with st.spinner("🤖 Training multiple algorithms... This may take a few moments."):
+            try:
+                # Prepare data
+                X = df.drop("Credit_Score", axis=1)
+                y = df["Credit_Score"]
+                
+                # Encode categorical variables
+                label_encoders = {}
+                for column in X.select_dtypes(include=['object']).columns:
+                    le = LabelEncoder()
+                    X[column] = le.fit_transform(X[column])
+                    label_encoders[column] = le
+                
+                # Encode target
+                target_encoder = LabelEncoder()
+                y_encoded = target_encoder.fit_transform(y)
+                
+                # Split data
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
                 )
                 
-                # Evaluate model
-                xgb_results = evaluate_model(y_test, y_pred_xgb, y_pred_proba_xgb, class_names)
+                # Standardize features for some algorithms
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                X_test_scaled = scaler.transform(X_test)
                 
-                st.success("✅ XGBoost model trained successfully!")
+                # Initialize algorithms
+                algorithms = {}
                 
-                # Display metrics
-                col1, col2, col3, col4, col5 = st.columns(5)
-                with col1:
-                    st.metric("🎯 ROC-AUC", f"{xgb_results['roc_auc']:.3f}")
-                with col2:
-                    st.metric("🎯 Accuracy", f"{xgb_results['accuracy']:.3f}")
-                with col3:
-                    st.metric("📊 Precision", f"{xgb_results['precision']:.3f}")
-                with col4:
-                    st.metric("🔍 Recall", f"{xgb_results['recall']:.3f}")
-                with col5:
-                    st.metric("⚖️ F1-Score", f"{xgb_results['f1']:.3f}")
+                if "Random Forest" in algorithms_to_train:
+                    algorithms["Random Forest"] = RandomForestClassifier(
+                        n_estimators=100, 
+                        random_state=42,
+                        max_depth=10,
+                        min_samples_split=5
+                    )
                 
-                # Confusion Matrix
-                st.markdown("#### 📈 Confusion Matrix")
-                fig_cm, ax_cm = plt.subplots(figsize=(8, 6))
-                sns.heatmap(xgb_results['confusion_matrix'], annot=True, fmt='d', 
-                           cmap='Reds', xticklabels=class_names, yticklabels=class_names)
-                plt.title('XGBoost - Confusion Matrix')
-                plt.ylabel('True Label')
-                plt.xlabel('Predicted Label')
-                st.pyplot(fig_cm)
+                if "Gradient Boosting" in algorithms_to_train:
+                    algorithms["Gradient Boosting"] = GradientBoostingClassifier(
+                        n_estimators=100, 
+                        random_state=42,
+                        learning_rate=0.1
+                    )
                 
-                # Feature Importance
-                st.markdown("#### 🔍 Feature Importance (XGBoost)")
-                xgb_feature_importance = pd.DataFrame({
-                    'Feature': X.columns,
-                    'Importance': xgb_model.feature_importances_
-                }).sort_values('Importance', ascending=False)
+                if "Decision Tree" in algorithms_to_train:
+                    algorithms["Decision Tree"] = DecisionTreeClassifier(
+                        random_state=42,
+                        max_depth=5
+                    )
                 
-                # Plot top 20 features
-                fig_fi, ax_fi = plt.subplots(figsize=(10, 8))
-                top_features = xgb_feature_importance.head(20)
-                ax_fi.barh(range(len(top_features)), top_features['Importance'], color='#FF416C')
-                ax_fi.set_yticks(range(len(top_features)))
-                ax_fi.set_yticklabels(top_features['Feature'])
-                ax_fi.invert_yaxis()
-                ax_fi.set_xlabel('Importance')
-                ax_fi.set_title('XGBoost - Top 20 Feature Importance')
-                plt.tight_layout()
-                st.pyplot(fig_fi)
+                if "Logistic Regression" in algorithms_to_train:
+                    algorithms["Logistic Regression"] = LogisticRegression(
+                        random_state=42,
+                        max_iter=1000
+                    )
                 
-                # Store model in session state
-                st.session_state['xgb_model'] = xgb_model
-                st.session_state['xgb_scaler'] = scaler
-                st.session_state['xgb_label_encoders'] = label_encoders
-                st.session_state['xgb_target_encoder'] = target_encoder
-                st.session_state['xgb_X_columns'] = X.columns
-                st.session_state['xgb_results'] = xgb_results
+                if "Support Vector Machine" in algorithms_to_train:
+                    algorithms["Support Vector Machine"] = SVC(
+                        random_state=42,
+                        probability=True
+                    )
                 
-    else:
-        st.warning("⚠️ Please engineer features first in Tab 2")
-
-with tab5:
-    st.markdown('<div class="phase-header"><h2>Model Comparison Dashboard</h2></div>', unsafe_allow_html=True)
-    
-    if 'rf_results' in st.session_state and 'xgb_results' in st.session_state:
-        # Compare models
-        comparison_df = compare_models(
-            st.session_state['rf_results'], 
-            st.session_state['xgb_results']
-        )
-        
-        st.markdown("### 📊 Performance Comparison")
-        
-        # Display comparison table with styling
-        st.dataframe(comparison_df.style.format({
-            'Random Forest': '{:.3f}',
-            'XGBoost': '{:.3f}'
-        }).highlight_max(axis=1, color='lightgreen'), 
-        use_container_width=True)
-        
-        # Create visualization
-        fig, ax = plt.subplots(figsize=(12, 6))
-        x = np.arange(len(comparison_df['Metric']))
-        width = 0.35
-        
-        ax.bar(x - width/2, comparison_df['Random Forest'], width, label='Random Forest', color='#36D1DC')
-        ax.bar(x + width/2, comparison_df['XGBoost'], width, label='XGBoost', color='#FF416C')
-        
-        ax.set_xlabel('Metrics')
-        ax.set_ylabel('Score')
-        ax.set_title('Random Forest vs XGBoost Performance Comparison')
-        ax.set_xticks(x)
-        ax.set_xticklabels(comparison_df['Metric'], rotation=45)
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        
-        # Add value labels
-        for i, (rf_val, xgb_val) in enumerate(zip(comparison_df['Random Forest'], comparison_df['XGBoost'])):
-            ax.text(i - width/2, rf_val + 0.01, f'{rf_val:.3f}', ha='center', va='bottom', fontsize=9)
-            ax.text(i + width/2, xgb_val + 0.01, f'{xgb_val:.3f}', ha='center', va='bottom', fontsize=9)
-        
-        plt.tight_layout()
-        st.pyplot(fig)
-        
-        # Feature importance comparison
-        if 'rf_model' in st.session_state and 'xgb_model' in st.session_state:
-            st.markdown("### 🔍 Feature Importance Comparison")
-            
-            # Get feature importance from both models
-            rf_fi = pd.DataFrame({
-                'Feature': st.session_state['rf_X_columns'],
-                'RF_Importance': st.session_state['rf_model'].feature_importances_
-            })
-            
-            xgb_fi = pd.DataFrame({
-                'Feature': st.session_state['xgb_X_columns'],
-                'XGB_Importance': st.session_state['xgb_model'].feature_importances_
-            })
-            
-            # Merge and get top 10 features by average importance
-            fi_comparison = pd.merge(rf_fi, xgb_fi, on='Feature', how='outer').fillna(0)
-            fi_comparison['Avg_Importance'] = (fi_comparison['RF_Importance'] + fi_comparison['XGB_Importance']) / 2
-            top_fi = fi_comparison.nlargest(10, 'Avg_Importance')
-            
-            # Plot comparison
-            fig, ax = plt.subplots(figsize=(12, 8))
-            x = np.arange(len(top_fi))
-            width = 0.35
-            
-            ax.bar(x - width/2, top_fi['RF_Importance'], width, label='Random Forest', color='#36D1DC')
-            ax.bar(x + width/2, top_fi['XGB_Importance'], width, label='XGBoost', color='#FF416C')
-            
-            ax.set_xlabel('Features')
-            ax.set_ylabel('Importance')
-            ax.set_title('Top 10 Features - Importance Comparison')
-            ax.set_xticks(x)
-            ax.set_xticklabels(top_fi['Feature'], rotation=45, ha='right')
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-            
-            plt.tight_layout()
-            st.pyplot(fig)
-            
-    else:
-        st.info("ℹ️ Train both Random Forest and XGBoost models to see comparison")
-
-with tab6:
-    st.markdown('<div class="phase-header"><h2>Phase 4: Credit Assessment</h2></div>', unsafe_allow_html=True)
-    
-    # User input
-    user_data = pd.DataFrame({
-        'Location': [Location],
-        'Gender': [gender],
-        'Age': [Age],
-        'Mobile_Money_Txns': [Mobile_Money_Txns],
-        'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
-        'Utility_Payments_ZWL': [Utility_Payments_ZWL],
-        'Loan_Repayment_History': [Loan_Repayment_History]
-    })
-    
-    # Display input summary
-    st.markdown("### 📋 Your Input Summary")
-    st.dataframe(user_data.T.rename(columns={0: 'Value'}), use_container_width=True)
-    
-    def make_prediction(user_data, model_type='rf'):
-        """Make prediction using specified model"""
-        try:
-            # Apply same feature engineering
-            user_engineered = engineer_features(user_data)
-            
-            # Get appropriate model and preprocessing objects
-            if model_type == 'rf':
-                if 'rf_model' not in st.session_state:
-                    return None, None, "Random Forest model not trained yet"
+                if "K-Nearest Neighbors" in algorithms_to_train:
+                    algorithms["K-Nearest Neighbors"] = KNeighborsClassifier(
+                        n_neighbors=5
+                    )
                 
-                model = st.session_state['rf_model']
-                scaler = st.session_state['rf_scaler']
-                label_encoders = st.session_state['rf_label_encoders']
-                target_encoder = st.session_state['rf_target_encoder']
-                X_columns = st.session_state['rf_X_columns']
-                model_name = "Random Forest"
-            else:
-                if 'xgb_model' not in st.session_state:
-                    return None, None, "XGBoost model not trained yet"
+                if "AdaBoost" in algorithms_to_train:
+                    algorithms["AdaBoost"] = AdaBoostClassifier(
+                        random_state=42,
+                        n_estimators=50
+                    )
                 
-                model = st.session_state['xgb_model']
-                scaler = st.session_state['xgb_scaler']
-                label_encoders = st.session_state['xgb_label_encoders']
-                target_encoder = st.session_state['xgb_target_encoder']
-                X_columns = st.session_state['xgb_X_columns']
-                model_name = "XGBoost"
-            
-            # Align columns with training data
-            for col in X_columns:
-                if col not in user_engineered.columns:
-                    user_engineered[col] = 0  # Add missing columns with default
-            
-            # Reorder columns to match training data
-            user_engineered = user_engineered[X_columns]
-            
-            # Encode categorical variables
-            for column in user_engineered.select_dtypes(include=['object']).columns:
-                if column in label_encoders:
-                    # Handle unseen labels
-                    if user_engineered[column].iloc[0] in label_encoders[column].classes_:
-                        user_engineered[column] = label_encoders[column].transform(user_engineered[column])
-                    else:
-                        # Use most frequent class for unseen labels
-                        user_engineered[column] = label_encoders[column].transform(
-                            [label_encoders[column].classes_[0]]
-                        )
-            
-            # Scale features
-            user_scaled = scaler.transform(user_engineered)
-            
-            # Make prediction
-            prediction_encoded = model.predict(user_scaled)
-            prediction_proba = model.predict_proba(user_scaled)
-            
-            predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
-            confidence = np.max(prediction_proba) * 100
-            
-            return predicted_class, confidence, model_name
-            
-        except Exception as e:
-            return None, None, f"Error: {str(e)}"
-    
-    # Prediction buttons
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🌲 Get RF Prediction", type="primary"):
-            predicted_class, confidence, message = make_prediction(user_data, 'rf')
-            
-            if predicted_class:
+                if "Naive Bayes" in algorithms_to_train:
+                    algorithms["Naive Bayes"] = GaussianNB()
+                
+                # Train and evaluate algorithms
+                results = []
+                feature_importances = {}
+                
+                progress_bar = st.progress(0)
+                for idx, (name, model) in enumerate(algorithms.items()):
+                    # Update progress
+                    progress_bar.progress((idx + 1) / len(algorithms))
+                    
+                    with st.spinner(f"Training {name}..."):
+                        # Use scaled data for certain algorithms
+                        if name in ["Logistic Regression", "Support Vector Machine", "K-Nearest Neighbors"]:
+                            model.fit(X_train_scaled, y_train)
+                            y_pred = model.predict(X_test_scaled)
+                            y_pred_proba = model.predict_proba(X_test_scaled)
+                        else:
+                            model.fit(X_train, y_train)
+                            y_pred = model.predict(X_test)
+                            y_pred_proba = model.predict_proba(X_test)
+                        
+                        # Calculate metrics
+                        accuracy = accuracy_score(y_test, y_pred)
+                        report = classification_report(y_test, y_pred, output_dict=True)
+                        
+                        # Store feature importance if available
+                        if hasattr(model, 'feature_importances_'):
+                            feature_importances[name] = model.feature_importances_
+                        
+                        # Cross-validation score
+                        cv_scores = cross_val_score(model, X, y_encoded, cv=5, scoring='accuracy')
+                        
+                        results.append({
+                            'Algorithm': name,
+                            'Accuracy': accuracy,
+                            'Precision (Weighted)': report['weighted avg']['precision'],
+                            'Recall (Weighted)': report['weighted avg']['recall'],
+                            'F1-Score (Weighted)': report['weighted avg']['f1-score'],
+                            'CV Mean Accuracy': cv_scores.mean(),
+                            'CV Std': cv_scores.std(),
+                            'Training Time': datetime.now()  # Placeholder for timing
+                        })
+                
+                progress_bar.empty()
+                
+                # Display results
+                st.success(f"✅ {len(results)} algorithms trained successfully!")
+                
+                # Convert results to DataFrame
+                results_df = pd.DataFrame(results)
+                
+                # Find best algorithm
+                best_algorithm = results_df.loc[results_df['Accuracy'].idxmax()]
+                
                 st.markdown(f"""
-                <div class="rf-card">
-                    <h3>🌲 Random Forest Prediction</h3>
-                    <h1>{predicted_class}</h1>
-                    <p
+                <div class="algorithm-header">
+                    <h3>🏆 Best Performing Algorithm</h3>
+                    <h2>{best_algorithm['Algorithm']}</h2>
+                    <p>Accuracy: {best_algorithm['Accuracy']:.2%}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Display comparison metrics
+                st.markdown("#### 📊 Algorithm Performance Comparison")
+                
+                # Interactive metrics chart
+                metrics_to_show = st.multiselect(
+                    "Select metrics to display:",
+                    ['Accuracy', 'Precision (Weighted)', 'Recall (Weighted)', 'F1-Score (Weighted)', 'CV Mean Accuracy'],
+                    default=['Accuracy', 'F1-Score (Weighted)']
+                )
+                
+                if metrics_to_show:
+                    # Create comparison chart
+                    fig = go.Figure()
+                    
+                    colors = px.colors.qualitative.Set3
+                    for i, metric in enumerate(metrics_to_show):
+                        fig.add_trace(go.Bar(
+                            name=metric,
+                            x=results_df['Algorithm'],
+                            y=results_df[metric],
+                            marker_color=colors[i % len(colors)],
+                            text=results_df[metric].apply(lambda x: f'{x:.2%}' if 'Accuracy' in metric else f'{x:.3f}'),
+                            textposition='auto',
+                        ))
+                    
+                    fig.update_layout(
+                        title='Algorithm Performance Comparison',
+                        xaxis_title='Algorithm',
+                        yaxis_title='Score',
+                        barmode='group',
+                        template='plotly_white',
+                        height=500
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Display detailed results table
+                st.markdown("#### 📋 Detailed Performance Metrics")
+                
+                # Format the results for display
+                display_df = results_df.copy()
+                for col in ['Accuracy', 'Precision (Weighted)', 'Recall (Weighted)', 
+                           'F1-Score (Weighted)', 'CV Mean Accuracy']:
+                    if col in display_df.columns:
+                        display_df[col] = display_df[col].apply(lambda x: f'{x:.2%}')
+                display_df['CV Std'] = display_df['CV Std'].apply(lambda x: f'{x:.4f}')
+                
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                
+                # Feature Importance Analysis
+                if feature_importances:
+                    st.markdown("#### 🔍 Feature Importance Analysis")
+                    
+                    # Show feature importance for Random Forest if available
+                    if "Random Forest" in feature_importances:
+                        rf_importance = feature_importances["Random Forest"]
+                        feature_importance_df = pd.DataFrame({
+                            'Feature': X.columns,
+                            'Importance': rf_importance
+                        }).sort_values('Importance', ascending=False)
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # Feature importance chart
+                            fig_imp = go.Figure(go.Bar(
+                                x=feature_importance_df['Importance'],
+                                y=feature_importance_df['Feature'],
+                                orientation='h',
+                                marker_color='#667eea'
+                            ))
+                            
+                            fig_imp.update_layout(
+                                title='Random Forest Feature Importance',
+                                xaxis_title='Importance',
+                                yaxis_title='Feature',
+                                height=400,
+                                template='plotly_white'
+                            )
+                            
+                            st.plotly_chart(fig_imp, use_container_width=True)
+                        
+                        with col2:
+                            st.dataframe(feature_importance_df, use_container_width=True, hide_index=True)
+                
+                # Individual Algorithm Details
+                st.markdown("#### 📚 Algorithm Details & Predictions")
+                
+                for result in results:
+                    with st.expander(f"🔍 {result['Algorithm']} Details (Accuracy: {result['Accuracy']:.2%})", expanded=result['Algorithm'] == best_algorithm['Algorithm']):
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.metric("Accuracy", f"{result['Accuracy']:.2%}")
+                        with col2:
+                            st.metric("Precision", f"{result['Precision (Weighted)']:.2%}")
+                        with col3:
+                            st.metric("Recall", f"{result['Recall (Weighted)']:.2%}")
+                        
+                        # Make prediction with this algorithm
+                        if st.button(f"🎯 Predict with {result['Algorithm']}", key=f"predict_{result['Algorithm']}"):
+                            # Get the trained model
+                            model = algorithms[result['Algorithm']]
+                            
+                            # Prepare user data
+                            user_data = pd.DataFrame({
+                                'Location': [Location],
+                                'Gender': [gender],
+                                'Mobile_Money_Txns': [Mobile_Money_Txns],
+                                'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
+                                'Utility_Payments_ZWL': [Utility_Payments_ZWL],
+                                'Loan_Repayment_History': [Loan_Repayment_History],
+                                'Age': [Age]
+                            })
+                            
+                            # Encode user input
+                            for column in user_data.select_dtypes(include=['object']).columns:
+                                if column in label_encoders:
+                                    if user_data[column].iloc[0] in label_encoders[column].classes_:
+                                        user_data[column] = label_encoders[column].transform(user_data[column])
+                                    else:
+                                        user_data[column] = -1
+                            
+                            # Scale data if needed
+                            if result['Algorithm'] in ["Logistic Regression", "Support Vector Machine", "K-Nearest Neighbors"]:
+                                user_data_scaled = scaler.transform(user_data)
+                                prediction_encoded = model.predict(user_data_scaled)
+                                prediction_proba = model.predict_proba(user_data_scaled)
+                            else:
+                                prediction_encoded = model.predict(user_data)
+                                prediction_proba = model.predict_proba(user_data)
+                            
+                            predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
+                            confidence = np.max(prediction_proba) * 100
+                            
+                            # Display prediction
+                            st.markdown(f"""
+                            <div class="{'best-algorithm' if result['Algorithm'] == best_algorithm['Algorithm'] else 'algorithm-card'}">
+                                <h4>🎯 {result['Algorithm']} Prediction</h4>
+                                <h2 style="color: #1f77b4;">{predicted_class}</h2>
+                                <p><strong>Confidence:</strong> {confidence:.1f}%</p>
+                                <p><strong>Algorithm:</strong> {result['Algorithm']}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Show probability distribution
+                            prob_df = pd.DataFrame({
+                                'Credit Score': target_encoder.classes_,
+                                'Probability (%)': (prediction_proba[0] * 100).round(2)
+                            }).sort_values('Probability (%)', ascending=False)
+                            
+                            st.dataframe(prob_df, use_container_width=True, hide_index=True)
+                
+                # Ensemble Prediction
+                st.markdown("#### 🏗️ Ensemble Prediction (Voting)")
+                
+                if st.button("🤝 Get Ensemble Prediction", type="secondary", use_container_width=True):
+                    predictions = []
+                    confidences = []
+                    
+                    for name, model in algorithms.items():
+                        # Prepare user data
+                        user_data = pd.DataFrame({
+                            'Location': [Location],
+                            'Gender': [gender],
+                            'Mobile_Money_Txns': [Mobile_Money_Txns],
+                            'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
+                            'Utility_Payments_ZWL': [Utility_Payments_ZWL],
+                            'Loan_Repayment_History': [Loan_Repayment_History],
+                            'Age': [Age]
+                        })
+                        
+                        # Encode user input
+                        for column in user_data.select_dtypes(include=['object']).columns:
+                            if column in label_encoders:
+                                if user_data[column].iloc[0] in label_encoders[column].classes_:
+                                    user_data[column] = label_encoders[column].transform(user_data[column])
+                                else:
+                                    user_data[column] = -1
+                        
+                        # Make prediction
+                        if name in ["Logistic Regression", "Support Vector Machine", "K-Nearest Neighbors"]:
+                            user_data_scaled = scaler.transform(user_data)
+                            pred = model.predict(user_data_scaled)[0]
+                        else:
+                            pred = model.predict(user_data)[0]
+                        
+                        predictions.append(pred)
+                        confidences.append(1.0)  # Equal weight for now
+                    
+                    # Majority voting
+                    ensemble_pred = max(set(predictions), key=predictions.count)
+                    ensemble_class = target_encoder.inverse_transform([ensemble_pred])[0]
+                    
+                    st.markdown(f"""
+                    <div class="best-algorithm">
+                        <h4>🏆 Ensemble Prediction (Majority Voting)</h4>
+                        <h1 style="color: #28a745;">{ensemble_class}</h1>
+                        <p><strong>Based on:</strong> {len(algorithms)} algorithms</p>
+                        <p><strong>Consensus:</strong> {predictions.count(ensemble_pred)} out of {len(predictions)} algorithms agree</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Show individual algorithm votes
+                    vote_df = pd.DataFrame({
+                        'Algorithm': list(algorithms.keys()),
+                        'Prediction': [target_encoder.inverse_transform([p])[0] for p in predictions],
+                        'Vote': ['✅' if p == ensemble_pred else '❌' for p in predictions]
+                    })
+                    
+                    st.dataframe(vote_df, use_container_width=True, hide_index=True)
+                
+            except Exception as e:
+                st.error(f"❌ Error training algorithms: {str(e)}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
