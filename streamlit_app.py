@@ -1,18 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_auc_score
-import plotly.graph_objects as go
-import plotly.express as px
-from datetime import datetime
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 # Page configuration with beautiful theme
 st.set_page_config(
@@ -47,7 +39,15 @@ st.markdown("""
         padding: 1rem;
     }
     
-    .algorithm-card {
+    .sub-header {
+        font-size: 1.5rem;
+        color: #2e86ab;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    .card {
         background-color: rgba(248, 249, 250, 0.95);
         padding: 1.5rem;
         border-radius: 15px;
@@ -55,58 +55,137 @@ st.markdown("""
         margin-bottom: 1rem;
         box-shadow: 0 8px 16px rgba(0,0,0,0.1);
         backdrop-filter: blur(5px);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     
-    .algorithm-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.15);
-    }
-    
-    .algorithm-header {
+    .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 1rem;
-        text-align: center;
-    }
-    
-    .best-algorithm {
-        border: 3px solid #28a745;
-        background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
-        animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
-    }
-    
-    .metric-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-weight: bold;
-        display: inline-block;
-        margin: 0.2rem;
-    }
-    
-    .comparison-chart {
-        background-color: white;
         padding: 1.5rem;
         border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .sidebar-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 2rem;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .feature-box {
+        background-color: rgba(232, 244, 253, 0.9);
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+        border: 2px solid #b8d4f0;
+        transition: all 0.3s ease;
+    }
+    
+    .feature-box:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .success-box {
+        background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
+        border: 2px solid #28a745;
+        border-radius: 15px;
+        padding: 1.5rem;
         margin: 1rem 0;
+        color: #155724;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .warning-box {
+        background: linear-gradient(135deg, rgba(255, 243, 205, 0.95) 0%, rgba(255, 234, 167, 0.95) 100%);
+        border: 2px solid #ffc107;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: #856404;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .danger-box {
+        background: linear-gradient(135deg, rgba(248, 215, 218, 0.95) 0%, rgba(245, 198, 203, 0.95) 100%);
+        border: 2px solid #dc3545;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: #721c24;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .stProgress > div > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .input-card {
+        background-color: rgba(255, 255, 255, 0.95);
+        padding: 1rem;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        margin: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .tab-content {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .glowing-text {
+        text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+    }
+    
+    .assessment-highlight {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    
+    /* Random Forest specific styles */
+    .rf-info-box {
+        background: linear-gradient(135deg, rgba(144, 238, 144, 0.95) 0%, rgba(152, 251, 152, 0.95) 100%);
+        border: 2px solid #32CD32;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: #006400;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .tree-diagram {
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 1rem;
+        border-radius: 10px;
+        border: 2px solid #32CD32;
+        margin: 1rem 0;
+        text-align: center;
+        font-family: monospace;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # Header Section
 st.markdown('<h1 class="main-header glowing-text">🏦 Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 💳 Advanced ML Algorithms for Credit Scoring in Zimbabwe")
+st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data in Zimbabwe")
 st.markdown("---")
 
 # Load data with caching
@@ -116,7 +195,7 @@ def load_data():
 
 df = load_data()
 
-# Sidebar for user input
+# Beautiful sidebar
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-header">
@@ -175,42 +254,283 @@ with st.sidebar:
     )
 
 # Main content with tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 ML Algorithms"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model"])
 
-# ... (Previous tabs 1, 2, and 3 remain the same as in your original code) ...
+with tab1:
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+    st.markdown("### 📈 Dataset Overview")
+    
+    # Beautiful metric cards
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>📊 Total Records</h3>
+            <h2>{len(df):,}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🔧 Features</h3>
+            <h2>{len(df.columns) - 1}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>🎯 Credit Classes</h3>
+            <h2>{df['Credit_Score'].nunique()}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>✅ Data Quality</h3>
+            <h2>100%</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Data preview sections
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        with st.expander("📋 Raw Data Preview", expanded=True):
+            st.dataframe(df, use_container_width=True, height=300)
+    
+    with col2:
+        with st.expander("🔍 Features & Target", expanded=True):
+            st.write("**Features (X):**")
+            X = df.drop("Credit_Score", axis=1)
+            st.dataframe(X.head(8), use_container_width=True, height=200)
+            
+            st.write("**Target (Y):**")
+            Y = df["Credit_Score"]
+            st.dataframe(Y.head(8), use_container_width=True, height=150)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab2:
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+    st.markdown("### 🔍 Data Analysis & Insights")
+    
+    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📊 Distributions", "📈 Statistics", "🌍 Geographic"])
+    
+    with analysis_tab1:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Credit Score Distribution")
+            score_counts = df['Credit_Score'].value_counts().sort_index()
+            st.bar_chart(score_counts)
+            
+            # Show as table
+            st.markdown("**Count by Credit Score:**")
+            dist_df = score_counts.reset_index()
+            dist_df.columns = ['Credit Score', 'Count']
+            st.dataframe(dist_df, use_container_width=True, hide_index=True)
+        
+        with col2:
+            st.markdown("#### Location Distribution")
+            location_counts = df['Location'].value_counts()
+            st.bar_chart(location_counts)
+            
+            st.markdown("**Count by Location:**")
+            loc_df = location_counts.reset_index()
+            loc_df.columns = ['Location', 'Count']
+            st.dataframe(loc_df, use_container_width=True, hide_index=True)
+    
+    with analysis_tab2:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        selected_feature = st.selectbox("Select feature for detailed analysis:", numeric_cols)
+        
+        if selected_feature:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"#### {selected_feature} Distribution")
+                hist_values = np.histogram(df[selected_feature], bins=20)[0]
+                st.bar_chart(hist_values)
+            
+            with col2:
+                st.markdown(f"#### 📊 Statistics for {selected_feature}")
+                stats_data = {
+                    'Metric': ['Mean', 'Median', 'Std Dev', 'Min', 'Max', '25th %ile', '75th %ile'],
+                    'Value': [
+                        f"{df[selected_feature].mean():.2f}",
+                        f"{df[selected_feature].median():.2f}",
+                        f"{df[selected_feature].std():.2f}",
+                        f"{df[selected_feature].min():.2f}",
+                        f"{df[selected_feature].max():.2f}",
+                        f"{df[selected_feature].quantile(0.25):.2f}",
+                        f"{df[selected_feature].quantile(0.75):.2f}"
+                    ]
+                }
+                stats_df = pd.DataFrame(stats_data)
+                st.dataframe(stats_df, use_container_width=True, hide_index=True)
+    
+    with analysis_tab3:
+        st.markdown("#### Credit Scores by Location")
+        location_summary = df.groupby('Location')['Credit_Score'].value_counts().unstack().fillna(0)
+        st.dataframe(location_summary, use_container_width=True)
+        
+        st.markdown("#### Location Performance Summary")
+        location_stats = df.groupby('Location').agg({
+            'Credit_Score': lambda x: (x == 'Good').mean()  # Example metric
+        }).round(3)
+        st.dataframe(location_stats, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with tab3:
+    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+    st.markdown("### 🎯 Credit Assessment Results")
+    
+    # Input summary in beautiful cards
+    st.markdown("#### 📋 Your Input Summary")
+    input_data = {
+        "Feature": ["📍 Location", "👤 Gender", "🎂 Age", "📱 Mobile Transactions", 
+                   "📞 Airtime Spend", "💡 Utility Payments", "📊 Repayment History"],
+        "Value": [Location, gender, f"{Age} years", f"{Mobile_Money_Txns:.1f}", 
+                 f"{Airtime_Spend_ZWL:.1f} ZWL", f"{Utility_Payments_ZWL:.1f} ZWL", Loan_Repayment_History]
+    }
+    input_df = pd.DataFrame(input_data)
+    
+    # Display as styled dataframe
+    st.dataframe(
+        input_df, 
+        use_container_width=True, 
+        hide_index=True,
+        height=280
+    )
+    
+    # Assessment calculation with beautiful progress bars
+    st.markdown("#### 📊 Assessment Factors")
+    
+    score = 0
+    max_score = 6
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("##### 🎂 Age Factor")
+        if 30 <= Age <= 50:
+            score += 2
+            st.success("✅ Optimal (30-50 years)")
+            st.progress(1.0)
+        elif 25 <= Age < 30 or 50 < Age <= 60:
+            score += 1
+            st.warning("⚠️ Moderate")
+            st.progress(0.5)
+        else:
+            st.error("❌ Higher Risk")
+            st.progress(0.2)
+    
+    with col2:
+        st.markdown("##### 💰 Transaction Activity")
+        mobile_median = df['Mobile_Money_Txns'].median()
+        if Mobile_Money_Txns > mobile_median:
+            score += 1
+            st.success(f"✅ Above Average")
+            st.progress(1.0)
+        else:
+            st.warning("⚠️ Below Average")
+            st.progress(0.3)
+    
+    with col3:
+        st.markdown("##### 📈 Repayment History")
+        repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
+        rep_score = repayment_scores[Loan_Repayment_History]
+        score += rep_score
+        progress_map = {'Poor': 0.2, 'Fair': 0.4, 'Good': 0.7, 'Excellent': 1.0}
+        st.info(f"📊 {Loan_Repayment_History}")
+        st.progress(progress_map[Loan_Repayment_History])
+    
+    # Final assessment
+    st.markdown("---")
+    percentage = (score / max_score) * 100
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("#### 📈 Overall Score")
+        st.markdown(f"# {score}/{max_score}")
+        st.markdown(f"### {percentage:.1f}%")
+        st.progress(percentage / 100)
+        
+        # Score interpretation
+        if score >= 5:
+            st.success("🎉 Excellent Score!")
+        elif score >= 3:
+            st.info("📊 Good Score")
+        else:
+            st.warning("📝 Needs Improvement")
+    
+    with col2:
+        st.markdown("#### 🎯 Final Assessment")
+        if score >= 5:
+            st.markdown("""
+            <div class="success-box">
+                <h3>✅ EXCELLENT CREDITWORTHINESS</h3>
+                <p><strong>Recommendation:</strong> Strong candidate for credit approval with favorable terms and higher limits</p>
+                <p><strong>Risk Level:</strong> Low</p>
+            </div>
+            """, unsafe_allow_html=True)
+        elif score >= 3:
+            st.markdown("""
+            <div class="warning-box">
+                <h3>⚠️ MODERATE RISK PROFILE</h3>
+                <p><strong>Recommendation:</strong> Standard verification process with moderate credit limits</p>
+                <p><strong>Risk Level:</strong> Medium</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="danger-box">
+                <h3>❌ HIGHER RISK PROFILE</h3>
+                <p><strong>Recommendation:</strong> Enhanced verification and possible collateral required</p>
+                <p><strong>Risk Level:</strong> High</p>
+            </div>
+            """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with tab4:
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🤖 Advanced Machine Learning Algorithms")
+    st.markdown("### 🤖 AI-Powered Credit Scoring with Random Forest")
     
+    # Random Forest Information Section
     st.markdown("""
-    <div class="card">
-        <h3>🚀 Multiple Algorithm Comparison</h3>
-        <p>We train and compare multiple machine learning algorithms to find the best model for credit scoring. 
-        Each algorithm has its strengths and is evaluated on accuracy, precision, recall, and F1-score.</p>
+    <div class="rf-info-box">
+        <h3>🌳 Random Forest Algorithm</h3>
+        <p><strong>Random Forest</strong> is an ensemble learning method that operates by constructing multiple decision trees during training. 
+        For classification tasks, the output is the class selected by most trees. It's particularly well-suited for credit scoring because:</p>
+        <ul>
+            <li>✅ Handles both numerical and categorical data well</li>
+            <li>✅ Reduces overfitting compared to single decision trees</li>
+            <li>✅ Provides feature importance scores</li>
+            <li>✅ Works well with datasets having multiple features</li>
+            <li>✅ Robust to outliers and noise in data</li>
+        </ul>
     </div>
     """, unsafe_allow_html=True)
     
-    # Algorithm selection
-    st.markdown("#### 🎯 Select Algorithms to Compare")
+    # Random Forest parameters configuration
+    st.markdown("#### ⚙️ Random Forest Configuration")
     
-    algorithms_to_train = st.multiselect(
-        "Choose algorithms:",
-        [
-            "Random Forest",
-            "Gradient Boosting", 
-            "Decision Tree",
-            "Logistic Regression",
-            "Support Vector Machine",
-            "K-Nearest Neighbors",
-            "AdaBoost",
-            "Naive Bayes"
-        ],
-        default=["Random Forest", "Gradient Boosting", "Logistic Regression", "Decision Tree"]
-    )
+    col1, col2, col3 = st.columns(3)
     
-    if st.button("🎯 Train All Selected Algorithms", type="primary", use_container_width=True):
-        with st.spinner("🤖 Training multiple algorithms... This may take a few moments."):
+    with col1:
+        n_estimators = st.slider("Number of Trees", 10, 500, 100, 10,
+                                help="Number of decision trees in the forest")
+    
+    with col2:
+        max_depth = st.slider("Max Tree Depth", 2, 20, 10, 1,
+                             help="Maximum depth of each decision tree")
+    
+    with col3:
+        min_samples_split = st.slider("Min Samples Split", 2, 20, 5, 1,
+                                     help="Minimum number of samples required to split an internal node")
+    
+    if st.button("🌳 Train Random Forest Model", type="primary", use_container_width=True):
+        with st.spinner("🌳 Training Random Forest model... This may take a few moments."):
             try:
                 # Prepare data
                 X = df.drop("Credit_Score", axis=1)
@@ -232,335 +552,219 @@ with tab4:
                     X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
                 )
                 
-                # Standardize features for some algorithms
-                scaler = StandardScaler()
-                X_train_scaled = scaler.fit_transform(X_train)
-                X_test_scaled = scaler.transform(X_test)
-                
-                # Initialize algorithms
-                algorithms = {}
-                
-                if "Random Forest" in algorithms_to_train:
-                    algorithms["Random Forest"] = RandomForestClassifier(
-                        n_estimators=100, 
-                        random_state=42,
-                        max_depth=10,
-                        min_samples_split=5
-                    )
-                
-                if "Gradient Boosting" in algorithms_to_train:
-                    algorithms["Gradient Boosting"] = GradientBoostingClassifier(
-                        n_estimators=100, 
-                        random_state=42,
-                        learning_rate=0.1
-                    )
-                
-                if "Decision Tree" in algorithms_to_train:
-                    algorithms["Decision Tree"] = DecisionTreeClassifier(
-                        random_state=42,
-                        max_depth=5
-                    )
-                
-                if "Logistic Regression" in algorithms_to_train:
-                    algorithms["Logistic Regression"] = LogisticRegression(
-                        random_state=42,
-                        max_iter=1000
-                    )
-                
-                if "Support Vector Machine" in algorithms_to_train:
-                    algorithms["Support Vector Machine"] = SVC(
-                        random_state=42,
-                        probability=True
-                    )
-                
-                if "K-Nearest Neighbors" in algorithms_to_train:
-                    algorithms["K-Nearest Neighbors"] = KNeighborsClassifier(
-                        n_neighbors=5
-                    )
-                
-                if "AdaBoost" in algorithms_to_train:
-                    algorithms["AdaBoost"] = AdaBoostClassifier(
-                        random_state=42,
-                        n_estimators=50
-                    )
-                
-                if "Naive Bayes" in algorithms_to_train:
-                    algorithms["Naive Bayes"] = GaussianNB()
-                
-                # Train and evaluate algorithms
-                results = []
-                feature_importances = {}
-                
-                progress_bar = st.progress(0)
-                for idx, (name, model) in enumerate(algorithms.items()):
-                    # Update progress
-                    progress_bar.progress((idx + 1) / len(algorithms))
-                    
-                    with st.spinner(f"Training {name}..."):
-                        # Use scaled data for certain algorithms
-                        if name in ["Logistic Regression", "Support Vector Machine", "K-Nearest Neighbors"]:
-                            model.fit(X_train_scaled, y_train)
-                            y_pred = model.predict(X_test_scaled)
-                            y_pred_proba = model.predict_proba(X_test_scaled)
-                        else:
-                            model.fit(X_train, y_train)
-                            y_pred = model.predict(X_test)
-                            y_pred_proba = model.predict_proba(X_test)
-                        
-                        # Calculate metrics
-                        accuracy = accuracy_score(y_test, y_pred)
-                        report = classification_report(y_test, y_pred, output_dict=True)
-                        
-                        # Store feature importance if available
-                        if hasattr(model, 'feature_importances_'):
-                            feature_importances[name] = model.feature_importances_
-                        
-                        # Cross-validation score
-                        cv_scores = cross_val_score(model, X, y_encoded, cv=5, scoring='accuracy')
-                        
-                        results.append({
-                            'Algorithm': name,
-                            'Accuracy': accuracy,
-                            'Precision (Weighted)': report['weighted avg']['precision'],
-                            'Recall (Weighted)': report['weighted avg']['recall'],
-                            'F1-Score (Weighted)': report['weighted avg']['f1-score'],
-                            'CV Mean Accuracy': cv_scores.mean(),
-                            'CV Std': cv_scores.std(),
-                            'Training Time': datetime.now()  # Placeholder for timing
-                        })
-                
-                progress_bar.empty()
-                
-                # Display results
-                st.success(f"✅ {len(results)} algorithms trained successfully!")
-                
-                # Convert results to DataFrame
-                results_df = pd.DataFrame(results)
-                
-                # Find best algorithm
-                best_algorithm = results_df.loc[results_df['Accuracy'].idxmax()]
-                
-                st.markdown(f"""
-                <div class="algorithm-header">
-                    <h3>🏆 Best Performing Algorithm</h3>
-                    <h2>{best_algorithm['Algorithm']}</h2>
-                    <p>Accuracy: {best_algorithm['Accuracy']:.2%}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Display comparison metrics
-                st.markdown("#### 📊 Algorithm Performance Comparison")
-                
-                # Interactive metrics chart
-                metrics_to_show = st.multiselect(
-                    "Select metrics to display:",
-                    ['Accuracy', 'Precision (Weighted)', 'Recall (Weighted)', 'F1-Score (Weighted)', 'CV Mean Accuracy'],
-                    default=['Accuracy', 'F1-Score (Weighted)']
+                # Train Random Forest model with user parameters
+                model = RandomForestClassifier(
+                    n_estimators=n_estimators,
+                    max_depth=max_depth,
+                    min_samples_split=min_samples_split,
+                    random_state=42,
+                    n_jobs=-1  # Use all available processors
                 )
+                model.fit(X_train, y_train)
                 
-                if metrics_to_show:
-                    # Create comparison chart
-                    fig = go.Figure()
-                    
-                    colors = px.colors.qualitative.Set3
-                    for i, metric in enumerate(metrics_to_show):
-                        fig.add_trace(go.Bar(
-                            name=metric,
-                            x=results_df['Algorithm'],
-                            y=results_df[metric],
-                            marker_color=colors[i % len(colors)],
-                            text=results_df[metric].apply(lambda x: f'{x:.2%}' if 'Accuracy' in metric else f'{x:.3f}'),
-                            textposition='auto',
-                        ))
-                    
-                    fig.update_layout(
-                        title='Algorithm Performance Comparison',
-                        xaxis_title='Algorithm',
-                        yaxis_title='Score',
-                        barmode='group',
-                        template='plotly_white',
-                        height=500
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
+                # Make predictions
+                y_pred = model.predict(X_test)
+                accuracy = accuracy_score(y_test, y_pred)
                 
-                # Display detailed results table
-                st.markdown("#### 📋 Detailed Performance Metrics")
+                st.success("✅ Random Forest model trained successfully!")
                 
-                # Format the results for display
-                display_df = results_df.copy()
-                for col in ['Accuracy', 'Precision (Weighted)', 'Recall (Weighted)', 
-                           'F1-Score (Weighted)', 'CV Mean Accuracy']:
-                    if col in display_df.columns:
-                        display_df[col] = display_df[col].apply(lambda x: f'{x:.2%}')
-                display_df['CV Std'] = display_df['CV Std'].apply(lambda x: f'{x:.4f}')
+                # Display Random Forest specific metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("🎯 Accuracy", f"{accuracy:.2%}")
+                with col2:
+                    st.metric("🌳 Number of Trees", f"{n_estimators}")
+                with col3:
+                    st.metric("📚 Training Samples", f"{len(X_train):,}")
+                with col4:
+                    st.metric("🧪 Test Samples", f"{len(X_test):,}")
                 
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                # Feature importance visualization
+                st.markdown("#### 🔍 Random Forest Feature Importance")
                 
-                # Feature Importance Analysis
-                if feature_importances:
-                    st.markdown("#### 🔍 Feature Importance Analysis")
-                    
-                    # Show feature importance for Random Forest if available
-                    if "Random Forest" in feature_importances:
-                        rf_importance = feature_importances["Random Forest"]
-                        feature_importance_df = pd.DataFrame({
-                            'Feature': X.columns,
-                            'Importance': rf_importance
-                        }).sort_values('Importance', ascending=False)
-                        
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            # Feature importance chart
-                            fig_imp = go.Figure(go.Bar(
-                                x=feature_importance_df['Importance'],
-                                y=feature_importance_df['Feature'],
-                                orientation='h',
-                                marker_color='#667eea'
-                            ))
-                            
-                            fig_imp.update_layout(
-                                title='Random Forest Feature Importance',
-                                xaxis_title='Importance',
-                                yaxis_title='Feature',
-                                height=400,
-                                template='plotly_white'
-                            )
-                            
-                            st.plotly_chart(fig_imp, use_container_width=True)
-                        
-                        with col2:
-                            st.dataframe(feature_importance_df, use_container_width=True, hide_index=True)
+                feature_importance = pd.DataFrame({
+                    'Feature': X.columns,
+                    'Importance': model.feature_importances_
+                }).sort_values('Importance', ascending=False)
                 
-                # Individual Algorithm Details
-                st.markdown("#### 📚 Algorithm Details & Predictions")
+                # Create two columns for visualization and table
+                col1, col2 = st.columns(2)
                 
-                for result in results:
-                    with st.expander(f"🔍 {result['Algorithm']} Details (Accuracy: {result['Accuracy']:.2%})", expanded=result['Algorithm'] == best_algorithm['Algorithm']):
-                        col1, col2, col3 = st.columns(3)
-                        
-                        with col1:
-                            st.metric("Accuracy", f"{result['Accuracy']:.2%}")
-                        with col2:
-                            st.metric("Precision", f"{result['Precision (Weighted)']:.2%}")
-                        with col3:
-                            st.metric("Recall", f"{result['Recall (Weighted)']:.2%}")
-                        
-                        # Make prediction with this algorithm
-                        if st.button(f"🎯 Predict with {result['Algorithm']}", key=f"predict_{result['Algorithm']}"):
-                            # Get the trained model
-                            model = algorithms[result['Algorithm']]
-                            
-                            # Prepare user data
-                            user_data = pd.DataFrame({
-                                'Location': [Location],
-                                'Gender': [gender],
-                                'Mobile_Money_Txns': [Mobile_Money_Txns],
-                                'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
-                                'Utility_Payments_ZWL': [Utility_Payments_ZWL],
-                                'Loan_Repayment_History': [Loan_Repayment_History],
-                                'Age': [Age]
-                            })
-                            
-                            # Encode user input
-                            for column in user_data.select_dtypes(include=['object']).columns:
-                                if column in label_encoders:
-                                    if user_data[column].iloc[0] in label_encoders[column].classes_:
-                                        user_data[column] = label_encoders[column].transform(user_data[column])
-                                    else:
-                                        user_data[column] = -1
-                            
-                            # Scale data if needed
-                            if result['Algorithm'] in ["Logistic Regression", "Support Vector Machine", "K-Nearest Neighbors"]:
-                                user_data_scaled = scaler.transform(user_data)
-                                prediction_encoded = model.predict(user_data_scaled)
-                                prediction_proba = model.predict_proba(user_data_scaled)
-                            else:
-                                prediction_encoded = model.predict(user_data)
-                                prediction_proba = model.predict_proba(user_data)
-                            
-                            predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
-                            confidence = np.max(prediction_proba) * 100
-                            
-                            # Display prediction
-                            st.markdown(f"""
-                            <div class="{'best-algorithm' if result['Algorithm'] == best_algorithm['Algorithm'] else 'algorithm-card'}">
-                                <h4>🎯 {result['Algorithm']} Prediction</h4>
-                                <h2 style="color: #1f77b4;">{predicted_class}</h2>
-                                <p><strong>Confidence:</strong> {confidence:.1f}%</p>
-                                <p><strong>Algorithm:</strong> {result['Algorithm']}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # Show probability distribution
-                            prob_df = pd.DataFrame({
-                                'Credit Score': target_encoder.classes_,
-                                'Probability (%)': (prediction_proba[0] * 100).round(2)
-                            }).sort_values('Probability (%)', ascending=False)
-                            
-                            st.dataframe(prob_df, use_container_width=True, hide_index=True)
+                with col1:
+                    # Display as bar chart
+                    st.bar_chart(feature_importance.set_index('Feature')['Importance'])
                 
-                # Ensemble Prediction
-                st.markdown("#### 🏗️ Ensemble Prediction (Voting)")
+                with col2:
+                    # Display as styled dataframe
+                    st.dataframe(feature_importance, 
+                               use_container_width=True, 
+                               hide_index=True,
+                               height=400)
                 
-                if st.button("🤝 Get Ensemble Prediction", type="secondary", use_container_width=True):
-                    predictions = []
-                    confidences = []
-                    
-                    for name, model in algorithms.items():
-                        # Prepare user data
-                        user_data = pd.DataFrame({
-                            'Location': [Location],
-                            'Gender': [gender],
-                            'Mobile_Money_Txns': [Mobile_Money_Txns],
-                            'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
-                            'Utility_Payments_ZWL': [Utility_Payments_ZWL],
-                            'Loan_Repayment_History': [Loan_Repayment_History],
-                            'Age': [Age]
-                        })
-                        
-                        # Encode user input
-                        for column in user_data.select_dtypes(include=['object']).columns:
-                            if column in label_encoders:
-                                if user_data[column].iloc[0] in label_encoders[column].classes_:
-                                    user_data[column] = label_encoders[column].transform(user_data[column])
-                                else:
-                                    user_data[column] = -1
-                        
-                        # Make prediction
-                        if name in ["Logistic Regression", "Support Vector Machine", "K-Nearest Neighbors"]:
-                            user_data_scaled = scaler.transform(user_data)
-                            pred = model.predict(user_data_scaled)[0]
-                        else:
-                            pred = model.predict(user_data)[0]
-                        
-                        predictions.append(pred)
-                        confidences.append(1.0)  # Equal weight for now
-                    
-                    # Majority voting
-                    ensemble_pred = max(set(predictions), key=predictions.count)
-                    ensemble_class = target_encoder.inverse_transform([ensemble_pred])[0]
-                    
-                    st.markdown(f"""
-                    <div class="best-algorithm">
-                        <h4>🏆 Ensemble Prediction (Majority Voting)</h4>
-                        <h1 style="color: #28a745;">{ensemble_class}</h1>
-                        <p><strong>Based on:</strong> {len(algorithms)} algorithms</p>
-                        <p><strong>Consensus:</strong> {predictions.count(ensemble_pred)} out of {len(predictions)} algorithms agree</p>
+                # Random Forest tree visualization (simplified)
+                st.markdown("#### 🌲 Random Forest Structure")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("""
+                    <div class="tree-diagram">
+                        <h5>🌳 Random Forest Architecture</h5>
+                        <pre>
+     Random Forest
+        │
+        ├── Tree 1
+        │     ├── Feature: {feature1}
+        │     └── Feature: {feature2}
+        ├── Tree 2
+        │     ├── Feature: {feature3}
+        │     └── Feature: {feature4}
+        ├── Tree 3
+        │     ├── Feature: {feature1}
+        │     └── Feature: {feature5}
+        └── ... ({} more trees)
+                        </pre>
+                        <p><strong>Final Decision:</strong> Majority Vote from all trees</p>
                     </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Show individual algorithm votes
-                    vote_df = pd.DataFrame({
-                        'Algorithm': list(algorithms.keys()),
-                        'Prediction': [target_encoder.inverse_transform([p])[0] for p in predictions],
-                        'Vote': ['✅' if p == ensemble_pred else '❌' for p in predictions]
+                    """.format(n_estimators-3), unsafe_allow_html=True)
+                
+                with col2:
+                    # Model statistics
+                    st.markdown("#### 📊 Model Statistics")
+                    stats_data = {
+                        'Metric': ['Total Trees', 'Avg Tree Depth', 'Avg Nodes per Tree', 
+                                  'Avg Leaves per Tree', 'OOB Score', 'Feature Count'],
+                        'Value': [
+                            f"{n_estimators}",
+                            f"{model.estimators_[0].get_depth()}",
+                            f"{model.estimators_[0].tree_.node_count}",
+                            f"{model.estimators_[0].get_n_leaves()}",
+                            f"{model.oob_score_:.2%}" if hasattr(model, 'oob_score_') else "N/A",
+                            f"{X.shape[1]}"
+                        ]
+                    }
+                    stats_df = pd.DataFrame(stats_data)
+                    st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                
+                # Real-time prediction with Random Forest
+                st.markdown("#### 🎯 Get Your Random Forest Prediction")
+                
+                if st.button("🔮 Predict My Credit Score with Random Forest", type="secondary", use_container_width=True):
+                    user_data = pd.DataFrame({
+                        'Location': [Location],
+                        'Gender': [gender],
+                        'Mobile_Money_Txns': [Mobile_Money_Txns],
+                        'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
+                        'Utility_Payments_ZWL': [Utility_Payments_ZWL],
+                        'Loan_Repayment_History': [Loan_Repayment_History],
+                        'Age': [Age]
                     })
                     
-                    st.dataframe(vote_df, use_container_width=True, hide_index=True)
+                    # Encode user input
+                    for column in user_data.select_dtypes(include=['object']).columns:
+                        if column in label_encoders:
+                            if user_data[column].iloc[0] in label_encoders[column].classes_:
+                                user_data[column] = label_encoders[column].transform(user_data[column])
+                            else:
+                                user_data[column] = -1
+                    
+                    # Predict with Random Forest
+                    prediction_encoded = model.predict(user_data)
+                    prediction_proba = model.predict_proba(user_data)
+                    
+                    predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
+                    confidence = np.max(prediction_proba) * 100
+                    
+                    # Beautiful Random Forest prediction display
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown(f"""
+                        <div class="success-box">
+                            <h3>Random Forest Prediction</h3>
+                            <h1>{predicted_class}</h1>
+                            <p><strong>Algorithm:</strong> Random Forest</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        <div class="card">
+                            <h3>Confidence Level</h3>
+                            <h1>{confidence:.1f}%</h1>
+                            <p>Based on {n_estimators} decision trees</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col3:
+                        # Get individual tree predictions (sample of 5 trees)
+                        tree_predictions = []
+                        for i, tree in enumerate(model.estimators_[:5]):
+                            tree_pred = tree.predict(user_data)[0]
+                            tree_predictions.append(target_encoder.inverse_transform([tree_pred])[0])
+                        
+                        st.markdown(f"""
+                        <div class="feature-box">
+                            <h4>🌲 Sample Tree Predictions</h4>
+                            <p>Tree 1: {tree_predictions[0]}</p>
+                            <p>Tree 2: {tree_predictions[1]}</p>
+                            <p>Tree 3: {tree_predictions[2]}</p>
+                            <p>Tree 4: {tree_predictions[3]}</p>
+                            <p>Tree 5: {tree_predictions[4]}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Probability distribution from Random Forest
+                    st.markdown("#### 📊 Probability Distribution from Random Forest")
+                    prob_df = pd.DataFrame({
+                        'Credit Score': target_encoder.classes_,
+                        'Probability (%)': (prediction_proba[0] * 100).round(2)
+                    }).sort_values('Probability (%)', ascending=False)
+                    
+                    # Add color coding based on probability
+                    def color_probability(val):
+                        if val > 70:
+                            return 'background-color: rgba(0, 255, 0, 0.2)'
+                        elif val > 30:
+                            return 'background-color: rgba(255, 255, 0, 0.2)'
+                        else:
+                            return 'background-color: rgba(255, 0, 0, 0.2)'
+                    
+                    styled_df = prob_df.style.applymap(color_probability, subset=['Probability (%)'])
+                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                
+                # Model performance details
+                with st.expander("📊 View Detailed Model Performance"):
+                    st.markdown("##### Classification Report")
+                    report = classification_report(y_test, y_pred, target_names=target_encoder.classes_, output_dict=True)
+                    report_df = pd.DataFrame(report).transpose()
+                    st.dataframe(report_df, use_container_width=True)
+                    
+                    st.markdown("##### Confusion Matrix")
+                    cm = confusion_matrix(y_test, y_pred)
+                    cm_df = pd.DataFrame(cm, 
+                                        index=target_encoder.classes_,
+                                        columns=target_encoder.classes_)
+                    st.dataframe(cm_df, use_container_width=True)
                 
             except Exception as e:
-                st.error(f"❌ Error training algorithms: {str(e)}")
+                st.error(f"❌ Error training Random Forest model: {str(e)}")
+    
+    # Add information about Random Forest advantages
+    st.markdown("---")
+    st.markdown("""
+    <div class="card">
+        <h4>🌳 Why Random Forest for Credit Scoring?</h4>
+        <p><strong>Advantages of Random Forest in Credit Assessment:</strong></p>
+        <ol>
+            <li><strong>High Accuracy:</strong> Often achieves better performance than single decision trees</li>
+            <li><strong>Feature Importance:</strong> Identifies which factors most influence credit scores</li>
+            <li><strong>Robustness:</strong> Less prone to overfitting and handles missing values well</li>
+            <li><strong>Non-linear Relationships:</strong> Captures complex patterns in financial data</li>
+            <li><strong>Interpretability:</strong> Provides insights into decision-making process</li>
+        </ol>
+        <p><em>The model aggregates predictions from multiple decision trees to make more reliable credit assessments.</em></p>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
