@@ -100,6 +100,22 @@ st.markdown("""
         border: 2px solid #4CAF50;
         margin: 1rem 0;
     }
+    
+    .rf-card {
+        background: linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+    }
+    
+    .xgb-card {
+        background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 0.5rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -201,7 +217,6 @@ def engineer_features(df):
 # ============================================================
 # PHASE 3: MODEL TRAINING AND EVALUATION
 # ============================================================
-# ADDED: Random Forest training function
 def train_random_forest_model(X_train, y_train, X_test, y_test):
     """Train Random Forest model with comprehensive evaluation"""
     
@@ -267,50 +282,24 @@ def evaluate_model(y_test, y_pred, y_pred_proba, class_names):
         # Multi-class ROC-AUC
         results['roc_auc'] = roc_auc_score(y_test, y_pred_proba, multi_class='ovr')
     
-    # ADDED: Accuracy
+    # 2. Accuracy
     results['accuracy'] = accuracy_score(y_test, y_pred)
     
-    # 2. Precision, Recall, F1-Score
+    # 3. Precision, Recall, F1-Score
     results['precision'] = precision_score(y_test, y_pred, average='weighted')
     results['recall'] = recall_score(y_test, y_pred, average='weighted')
     results['f1'] = f1_score(y_test, y_pred, average='weighted')
     
-    # 3. Confusion Matrix
+    # 4. Confusion Matrix
     results['confusion_matrix'] = confusion_matrix(y_test, y_pred)
     
-    # 4. Classification Report
+    # 5. Classification Report
     results['classification_report'] = classification_report(y_test, y_pred, 
                                                             target_names=class_names, 
                                                             output_dict=True)
     
-    # 5. Calibration (simplified)
-    # In practice, use CalibrationDisplay or probability calibration
-    
     return results
 
-def plot_shap_summary(model, X_train, feature_names, model_type='xgb'):
-    """Generate SHAP summary plot"""
-    # Create SHAP explainer
-    explainer = shap.TreeExplainer(model)
-    
-    # Calculate SHAP values
-    shap_values = explainer.shap_values(X_train)
-    
-    # Create summary plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    shap.summary_plot(shap_values, X_train, feature_names=feature_names, 
-                      show=False, max_display=10)
-    
-    # Customize title based on model type
-    if model_type == 'rf':
-        plt.title('Random Forest - SHAP Feature Importance', fontsize=14)
-    else:
-        plt.title('XGBoost - SHAP Feature Importance', fontsize=14)
-    
-    plt.tight_layout()
-    return fig
-
-# ADDED: Compare models function
 def compare_models(rf_results, xgb_results):
     """Compare Random Forest and XGBoost results"""
     comparison = {
@@ -395,10 +384,11 @@ with st.sidebar:
         sorted(df['Loan_Repayment_History'].unique())
     )
     
-    # ADDED: Model selection
-    model_choice = st.selectbox(
-        "🤖 Select Model for Prediction",
-        ["Random Forest", "XGBoost", "Both"]
+    # Model selection for predictions
+    selected_model = st.radio(
+        "🤖 Select Model for Prediction:",
+        ["Random Forest", "XGBoost", "Both"],
+        index=2
     )
 
 # Main content with tabs
@@ -479,6 +469,7 @@ with tab2:
 
 with tab3:
     st.markdown('<div class="phase-header"><h2>Phase 3: Random Forest Model</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div class="rf-card">🌲 Random Forest Classifier - Ensemble of Decision Trees</div>', unsafe_allow_html=True)
     
     if 'df_engineered' in st.session_state:
         df_engineered = st.session_state['df_engineered']
@@ -563,24 +554,6 @@ with tab3:
                 plt.tight_layout()
                 st.pyplot(fig_fi)
                 
-                # SHAP Analysis for Random Forest
-                st.markdown("#### 📊 SHAP Analysis for Model Interpretability")
-                if st.button("Generate SHAP Analysis (RF)"):
-                    with st.spinner("Calculating SHAP values for Random Forest..."):
-                        # Sample for SHAP (computationally intensive)
-                        X_sample = X_train_scaled[:100]
-                        shap_fig = plot_shap_summary(rf_model, X_sample, X.columns.tolist(), model_type='rf')
-                        st.pyplot(shap_fig)
-                        st.markdown("""
-                        <div class="shap-box">
-                            <h4>SHAP Interpretation (Random Forest)</h4>
-                            <p>• Each point represents a customer<br>
-                            • Color shows feature value (red=high, blue=low)<br>
-                            • Position shows impact on prediction<br>
-                            • Features sorted by overall importance</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                
                 # Store model in session state
                 st.session_state['rf_model'] = rf_model
                 st.session_state['rf_scaler'] = scaler
@@ -594,6 +567,7 @@ with tab3:
 
 with tab4:
     st.markdown('<div class="phase-header"><h2>Phase 3: XGBoost Model</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div class="xgb-card">🤖 XGBoost Classifier - Gradient Boosting</div>', unsafe_allow_html=True)
     
     if 'df_engineered' in st.session_state:
         df_engineered = st.session_state['df_engineered']
@@ -626,7 +600,7 @@ with tab4:
         
         if st.button("🎯 Train XGBoost Model", type="primary"):
             with st.spinner("🤖 Training XGBoost model..."):
-                # Train model
+                # Train XGBoost model
                 xgb_model, y_pred_xgb, y_pred_proba_xgb = train_xgboost_model(
                     X_train_scaled, y_train, X_test_scaled, y_test
                 )
@@ -677,24 +651,6 @@ with tab4:
                 ax_fi.set_title('XGBoost - Top 20 Feature Importance')
                 plt.tight_layout()
                 st.pyplot(fig_fi)
-                
-                # SHAP Analysis
-                st.markdown("#### 📊 SHAP Analysis for Model Interpretability")
-                if st.button("Generate SHAP Analysis (XGBoost)"):
-                    with st.spinner("Calculating SHAP values..."):
-                        # Sample for SHAP (computationally intensive)
-                        X_sample = X_train_scaled[:100]
-                        shap_fig = plot_shap_summary(xgb_model, X_sample, X.columns.tolist())
-                        st.pyplot(shap_fig)
-                        st.markdown("""
-                        <div class="shap-box">
-                            <h4>SHAP Interpretation (XGBoost)</h4>
-                            <p>• Each point represents a customer<br>
-                            • Color shows feature value (red=high, blue=low)<br>
-                            • Position shows impact on prediction<br>
-                            • Features sorted by overall importance</p>
-                        </div>
-                        """, unsafe_allow_html=True)
                 
                 # Store model in session state
                 st.session_state['xgb_model'] = xgb_model
@@ -819,7 +775,7 @@ with tab6:
             # Get appropriate model and preprocessing objects
             if model_type == 'rf':
                 if 'rf_model' not in st.session_state:
-                    return None, "Random Forest model not trained yet"
+                    return None, None, "Random Forest model not trained yet"
                 
                 model = st.session_state['rf_model']
                 scaler = st.session_state['rf_scaler']
@@ -829,11 +785,59 @@ with tab6:
                 model_name = "Random Forest"
             else:
                 if 'xgb_model' not in st.session_state:
-                    return None, "XGBoost model not trained yet"
+                    return None, None, "XGBoost model not trained yet"
                 
                 model = st.session_state['xgb_model']
                 scaler = st.session_state['xgb_scaler']
                 label_encoders = st.session_state['xgb_label_encoders']
                 target_encoder = st.session_state['xgb_target_encoder']
                 X_columns = st.session_state['xgb_X_columns']
-                model
+                model_name = "XGBoost"
+            
+            # Align columns with training data
+            for col in X_columns:
+                if col not in user_engineered.columns:
+                    user_engineered[col] = 0  # Add missing columns with default
+            
+            # Reorder columns to match training data
+            user_engineered = user_engineered[X_columns]
+            
+            # Encode categorical variables
+            for column in user_engineered.select_dtypes(include=['object']).columns:
+                if column in label_encoders:
+                    # Handle unseen labels
+                    if user_engineered[column].iloc[0] in label_encoders[column].classes_:
+                        user_engineered[column] = label_encoders[column].transform(user_engineered[column])
+                    else:
+                        # Use most frequent class for unseen labels
+                        user_engineered[column] = label_encoders[column].transform(
+                            [label_encoders[column].classes_[0]]
+                        )
+            
+            # Scale features
+            user_scaled = scaler.transform(user_engineered)
+            
+            # Make prediction
+            prediction_encoded = model.predict(user_scaled)
+            prediction_proba = model.predict_proba(user_scaled)
+            
+            predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
+            confidence = np.max(prediction_proba) * 100
+            
+            return predicted_class, confidence, model_name
+            
+        except Exception as e:
+            return None, None, f"Error: {str(e)}"
+    
+    # Prediction buttons
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🌲 Get RF Prediction", type="primary"):
+            predicted_class, confidence, message = make_prediction(user_data, 'rf')
+            
+            if predicted_class:
+                st.markdown(f"""
+                <div class="rf-card">
+                    <h3>🌲 Random Forest Prediction</h3>
+                    <h1>{predicted_class}</
