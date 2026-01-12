@@ -4,3 +4,6 @@ scikit-learn
 pandas
 seaborn
 matplotlib
+plotly
+xgboost
+shap
