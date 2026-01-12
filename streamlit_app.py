@@ -830,7 +830,7 @@ with tab6:
             return None, None, f"Error: {str(e)}"
     
     # Prediction buttons
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         if st.button("🌲 Get RF Prediction", type="primary"):
@@ -840,4 +840,5 @@ with tab6:
                 st.markdown(f"""
                 <div class="rf-card">
                     <h3>🌲 Random Forest Prediction</h3>
-                    <h1>{predicted_class}</
+                    <h1>{predicted_class}</h1>
+                    <p
