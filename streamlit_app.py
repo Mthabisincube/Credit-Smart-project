@@ -858,3 +858,299 @@ with tab4:
                 feature_importance = pd.DataFrame({
                     'Feature': X.columns,
                     'Importance': model.feature_importances_
+                }).sort_values('Importance', ascending=False)
+                
+                # Create two columns for visualization and table
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Interactive feature importance plot
+                    fig = go.Figure(data=[
+                        go.Bar(
+                            x=feature_importance['Importance'],
+                            y=feature_importance['Feature'],
+                            orientation='h',
+                            marker_color='lightblue'
+                        )
+                    ])
+                    
+                    fig.update_layout(
+                        title='Feature Importance Scores',
+                        xaxis_title='Importance',
+                        yaxis_title='Feature',
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    # Display as styled dataframe
+                    def color_feature_importance(val):
+                        if val >= 0.2:
+                            return 'background-color: rgba(0, 255, 0, 0.3)'
+                        elif val >= 0.1:
+                            return 'background-color: rgba(255, 255, 0, 0.3)'
+                        else:
+                            return 'background-color: rgba(255, 0, 0, 0.3)'
+                    
+                    styled_features = feature_importance.style.applymap(
+                        color_feature_importance, subset=['Importance']
+                    )
+                    
+                    st.dataframe(styled_features, 
+                               use_container_width=True, 
+                               hide_index=True,
+                               height=400)
+                
+                # ============= MODEL DIAGNOSTICS SECTION =============
+                st.markdown("---")
+                st.markdown("#### 🩺 Model Diagnostics")
+                
+                diagnostic_col1, diagnostic_col2 = st.columns(2)
+                
+                with diagnostic_col1:
+                    # Tree depth distribution
+                    tree_depths = [tree.get_depth() for tree in model.estimators_]
+                    
+                    fig_depth = go.Figure(data=[
+                        go.Histogram(
+                            x=tree_depths,
+                            nbinsx=10,
+                            marker_color='lightgreen',
+                            opacity=0.7
+                        )
+                    ])
+                    
+                    fig_depth.update_layout(
+                        title='Distribution of Tree Depths',
+                        xaxis_title='Tree Depth',
+                        yaxis_title='Count'
+                    )
+                    
+                    st.plotly_chart(fig_depth, use_container_width=True)
+                
+                with diagnostic_col2:
+                    # Feature importance stability
+                    feature_importance_std = np.std([tree.feature_importances_ 
+                                                    for tree in model.estimators_], axis=0)
+                    
+                    fig_stability = go.Figure(data=[
+                        go.Bar(
+                            x=X.columns,
+                            y=feature_importance_std,
+                            marker_color='lightcoral',
+                            opacity=0.7
+                        )
+                    ])
+                    
+                    fig_stability.update_layout(
+                        title='Feature Importance Stability (Std Dev)',
+                        xaxis_title='Feature',
+                        yaxis_title='Standard Deviation',
+                        xaxis_tickangle=45
+                    )
+                    
+                    st.plotly_chart(fig_stability, use_container_width=True)
+                
+                # ============= PREDICTION SECTION =============
+                st.markdown("---")
+                st.markdown("#### 🎯 Get Your Random Forest Prediction")
+                
+                if st.button("🔮 Predict My Credit Score with Random Forest", type="secondary", use_container_width=True):
+                    user_data = pd.DataFrame({
+                        'Location': [Location],
+                        'Gender': [gender],
+                        'Mobile_Money_Txns': [Mobile_Money_Txns],
+                        'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
+                        'Utility_Payments_ZWL': [Utility_Payments_ZWL],
+                        'Loan_Repayment_History': [Loan_Repayment_History],
+                        'Age': [Age]
+                    })
+                    
+                    # Encode user input
+                    for column in user_data.select_dtypes(include=['object']).columns:
+                        if column in label_encoders:
+                            if user_data[column].iloc[0] in label_encoders[column].classes_:
+                                user_data[column] = label_encoders[column].transform(user_data[column])
+                            else:
+                                user_data[column] = -1
+                    
+                    # Predict with Random Forest
+                    prediction_encoded = model.predict(user_data)
+                    prediction_proba = model.predict_proba(user_data)
+                    
+                    predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
+                    confidence = np.max(prediction_proba) * 100
+                    
+                    # Beautiful Random Forest prediction display
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown(f"""
+                        <div class="success-box">
+                            <h3>Random Forest Prediction</h3>
+                            <h1>{predicted_class}</h1>
+                            <p><strong>Algorithm:</strong> Random Forest</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        <div class="card">
+                            <h3>Confidence Level</h3>
+                            <h1>{confidence:.1f}%</h1>
+                            <p>Based on {n_estimators} decision trees</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col3:
+                        # Get individual tree predictions (sample of 5 trees)
+                        tree_predictions = []
+                        for i, tree in enumerate(model.estimators_[:5]):
+                            tree_pred = tree.predict(user_data)[0]
+                            tree_predictions.append(target_encoder.inverse_transform([tree_pred])[0])
+                        
+                        st.markdown(f"""
+                        <div class="feature-box">
+                            <h4>🌲 Sample Tree Predictions</h4>
+                            <p>Tree 1: {tree_predictions[0]}</p>
+                            <p>Tree 2: {tree_predictions[1]}</p>
+                            <p>Tree 3: {tree_predictions[2]}</p>
+                            <p>Tree 4: {tree_predictions[3]}</p>
+                            <p>Tree 5: {tree_predictions[4]}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Probability distribution from Random Forest
+                    st.markdown("#### 📊 Probability Distribution from Random Forest")
+                    prob_df = pd.DataFrame({
+                        'Credit Score': target_encoder.classes_,
+                        'Probability (%)': (prediction_proba[0] * 100).round(2)
+                    }).sort_values('Probability (%)', ascending=False)
+                    
+                    # Add color coding based on probability
+                    def color_probability(val):
+                        if val > 70:
+                            return 'background-color: rgba(0, 255, 0, 0.2)'
+                        elif val > 30:
+                            return 'background-color: rgba(255, 255, 0, 0.2)'
+                        else:
+                            return 'background-color: rgba(255, 0, 0, 0.2)'
+                    
+                    styled_df = prob_df.style.applymap(color_probability, subset=['Probability (%)'])
+                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                
+                # ============= MODEL COMPARISON SECTION =============
+                st.markdown("---")
+                st.markdown("#### ⚖️ Model Comparison Tools")
+                
+                if st.button("🔄 Compare Different Models", type="secondary"):
+                    with st.spinner("Training comparison models..."):
+                        try:
+                            # Prepare data
+                            X = df.drop("Credit_Score", axis=1)
+                            y = df["Credit_Score"]
+                            
+                            # Encode categorical variables
+                            label_encoders = {}
+                            for column in X.select_dtypes(include=['object']).columns:
+                                le = LabelEncoder()
+                                X[column] = le.fit_transform(X[column])
+                                label_encoders[column] = le
+                            
+                            # Encode target
+                            target_encoder = LabelEncoder()
+                            y_encoded = target_encoder.fit_transform(y)
+                            
+                            # Split data
+                            X_train, X_test, y_train, y_test = train_test_split(
+                                X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+                            )
+                            
+                            # Train different models
+                            models = {
+                                'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+                                'Decision Tree': DecisionTreeClassifier(random_state=42),
+                                'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
+                                'SVM': SVC(probability=True, random_state=42),
+                                'K-Nearest Neighbors': KNeighborsClassifier()
+                            }
+                            
+                            results = []
+                            for name, model in models.items():
+                                model.fit(X_train, y_train)
+                                y_pred = model.predict(X_test)
+                                accuracy = accuracy_score(y_test, y_pred)
+                                
+                                results.append({
+                                    'Model': name,
+                                    'Accuracy': accuracy,
+                                    'Training Time': 'N/A',  # Could add timing
+                                    'Parameters': str(model.get_params())
+                                })
+                            
+                            results_df = pd.DataFrame(results).sort_values('Accuracy', ascending=False)
+                            
+                            # Display comparison
+                            st.markdown("##### 📊 Model Performance Comparison")
+                            
+                            fig = go.Figure(data=[
+                                go.Bar(
+                                    x=results_df['Model'],
+                                    y=results_df['Accuracy'],
+                                    marker_color=['lightblue', 'lightgreen', 'lightcoral', 'lightyellow', 'lightpink']
+                                )
+                            ])
+                            
+                            fig.update_layout(
+                                title='Model Accuracy Comparison',
+                                xaxis_title='Model',
+                                yaxis_title='Accuracy',
+                                yaxis_tickformat='.2%'
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Display results table
+                            st.dataframe(results_df, use_container_width=True)
+                            
+                        except Exception as e:
+                            st.error(f"Error in model comparison: {str(e)}")
+                
+            except Exception as e:
+                st.error(f"❌ Error training Random Forest model: {str(e)}")
+                st.exception(e)
+    
+    # Add information about Random Forest advantages
+    st.markdown("---")
+    st.markdown("""
+    <div class="card">
+        <h4>🌳 Why Random Forest for Credit Scoring?</h4>
+        <p><strong>Advantages of Random Forest in Credit Assessment:</strong></p>
+        <ol>
+            <li><strong>High Accuracy:</strong> Often achieves better performance than single decision trees</li>
+            <li><strong>Feature Importance:</strong> Identifies which factors most influence credit scores</li>
+            <li><strong>Robustness:</strong> Less prone to overfitting and handles missing values well</li>
+            <li><strong>Non-linear Relationships:</strong> Captures complex patterns in financial data</li>
+            <li><strong>Interpretability:</strong> Provides insights into decision-making process</li>
+        </ol>
+        <p><em>The model aggregates predictions from multiple decision trees to make more reliable credit assessments.</em></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Add model performance summary
+    st.markdown("""
+    <div class="card">
+        <h4>📊 Model Evaluation Metrics Explained</h4>
+        <ul>
+            <li><strong>Accuracy:</strong> Overall correctness of the model</li>
+            <li><strong>Precision:</strong> How many predicted positives are actually positive</li>
+            <li><strong>Recall:</strong> How many actual positives are correctly identified</li>
+            <li><strong>F1-Score:</strong> Harmonic mean of precision and recall</li>
+            <li><strong>ROC-AUC:</strong> Ability to distinguish between classes</li>
+            <li><strong>Confusion Matrix:</strong> Detailed breakdown of predictions vs actual</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
