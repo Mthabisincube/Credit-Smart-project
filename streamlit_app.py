@@ -858,4 +858,3 @@ with tab4:
                 feature_importance = pd.DataFrame({
                     'Feature': X.columns,
                     'Importance': model.feature_importances_
-                }).sort_values
