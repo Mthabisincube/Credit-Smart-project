@@ -4,7 +4,14 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import label_binarize
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
 
 # Page configuration with beautiful theme
 st.set_page_config(
@@ -529,6 +536,22 @@ with tab4:
         min_samples_split = st.slider("Min Samples Split", 2, 20, 5, 1,
                                      help="Minimum number of samples required to split an internal node")
     
+    # Additional model parameters
+    st.markdown("#### 🔧 Advanced Parameters")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        test_size = st.slider("Test Size %", 10, 40, 20, 5,
+                             help="Percentage of data to use for testing")
+    
+    with col2:
+        random_state = st.slider("Random State", 0, 100, 42, 1,
+                                help="Random seed for reproducibility")
+    
+    with col3:
+        use_oob = st.checkbox("Use OOB Score", value=True,
+                             help="Use Out-of-Bag samples for validation")
+    
     if st.button("🌳 Train Random Forest Model", type="primary", use_container_width=True):
         with st.spinner("🌳 Training Random Forest model... This may take a few moments."):
             try:
@@ -549,7 +572,7 @@ with tab4:
                 
                 # Split data
                 X_train, X_test, y_train, y_test = train_test_split(
-                    X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+                    X, y_encoded, test_size=test_size/100, random_state=random_state, stratify=y_encoded
                 )
                 
                 # Train Random Forest model with user parameters
@@ -557,13 +580,16 @@ with tab4:
                     n_estimators=n_estimators,
                     max_depth=max_depth,
                     min_samples_split=min_samples_split,
-                    random_state=42,
-                    n_jobs=-1  # Use all available processors
+                    random_state=random_state,
+                    n_jobs=-1,  # Use all available processors
+                    oob_score=use_oob,
+                    bootstrap=True
                 )
                 model.fit(X_train, y_train)
                 
                 # Make predictions
                 y_pred = model.predict(X_test)
+                y_pred_proba = model.predict_proba(X_test)
                 accuracy = accuracy_score(y_test, y_pred)
                 
                 st.success("✅ Random Forest model trained successfully!")
@@ -573,198 +599,263 @@ with tab4:
                 with col1:
                     st.metric("🎯 Accuracy", f"{accuracy:.2%}")
                 with col2:
-                    st.metric("🌳 Number of Trees", f"{n_estimators}")
+                    if use_oob:
+                        st.metric("👜 OOB Score", f"{model.oob_score_:.2%}")
+                    else:
+                        st.metric("🌳 Number of Trees", f"{n_estimators}")
                 with col3:
                     st.metric("📚 Training Samples", f"{len(X_train):,}")
                 with col4:
                     st.metric("🧪 Test Samples", f"{len(X_test):,}")
                 
-                # Feature importance visualization
+                # ============= MODEL EVALUATION SECTION =============
+                st.markdown("---")
+                st.markdown("#### 📊 Comprehensive Model Evaluation")
+                
+                # Create tabs for different evaluation metrics
+                eval_tab1, eval_tab2, eval_tab3, eval_tab4 = st.tabs([
+                    "📈 Performance Metrics", 
+                    "🤖 Classification Report", 
+                    "📊 Confusion Matrix",
+                    "🎯 ROC Analysis"
+                ])
+                
+                with eval_tab1:
+                    st.markdown("##### 📊 Key Performance Metrics")
+                    
+                    # Calculate additional metrics
+                    precision = precision_score(y_test, y_pred, average='weighted')
+                    recall = recall_score(y_test, y_pred, average='weighted')
+                    f1 = f1_score(y_test, y_pred, average='weighted')
+                    
+                    # For multiclass ROC-AUC (One-vs-Rest)
+                    try:
+                        roc_auc = roc_auc_score(y_test, y_pred_proba, multi_class='ovr', average='weighted')
+                    except:
+                        roc_auc = "N/A"
+                    
+                    # Display metrics in cards
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Precision", f"{precision:.2%}", 
+                                 help="How many selected items are relevant")
+                    with col2:
+                        st.metric("Recall", f"{recall:.2%}", 
+                                 help="How many relevant items are selected")
+                    with col3:
+                        st.metric("F1-Score", f"{f1:.2%}", 
+                                 help="Harmonic mean of precision and recall")
+                    with col4:
+                        if roc_auc != "N/A":
+                            st.metric("ROC-AUC", f"{roc_auc:.2%}", 
+                                     help="Area under ROC curve")
+                        else:
+                            st.metric("ROC-AUC", "N/A")
+                    
+                    # Training vs Test accuracy comparison
+                    train_accuracy = model.score(X_train, y_train)
+                    
+                    st.markdown("##### 📈 Training vs Test Performance")
+                    comparison_data = {
+                        'Dataset': ['Training', 'Test'],
+                        'Accuracy': [train_accuracy, accuracy]
+                    }
+                    comparison_df = pd.DataFrame(comparison_data)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.bar_chart(comparison_df.set_index('Dataset')['Accuracy'])
+                    
+                    with col2:
+                        # Calculate overfitting ratio
+                        overfitting_ratio = (train_accuracy - accuracy) / accuracy if accuracy > 0 else 0
+                        st.metric("📊 Overfitting Ratio", f"{overfitting_ratio:.2%}",
+                                 delta=f"{(train_accuracy - accuracy):.2%}",
+                                 delta_color="inverse" if overfitting_ratio > 0.1 else "normal")
+                
+                with eval_tab2:
+                    st.markdown("##### 🤖 Detailed Classification Report")
+                    
+                    report = classification_report(y_test, y_pred, 
+                                                  target_names=target_encoder.classes_, 
+                                                  output_dict=True)
+                    report_df = pd.DataFrame(report).transpose()
+                    
+                    # Color code the dataframe
+                    def color_classification_report(val):
+                        if isinstance(val, (int, float)):
+                            if val >= 0.8:
+                                return 'background-color: rgba(0, 255, 0, 0.2)'
+                            elif val >= 0.6:
+                                return 'background-color: rgba(255, 255, 0, 0.2)'
+                            else:
+                                return 'background-color: rgba(255, 0, 0, 0.2)'
+                        return ''
+                    
+                    styled_report = report_df.style.applymap(color_classification_report, 
+                                                           subset=pd.IndexSlice[:, ['precision', 'recall', 'f1-score']])
+                    
+                    st.dataframe(styled_report, use_container_width=True, height=400)
+                    
+                    # Additional insights
+                    st.markdown("##### 💡 Key Insights")
+                    avg_f1 = report_df['f1-score'].mean()
+                    best_class = report_df['f1-score'].idxmax()
+                    worst_class = report_df['f1-score'].idxmin()
+                    
+                    insight_col1, insight_col2, insight_col3 = st.columns(3)
+                    with insight_col1:
+                        st.metric("Average F1-Score", f"{avg_f1:.2%}")
+                    with insight_col2:
+                        st.metric("Best Performing", best_class, 
+                                 delta=f"{report_df.loc[best_class, 'f1-score']:.2%}")
+                    with insight_col3:
+                        st.metric("Needs Improvement", worst_class,
+                                 delta=f"{report_df.loc[worst_class, 'f1-score']:.2%}",
+                                 delta_color="inverse")
+                
+                with eval_tab3:
+                    st.markdown("##### 📊 Confusion Matrix Visualization")
+                    
+                    cm = confusion_matrix(y_test, y_pred)
+                    
+                    # Create two columns for different visualizations
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Plotly heatmap
+                        fig = ff.create_annotated_heatmap(
+                            z=cm,
+                            x=target_encoder.classes_.tolist(),
+                            y=target_encoder.classes_.tolist(),
+                            colorscale='Viridis',
+                            showscale=True
+                        )
+                        fig.update_layout(
+                            title="Confusion Matrix Heatmap",
+                            xaxis_title="Predicted Label",
+                            yaxis_title="True Label"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    with col2:
+                        # Normalized confusion matrix
+                        cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+                        
+                        fig2 = go.Figure(data=go.Heatmap(
+                            z=cm_normalized,
+                            x=target_encoder.classes_.tolist(),
+                            y=target_encoder.classes_.tolist(),
+                            colorscale='RdBu',
+                            zmin=0, zmax=1,
+                            text=cm,
+                            texttemplate="%{text}<br>%{z:.1%}",
+                            textfont={"size": 10}
+                        ))
+                        
+                        fig2.update_layout(
+                            title="Normalized Confusion Matrix",
+                            xaxis_title="Predicted Label",
+                            yaxis_title="True Label"
+                        )
+                        st.plotly_chart(fig2, use_container_width=True)
+                    
+                    # Metrics from confusion matrix
+                    st.markdown("##### 📈 Confusion Matrix Metrics")
+                    
+                    # Calculate per-class metrics
+                    class_metrics = []
+                    for i, class_name in enumerate(target_encoder.classes_):
+                        tp = cm[i, i]
+                        fp = cm[:, i].sum() - tp
+                        fn = cm[i, :].sum() - tp
+                        tn = cm.sum() - (tp + fp + fn)
+                        
+                        precision_class = tp / (tp + fp) if (tp + fp) > 0 else 0
+                        recall_class = tp / (tp + fn) if (tp + fn) > 0 else 0
+                        f1_class = 2 * (precision_class * recall_class) / (precision_class + recall_class) if (precision_class + recall_class) > 0 else 0
+                        
+                        class_metrics.append({
+                            'Class': class_name,
+                            'TP': tp,
+                            'FP': fp,
+                            'FN': fn,
+                            'TN': tn,
+                            'Precision': f"{precision_class:.2%}",
+                            'Recall': f"{recall_class:.2%}",
+                            'F1-Score': f"{f1_class:.2%}"
+                        })
+                    
+                    metrics_df = pd.DataFrame(class_metrics)
+                    st.dataframe(metrics_df, use_container_width=True, height=300)
+                
+                with eval_tab4:
+                    st.markdown("##### 🎯 ROC Curve Analysis")
+                    
+                    # Binarize the output for multiclass ROC
+                    y_test_bin = label_binarize(y_test, classes=range(len(target_encoder.classes_)))
+                    
+                    # Compute ROC curve and ROC area for each class
+                    fpr = dict()
+                    tpr = dict()
+                    roc_auc = dict()
+                    
+                    for i in range(len(target_encoder.classes_)):
+                        fpr[i], tpr[i], _ = roc_curve(y_test_bin[:, i], y_pred_proba[:, i])
+                        roc_auc[i] = auc(fpr[i], tpr[i])
+                    
+                    # Plot all ROC curves
+                    fig = go.Figure()
+                    
+                    colors = ['blue', 'red', 'green', 'orange', 'purple']
+                    for i, color in zip(range(len(target_encoder.classes_)), colors):
+                        if i < len(target_encoder.classes_):
+                            fig.add_trace(go.Scatter(
+                                x=fpr[i],
+                                y=tpr[i],
+                                mode='lines',
+                                line=dict(color=color, width=2),
+                                name=f'{target_encoder.classes_[i]} (AUC = {roc_auc[i]:.2f})'
+                            ))
+                    
+                    # Add diagonal line
+                    fig.add_trace(go.Scatter(
+                        x=[0, 1],
+                        y=[0, 1],
+                        mode='lines',
+                        line=dict(color='black', dash='dash', width=1),
+                        name='Random Classifier'
+                    ))
+                    
+                    fig.update_layout(
+                        title='Receiver Operating Characteristic (ROC) Curves',
+                        xaxis_title='False Positive Rate',
+                        yaxis_title='True Positive Rate',
+                        xaxis=dict(range=[0, 1]),
+                        yaxis=dict(range=[0, 1]),
+                        showlegend=True,
+                        hovermode='closest'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # AUC Summary
+                    st.markdown("##### 📊 AUC Score Summary")
+                    auc_summary = pd.DataFrame({
+                        'Class': target_encoder.classes_,
+                        'AUC Score': [roc_auc[i] for i in range(len(target_encoder.classes_))],
+                        'Interpretation': ['Excellent' if roc_auc[i] >= 0.9 else 
+                                          'Good' if roc_auc[i] >= 0.8 else 
+                                          'Fair' if roc_auc[i] >= 0.7 else 
+                                          'Poor' for i in range(len(target_encoder.classes_))]
+                    })
+                    st.dataframe(auc_summary, use_container_width=True)
+                
+                # ============= FEATURE IMPORTANCE SECTION =============
+                st.markdown("---")
                 st.markdown("#### 🔍 Random Forest Feature Importance")
                 
                 feature_importance = pd.DataFrame({
                     'Feature': X.columns,
                     'Importance': model.feature_importances_
-                }).sort_values('Importance', ascending=False)
-                
-                # Create two columns for visualization and table
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # Display as bar chart
-                    st.bar_chart(feature_importance.set_index('Feature')['Importance'])
-                
-                with col2:
-                    # Display as styled dataframe
-                    st.dataframe(feature_importance, 
-                               use_container_width=True, 
-                               hide_index=True,
-                               height=400)
-                
-                # Random Forest tree visualization (simplified)
-                st.markdown("#### 🌲 Random Forest Structure")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown("""
-                    <div class="tree-diagram">
-                        <h5>🌳 Random Forest Architecture</h5>
-                        <pre>
-     Random Forest
-        │
-        ├── Tree 1
-        │     ├── Feature: {feature1}
-        │     └── Feature: {feature2}
-        ├── Tree 2
-        │     ├── Feature: {feature3}
-        │     └── Feature: {feature4}
-        ├── Tree 3
-        │     ├── Feature: {feature1}
-        │     └── Feature: {feature5}
-        └── ... ({} more trees)
-                        </pre>
-                        <p><strong>Final Decision:</strong> Majority Vote from all trees</p>
-                    </div>
-                    """.format(n_estimators-3), unsafe_allow_html=True)
-                
-                with col2:
-                    # Model statistics
-                    st.markdown("#### 📊 Model Statistics")
-                    stats_data = {
-                        'Metric': ['Total Trees', 'Avg Tree Depth', 'Avg Nodes per Tree', 
-                                  'Avg Leaves per Tree', 'OOB Score', 'Feature Count'],
-                        'Value': [
-                            f"{n_estimators}",
-                            f"{model.estimators_[0].get_depth()}",
-                            f"{model.estimators_[0].tree_.node_count}",
-                            f"{model.estimators_[0].get_n_leaves()}",
-                            f"{model.oob_score_:.2%}" if hasattr(model, 'oob_score_') else "N/A",
-                            f"{X.shape[1]}"
-                        ]
-                    }
-                    stats_df = pd.DataFrame(stats_data)
-                    st.dataframe(stats_df, use_container_width=True, hide_index=True)
-                
-                # Real-time prediction with Random Forest
-                st.markdown("#### 🎯 Get Your Random Forest Prediction")
-                
-                if st.button("🔮 Predict My Credit Score with Random Forest", type="secondary", use_container_width=True):
-                    user_data = pd.DataFrame({
-                        'Location': [Location],
-                        'Gender': [gender],
-                        'Mobile_Money_Txns': [Mobile_Money_Txns],
-                        'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
-                        'Utility_Payments_ZWL': [Utility_Payments_ZWL],
-                        'Loan_Repayment_History': [Loan_Repayment_History],
-                        'Age': [Age]
-                    })
-                    
-                    # Encode user input
-                    for column in user_data.select_dtypes(include=['object']).columns:
-                        if column in label_encoders:
-                            if user_data[column].iloc[0] in label_encoders[column].classes_:
-                                user_data[column] = label_encoders[column].transform(user_data[column])
-                            else:
-                                user_data[column] = -1
-                    
-                    # Predict with Random Forest
-                    prediction_encoded = model.predict(user_data)
-                    prediction_proba = model.predict_proba(user_data)
-                    
-                    predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
-                    confidence = np.max(prediction_proba) * 100
-                    
-                    # Beautiful Random Forest prediction display
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        st.markdown(f"""
-                        <div class="success-box">
-                            <h3>Random Forest Prediction</h3>
-                            <h1>{predicted_class}</h1>
-                            <p><strong>Algorithm:</strong> Random Forest</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col2:
-                        st.markdown(f"""
-                        <div class="card">
-                            <h3>Confidence Level</h3>
-                            <h1>{confidence:.1f}%</h1>
-                            <p>Based on {n_estimators} decision trees</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col3:
-                        # Get individual tree predictions (sample of 5 trees)
-                        tree_predictions = []
-                        for i, tree in enumerate(model.estimators_[:5]):
-                            tree_pred = tree.predict(user_data)[0]
-                            tree_predictions.append(target_encoder.inverse_transform([tree_pred])[0])
-                        
-                        st.markdown(f"""
-                        <div class="feature-box">
-                            <h4>🌲 Sample Tree Predictions</h4>
-                            <p>Tree 1: {tree_predictions[0]}</p>
-                            <p>Tree 2: {tree_predictions[1]}</p>
-                            <p>Tree 3: {tree_predictions[2]}</p>
-                            <p>Tree 4: {tree_predictions[3]}</p>
-                            <p>Tree 5: {tree_predictions[4]}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # Probability distribution from Random Forest
-                    st.markdown("#### 📊 Probability Distribution from Random Forest")
-                    prob_df = pd.DataFrame({
-                        'Credit Score': target_encoder.classes_,
-                        'Probability (%)': (prediction_proba[0] * 100).round(2)
-                    }).sort_values('Probability (%)', ascending=False)
-                    
-                    # Add color coding based on probability
-                    def color_probability(val):
-                        if val > 70:
-                            return 'background-color: rgba(0, 255, 0, 0.2)'
-                        elif val > 30:
-                            return 'background-color: rgba(255, 255, 0, 0.2)'
-                        else:
-                            return 'background-color: rgba(255, 0, 0, 0.2)'
-                    
-                    styled_df = prob_df.style.applymap(color_probability, subset=['Probability (%)'])
-                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
-                
-                # Model performance details
-                with st.expander("📊 View Detailed Model Performance"):
-                    st.markdown("##### Classification Report")
-                    report = classification_report(y_test, y_pred, target_names=target_encoder.classes_, output_dict=True)
-                    report_df = pd.DataFrame(report).transpose()
-                    st.dataframe(report_df, use_container_width=True)
-                    
-                    st.markdown("##### Confusion Matrix")
-                    cm = confusion_matrix(y_test, y_pred)
-                    cm_df = pd.DataFrame(cm, 
-                                        index=target_encoder.classes_,
-                                        columns=target_encoder.classes_)
-                    st.dataframe(cm_df, use_container_width=True)
-                
-            except Exception as e:
-                st.error(f"❌ Error training Random Forest model: {str(e)}")
-    
-    # Add information about Random Forest advantages
-    st.markdown("---")
-    st.markdown("""
-    <div class="card">
-        <h4>🌳 Why Random Forest for Credit Scoring?</h4>
-        <p><strong>Advantages of Random Forest in Credit Assessment:</strong></p>
-        <ol>
-            <li><strong>High Accuracy:</strong> Often achieves better performance than single decision trees</li>
-            <li><strong>Feature Importance:</strong> Identifies which factors most influence credit scores</li>
-            <li><strong>Robustness:</strong> Less prone to overfitting and handles missing values well</li>
-            <li><strong>Non-linear Relationships:</strong> Captures complex patterns in financial data</li>
-            <li><strong>Interpretability:</strong> Provides insights into decision-making process</li>
-        </ol>
-        <p><em>The model aggregates predictions from multiple decision trees to make more reliable credit assessments.</em></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+                }).sort_values
