@@ -17,13 +17,7 @@ from datetime import datetime, timedelta, date
 import json
 import base64
 import io
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Page configuration with beautiful theme
 st.set_page_config(
@@ -209,6 +203,16 @@ st.markdown("""
         text-align: center;
         font-family: monospace;
     }
+    
+    .html-report {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 20px;
+        margin: 20px 0;
+        max-height: 400px;
+        overflow-y: auto;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -280,138 +284,218 @@ def calculate_30_day_summary():
 
 # ==================== REPORT GENERATION FUNCTIONS ====================
 
-def generate_pdf_report(summary_data, user_name="User"):
-    """Generate a PDF report for 30-day summary"""
-    buffer = io.BytesIO()
+def generate_html_report(summary_data, user_name="User"):
+    """Generate an HTML report for 30-day summary"""
+    today = date.today().strftime("%B %d, %Y")
     
-    # Create PDF document
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=18
-    )
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Zim Smart Credit - 30-Day Report</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
+            .header {{ text-align: center; border-bottom: 3px solid #1f77b4; padding-bottom: 20px; margin-bottom: 30px; }}
+            .title {{ color: #1f77b4; font-size: 28px; font-weight: bold; }}
+            .subtitle {{ color: #666; font-size: 16px; }}
+            .section {{ margin-bottom: 30px; }}
+            .section-title {{ color: #2e86ab; font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }}
+            .metrics {{ display: flex; justify-content: space-between; flex-wrap: wrap; }}
+            .metric-card {{ background: #f8f9fa; border-left: 4px solid #1f77b4; padding: 15px; margin: 10px; flex: 1; min-width: 200px; }}
+            .metric-value {{ font-size: 24px; font-weight: bold; color: #1f77b4; }}
+            .metric-label {{ color: #666; font-size: 14px; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th {{ background: #1f77b4; color: white; padding: 12px; text-align: left; }}
+            td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
+            tr:nth-child(even) {{ background: #f9f9f9; }}
+            .insight {{ background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 10px 0; }}
+            .footer {{ text-align: center; margin-top: 50px; color: #999; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="title">ZIM SMART CREDIT APP</div>
+            <div class="subtitle">30-Day Assessment Summary Report</div>
+            <div>Generated for: {user_name} | Date: {today}</div>
+            <div>Report Period: {summary_data['date_range']['start']} to {summary_data['date_range']['end']}</div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">📊 EXECUTIVE SUMMARY</div>
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value">{summary_data['total_assessments']}</div>
+                    <div class="metric-label">Total Assessments</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">{summary_data['average_score']:.1f}/100</div>
+                    <div class="metric-label">Average Score</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">{max(summary_data['risk_distribution'].items(), key=lambda x: x[1])[0] if summary_data['risk_distribution'] else 'N/A'}</div>
+                    <div class="metric-label">Most Common Risk Level</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">🎯 RISK DISTRIBUTION</div>
+    """
     
-    # Get styles
-    styles = getSampleStyleSheet()
-    
-    # Create custom styles
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        textColor=colors.HexColor('#1f77b4')
-    )
-    
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=16,
-        spaceAfter=12,
-        textColor=colors.HexColor('#2e86ab')
-    )
-    
-    normal_style = ParagraphStyle(
-        'CustomNormal',
-        parent=styles['Normal'],
-        fontSize=11,
-        spaceAfter=6
-    )
-    
-    # Build story (content)
-    story = []
-    
-    # Title
-    story.append(Paragraph(f"ZIM SMART CREDIT - 30-DAY SUMMARY REPORT", title_style))
-    story.append(Paragraph(f"Generated for: {user_name}", normal_style))
-    story.append(Paragraph(f"Report Period: {summary_data['date_range']['start']} to {summary_data['date_range']['end']}", normal_style))
-    story.append(Spacer(1, 20))
-    
-    # Executive Summary
-    story.append(Paragraph("EXECUTIVE SUMMARY", heading_style))
-    story.append(Paragraph(f"Total Assessments: {summary_data['total_assessments']}", normal_style))
-    story.append(Paragraph(f"Average Credit Score: {summary_data['average_score']:.1f}/100", normal_style))
-    story.append(Spacer(1, 10))
-    
-    # Risk Distribution
-    story.append(Paragraph("RISK DISTRIBUTION", heading_style))
-    
+    # Risk distribution table
     if summary_data['risk_distribution']:
-        risk_data = []
+        html_content += """
+            <table>
+                <tr>
+                    <th>Risk Level</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                </tr>
+        """
+        
         for risk, count in summary_data['risk_distribution'].items():
             percentage = (count / summary_data['total_assessments']) * 100
-            risk_data.append([risk, str(count), f"{percentage:.1f}%"])
+            color = "#28a745" if risk == "Low" else "#ffc107" if risk == "Medium" else "#dc3545"
+            html_content += f"""
+                <tr>
+                    <td><span style="color: {color}; font-weight: bold;">{risk}</span></td>
+                    <td>{count}</td>
+                    <td>{percentage:.1f}%</td>
+                </tr>
+            """
         
-        risk_table = Table(risk_data, colWidths=[200, 100, 100])
-        risk_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        story.append(risk_table)
-    
-    story.append(Spacer(1, 20))
+        html_content += "</table>"
     
     # Key Insights
-    story.append(Paragraph("KEY INSIGHTS", heading_style))
+    html_content += """
+        </div>
+        
+        <div class="section">
+            <div class="section-title">💡 KEY INSIGHTS</div>
+    """
     
     insights = [
-        f"• The system processed {summary_data['total_assessments']} assessments in the last 30 days",
-        f"• Average credit score of {summary_data['average_score']:.1f} indicates overall moderate creditworthiness",
-        f"• Score trend shows {'improvement' if len(summary_data.get('score_trend', {}).get('scores', [])) > 1 and summary_data['score_trend']['scores'][-1] > summary_data['score_trend']['scores'][0] else 'stable'} pattern",
-        "• Mobile money transactions remain the strongest predictor of creditworthiness",
-        "• Consistent utility payments correlate with score stability"
+        f"The system processed <strong>{summary_data['total_assessments']}</strong> assessments in the last 30 days",
+        f"Average credit score of <strong>{summary_data['average_score']:.1f}/100</strong> indicates overall moderate creditworthiness",
+        "Mobile money transactions remain the strongest predictor of creditworthiness",
+        "Consistent utility payments correlate with score stability"
     ]
     
     for insight in insights:
-        story.append(Paragraph(insight, normal_style))
-    
-    story.append(Spacer(1, 20))
+        html_content += f'<div class="insight">✓ {insight}</div>'
     
     # Recommendations
-    story.append(Paragraph("RECOMMENDATIONS", heading_style))
+    html_content += """
+        </div>
+        
+        <div class="section">
+            <div class="section-title">📝 RECOMMENDATIONS</div>
+    """
     
     recommendations = [
-        "1. Continue focusing on mobile money transaction frequency",
-        "2. Encourage regular utility payments for score improvement",
-        "3. Consider adding savings behavior tracking",
-        "4. Implement credit education for high-risk individuals",
-        "5. Review and update model quarterly for optimal performance"
+        "Continue focusing on mobile money transaction frequency for credit assessment",
+        "Encourage regular utility payments to improve credit scores",
+        "Consider implementing credit education programs for high-risk individuals",
+        "Review and update the machine learning model quarterly for optimal performance",
+        "Expand data collection to include savings behavior for more comprehensive assessment"
     ]
     
-    for rec in recommendations:
-        story.append(Paragraph(rec, normal_style))
-    
-    story.append(Spacer(1, 30))
+    for i, rec in enumerate(recommendations, 1):
+        html_content += f'<p>{i}. {rec}</p>'
     
     # Footer
-    story.append(Paragraph("Confidential - For Internal Use Only", ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=colors.grey,
-        alignment=1  # Center aligned
-    )))
+    html_content += f"""
+        </div>
+        
+        <div class="footer">
+            <p>Zim Smart Credit App | Alternative Credit Scoring for Zimbabwe</p>
+            <p>Report generated on {today} | All data is anonymized and aggregated</p>
+            <p><em>Confidential - For internal use only</em></p>
+        </div>
+    </body>
+    </html>
+    """
     
-    # Build PDF
-    doc.build(story)
-    
-    buffer.seek(0)
-    return buffer
+    return html_content
 
-def create_download_link(buffer, filename):
-    """Create a download link for the PDF"""
-    b64 = base64.b64encode(buffer.read()).decode()
-    href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}" style="text-decoration: none; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 5px; font-weight: bold;">📥 Download PDF Report</a>'
+def create_download_link(content, filename, file_type="html"):
+    """Create a download link for HTML or text content"""
+    b64 = base64.b64encode(content.encode()).decode()
+    
+    if file_type == "html":
+        mime_type = "text/html"
+        button_text = "📄 Download HTML Report"
+    elif file_type == "txt":
+        mime_type = "text/plain"
+        button_text = "📝 Download Text Report"
+    else:
+        mime_type = "text/plain"
+        button_text = "📥 Download Report"
+    
+    href = f'''
+    <a href="data:{mime_type};base64,{b64}" download="{filename}" 
+       style="text-decoration: none; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+              color: white; border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;">
+       {button_text}
+    </a>
+    '''
     return href
+
+def generate_text_report(summary_data, user_name="User"):
+    """Generate a simple text report"""
+    today = date.today().strftime("%B %d, %Y")
+    
+    report = f"""
+    {'='*60}
+    ZIM SMART CREDIT APP - 30-DAY SUMMARY REPORT
+    {'='*60}
+    
+    Generated for: {user_name}
+    Report Date: {today}
+    Period: {summary_data['date_range']['start']} to {summary_data['date_range']['end']}
+    
+    {'-'*60}
+    EXECUTIVE SUMMARY
+    {'-'*60}
+    • Total Assessments: {summary_data['total_assessments']}
+    • Average Credit Score: {summary_data['average_score']:.1f}/100
+    • Assessment Period: Last 30 days
+    
+    {'-'*60}
+    RISK DISTRIBUTION
+    {'-'*60}
+    """
+    
+    if summary_data['risk_distribution']:
+        for risk, count in summary_data['risk_distribution'].items():
+            percentage = (count / summary_data['total_assessments']) * 100
+            report += f"• {risk}: {count} assessments ({percentage:.1f}%)\n"
+    
+    report += f"""
+    {'-'*60}
+    KEY INSIGHTS
+    {'-'*60}
+    1. Processed {summary_data['total_assessments']} credit assessments
+    2. Average score of {summary_data['average_score']:.1f}/100 indicates moderate creditworthiness
+    3. Mobile transactions remain the strongest credit predictor
+    4. Utility payment consistency correlates with score stability
+    
+    {'-'*60}
+    RECOMMENDATIONS
+    {'-'*60}
+    1. Focus on mobile money transaction frequency
+    2. Encourage regular utility payments
+    3. Implement credit education programs
+    4. Quarterly model review and updates
+    5. Consider additional data sources for assessment
+    
+    {'='*60}
+    Report generated: {today}
+    Zim Smart Credit App | Confidential
+    {'='*60}
+    """
+    
+    return report
 
 # ==================== DASHBOARD VISUALIZATION FUNCTIONS ====================
 
@@ -853,7 +937,7 @@ with tab5:  # NEW REPORTS TAB
     
     if not recent_assessments:
         st.warning("📭 No assessment history found for the last 30 days.")
-        st.info("Complete an assessment in the '🎯 Assessment' tab to generate reports.")
+        st.info("Complete an assessment in the '🎯 Assessment' tab and click 'Save This Assessment' to generate reports.")
     else:
         # Calculate summary
         summary = calculate_30_day_summary()
@@ -896,6 +980,70 @@ with tab5:  # NEW REPORTS TAB
         
         st.markdown("---")
         
+        # Report Preview Section
+        st.markdown("#### 📄 Report Preview")
+        
+        # Generate and display HTML report preview
+        html_report = generate_html_report(summary, user_name)
+        
+        # Display HTML report in a scrollable box
+        st.markdown('<div class="html-report">', unsafe_allow_html=True)
+        st.components.v1.html(html_report, height=400, scrolling=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Report Generation Section
+        st.markdown("#### 📥 Download Reports")
+        
+        st.markdown("""
+        <div class="report-box">
+            <h4>📊 Available Report Formats:</h4>
+            <ul>
+                <li><strong>HTML Report</strong> - Beautiful formatted report with charts (view in browser)</li>
+                <li><strong>Text Report</strong> - Simple text format for quick review</li>
+                <li><strong>CSV Data</strong> - Raw assessment data for further analysis</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Create buttons for different report formats
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # HTML Report Download
+            html_filename = f"Zim_Credit_Report_{date.today()}.html"
+            st.markdown(
+                create_download_link(html_report, html_filename, "html"),
+                unsafe_allow_html=True
+            )
+        
+        with col2:
+            # Text Report Download
+            text_report = generate_text_report(summary, user_name)
+            text_filename = f"Zim_Credit_Report_{date.today()}.txt"
+            st.markdown(
+                create_download_link(text_report, text_filename, "txt"),
+                unsafe_allow_html=True
+            )
+        
+        with col3:
+            # CSV Export
+            if st.button("📊 Export to CSV", use_container_width=True):
+                history_df = pd.DataFrame(recent_assessments)
+                csv = history_df.to_csv(index=False)
+                b64 = base64.b64encode(csv.encode()).decode()
+                href = f'''
+                <a href="data:file/csv;base64,{b64}" download="credit_assessments_{date.today()}.csv" 
+                   style="text-decoration: none; padding: 10px 20px; background: #6c757d; color: white; 
+                          border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;">
+                   📊 Download CSV
+                </a>
+                '''
+                st.markdown(href, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
         # Detailed Assessment History
         st.markdown("#### 📋 Detailed Assessment History")
         
@@ -931,63 +1079,10 @@ with tab5:  # NEW REPORTS TAB
             st.dataframe(
                 display_df,
                 use_container_width=True,
-                height=400
+                height=300
             )
         else:
             st.info("No detailed assessment data available")
-        
-        st.markdown("---")
-        
-        # Report Generation Section
-        st.markdown("#### 📄 Generate Comprehensive Report")
-        
-        st.markdown("""
-        <div class="report-box">
-            <h4>📊 Report Includes:</h4>
-            <ul>
-                <li>Executive Summary with key metrics</li>
-                <li>Risk level distribution analysis</li>
-                <li>Score trend visualization</li>
-                <li>Detailed assessment history</li>
-                <li>Key insights and recommendations</li>
-                <li>Professional PDF formatting</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([2, 1, 1])
-        
-        with col1:
-            # Additional report options
-            include_trends = st.checkbox("Include trend analysis", value=True)
-            include_details = st.checkbox("Include detailed history", value=True)
-            include_recommendations = st.checkbox("Include recommendations", value=True)
-        
-        with col2:
-            # Generate PDF report
-            if st.button("📥 Generate PDF Report", type="primary", use_container_width=True):
-                with st.spinner("Generating PDF report..."):
-                    try:
-                        pdf_buffer = generate_pdf_report(summary, user_name)
-                        
-                        # Create download link
-                        st.markdown(
-                            create_download_link(pdf_buffer, f"Zim_Credit_Report_{date.today()}.pdf"),
-                            unsafe_allow_html=True
-                        )
-                        
-                        st.success("✅ PDF report generated successfully!")
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error generating PDF: {str(e)}")
-        
-        with col3:
-            # Export to CSV
-            if st.button("📊 Export to CSV", type="secondary", use_container_width=True):
-                csv = history_df.to_csv(index=False)
-                b64 = base64.b64encode(csv.encode()).decode()
-                href = f'<a href="data:file/csv;base64,{b64}" download="credit_assessments_{date.today()}.csv" style="text-decoration: none; padding: 10px 20px; background: #6c757d; color: white; border-radius: 5px; font-weight: bold;">📊 Download CSV</a>'
-                st.markdown(href, unsafe_allow_html=True)
         
         st.markdown("---")
         
