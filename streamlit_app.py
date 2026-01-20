@@ -1,25 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import label_binarize
-from sklearn.model_selection import cross_val_score
-from sklearn.dummy import DummyClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_score, recall_score, f1_score, roc_auc_score
 import plotly.graph_objects as go
-import plotly.figure_factory as ff
 import plotly.express as px
 from datetime import datetime, timedelta, date
 import json
 import base64
 import io
-import matplotlib.pyplot as plt
 
 # Page configuration with beautiful theme
 st.set_page_config(
@@ -96,20 +87,6 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
-    .feature-box {
-        background-color: rgba(232, 244, 253, 0.9);
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        border: 2px solid #b8d4f0;
-        transition: all 0.3s ease;
-    }
-    
-    .feature-box:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
     .success-box {
         background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
         border: 2px solid #28a745;
@@ -154,15 +131,6 @@ st.markdown("""
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
-    .input-card {
-        background-color: rgba(255, 255, 255, 0.95);
-        padding: 1rem;
-        border-radius: 10px;
-        border: 2px solid #e9ecef;
-        margin: 0.5rem 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
     .tab-content {
         background-color: rgba(255, 255, 255, 0.9);
         border-radius: 10px;
@@ -171,73 +139,19 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
-    .glowing-text {
-        text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
-    }
-    
-    .assessment-highlight {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 15px;
+    .accuracy-display {
+        font-size: 42px;
+        font-weight: bold;
+        color: #1f77b4;
         text-align: center;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    }
-    
-    /* Random Forest specific styles */
-    .rf-info-box {
-        background: linear-gradient(135deg, rgba(144, 238, 144, 0.95) 0%, rgba(152, 251, 152, 0.95) 100%);
-        border: 2px solid #32CD32;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        color: #006400;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .tree-diagram {
-        background-color: rgba(255, 255, 255, 0.9);
-        padding: 1rem;
-        border-radius: 10px;
-        border: 2px solid #32CD32;
-        margin: 1rem 0;
-        text-align: center;
-        font-family: monospace;
-    }
-    
-    .html-report {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 5px;
-        padding: 20px;
         margin: 20px 0;
-        max-height: 400px;
-        overflow-y: auto;
     }
     
-    .accuracy-high {
-        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-        color: white;
-    }
-    
-    .accuracy-medium {
-        background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
-        color: white;
-    }
-    
-    .accuracy-low {
-        background: linear-gradient(135deg, #F44336 0%, #d32f2f 100%);
-        color: white;
-    }
-    
-    .system-explanation {
-        background: linear-gradient(135deg, rgba(220, 237, 255, 0.95) 0%, rgba(195, 220, 255, 0.95) 100%);
-        border: 2px solid #1f77b4;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        color: #0d47a1;
+    .accuracy-label {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        margin-bottom: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -301,311 +215,54 @@ def calculate_30_day_summary():
         'date_range': {
             'start': min(df_assessments['date']) if 'date' in df_assessments.columns else '',
             'end': max(df_assessments['date']) if 'date' in df_assessments.columns else ''
-        },
-        'top_factors': {},
-        'score_trend': {}
-    }
-    
-    # Calculate score trend (daily averages)
-    if 'date' in df_assessments.columns and 'final_score' in df_assessments.columns:
-        df_assessments['date'] = pd.to_datetime(df_assessments['date'])
-        daily_avg = df_assessments.groupby('date')['final_score'].mean().reset_index()
-        summary['score_trend'] = {
-            'dates': daily_avg['date'].dt.strftime('%Y-%m-%d').tolist(),
-            'scores': daily_avg['final_score'].tolist()
         }
+    }
     
     return summary
 
-# ==================== REPORT GENERATION FUNCTIONS ====================
+# ==================== MODEL EVALUATION FUNCTIONS ====================
 
-def generate_html_report(summary_data, user_name="User"):
-    """Generate an HTML report for 30-day summary"""
-    today = date.today().strftime("%B %d, %Y")
-    
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Zim Smart Credit - 30-Day Report</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
-            .header {{ text-align: center; border-bottom: 3px solid #1f77b4; padding-bottom: 20px; margin-bottom: 30px; }}
-            .title {{ color: #1f77b4; font-size: 28px; font-weight: bold; }}
-            .subtitle {{ color: #666; font-size: 16px; }}
-            .section {{ margin-bottom: 30px; }}
-            .section-title {{ color: #2e86ab; font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }}
-            .metrics {{ display: flex; justify-content: space-between; flex-wrap: wrap; }}
-            .metric-card {{ background: #f8f9fa; border-left: 4px solid #1f77b4; padding: 15px; margin: 10px; flex: 1; min-width: 200px; }}
-            .metric-value {{ font-size: 24px; font-weight: bold; color: #1f77b4; }}
-            .metric-label {{ color: #666; font-size: 14px; }}
-            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-            th {{ background: #1f77b4; color: white; padding: 12px; text-align: left; }}
-            td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
-            tr:nth-child(even) {{ background: #f9f9f9; }}
-            .insight {{ background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 10px 0; }}
-            .footer {{ text-align: center; margin-top: 50px; color: #999; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <div class="title">ZIM SMART CREDIT APP</div>
-            <div class="subtitle">30-Day Assessment Summary Report</div>
-            <div>Generated for: {user_name} | Date: {today}</div>
-            <div>Report Period: {summary_data['date_range']['start']} to {summary_data['date_range']['end']}</div>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">📊 EXECUTIVE SUMMARY</div>
-            <div class="metrics">
-                <div class="metric-card">
-                    <div class="metric-value">{summary_data['total_assessments']}</div>
-                    <div class="metric-label">Total Assessments</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{summary_data['average_score']:.1f}/100</div>
-                    <div class="metric-label">Average Score</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{max(summary_data['risk_distribution'].items(), key=lambda x: x[1])[0] if summary_data['risk_distribution'] else 'N/A'}</div>
-                    <div class="metric-label">Most Common Risk Level</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">🎯 RISK DISTRIBUTION</div>
-    """
-    
-    # Risk distribution table
-    if summary_data['risk_distribution']:
-        html_content += """
-            <table>
-                <tr>
-                    <th>Risk Level</th>
-                    <th>Count</th>
-                    <th>Percentage</th>
-                </tr>
-        """
-        
-        for risk, count in summary_data['risk_distribution'].items():
-            percentage = (count / summary_data['total_assessments']) * 100
-            color = "#28a745" if risk == "Low" else "#ffc107" if risk == "Medium" else "#dc3545"
-            html_content += f"""
-                <tr>
-                    <td><span style="color: {color}; font-weight: bold;">{risk}</span></td>
-                    <td>{count}</td>
-                    <td>{percentage:.1f}%</td>
-                </tr>
-            """
-        
-        html_content += "</table>"
-    
-    # Key Insights
-    html_content += """
-        </div>
-        
-        <div class="section">
-            <div class="section-title">💡 KEY INSIGHTS</div>
-    """
-    
-    insights = [
-        f"The system processed <strong>{summary_data['total_assessments']}</strong> assessments in the last 30 days",
-        f"Average credit score of <strong>{summary_data['average_score']:.1f}/100</strong> indicates overall moderate creditworthiness",
-        "Mobile money transactions remain the strongest predictor of creditworthiness",
-        "Consistent utility payments correlate with score stability"
-    ]
-    
-    for insight in insights:
-        html_content += f'<div class="insight">✓ {insight}</div>'
-    
-    # Recommendations
-    html_content += """
-        </div>
-        
-        <div class="section">
-            <div class="section-title">📝 RECOMMENDATIONS</div>
-    """
-    
-    recommendations = [
-        "Continue focusing on mobile money transaction frequency for credit assessment",
-        "Encourage regular utility payments to improve credit scores",
-        "Consider implementing credit education programs for high-risk individuals",
-        "Review and update the machine learning model quarterly for optimal performance",
-        "Expand data collection to include savings behavior for more comprehensive assessment"
-    ]
-    
-    for i, rec in enumerate(recommendations, 1):
-        html_content += f'<p>{i}. {rec}</p>'
-    
-    # Footer
-    html_content += f"""
-        </div>
-        
-        <div class="footer">
-            <p>Zim Smart Credit App | Alternative Credit Scoring for Zimbabwe</p>
-            <p>Report generated on {today} | All data is anonymized and aggregated</p>
-            <p><em>Confidential - For internal use only</em></p>
-        </div>
-    </body>
-    </html>
-    """
-    
-    return html_content
-
-def create_download_link(content, filename, file_type="html"):
-    """Create a download link for HTML or text content"""
-    b64 = base64.b64encode(content.encode()).decode()
-    
-    if file_type == "html":
-        mime_type = "text/html"
-        button_text = "📄 Download HTML Report"
-    elif file_type == "txt":
-        mime_type = "text/plain"
-        button_text = "📝 Download Text Report"
-    else:
-        mime_type = "text/plain"
-        button_text = "📥 Download Report"
-    
-    href = f'''
-    <a href="data:{mime_type};base64,{b64}" download="{filename}" 
-       style="text-decoration: none; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-              color: white; border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;">
-       {button_text}
-    </a>
-    '''
-    return href
-
-def generate_text_report(summary_data, user_name="User"):
-    """Generate a simple text report"""
-    today = date.today().strftime("%B %d, %Y")
-    
-    report = f"""
-    {'='*60}
-    ZIM SMART CREDIT APP - 30-DAY SUMMARY REPORT
-    {'='*60}
-    
-    Generated for: {user_name}
-    Report Date: {today}
-    Period: {summary_data['date_range']['start']} to {summary_data['date_range']['end']}
-    
-    {'-'*60}
-    EXECUTIVE SUMMARY
-    {'-'*60}
-    • Total Assessments: {summary_data['total_assessments']}
-    • Average Credit Score: {summary_data['average_score']:.1f}/100
-    • Assessment Period: Last 30 days
-    
-    {'-'*60}
-    RISK DISTRIBUTION
-    {'-'*60}
-    """
-    
-    if summary_data['risk_distribution']:
-        for risk, count in summary_data['risk_distribution'].items():
-            percentage = (count / summary_data['total_assessments']) * 100
-            report += f"• {risk}: {count} assessments ({percentage:.1f}%)\n"
-    
-    report += f"""
-    {'-'*60}
-    KEY INSIGHTS
-    {'-'*60}
-    1. Processed {summary_data['total_assessments']} credit assessments
-    2. Average score of {summary_data['average_score']:.1f}/100 indicates moderate creditworthiness
-    3. Mobile transactions remain the strongest credit predictor
-    4. Utility payment consistency correlates with score stability
-    
-    {'-'*60}
-    RECOMMENDATIONS
-    {'-'*60}
-    1. Focus on mobile money transaction frequency
-    2. Encourage regular utility payments
-    3. Implement credit education programs
-    4. Quarterly model review and updates
-    5. Consider additional data sources for assessment
-    
-    {'='*60}
-    Report generated: {today}
-    Zim Smart Credit App | Confidential
-    {'='*60}
-    """
-    
-    return report
-
-# ==================== DASHBOARD VISUALIZATION FUNCTIONS ====================
-
-def create_score_trend_chart(summary_data):
-    """Create a line chart showing score trend over time"""
-    if not summary_data.get('score_trend'):
-        return None
-    
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        x=summary_data['score_trend']['dates'],
-        y=summary_data['score_trend']['scores'],
-        mode='lines+markers',
-        name='Average Daily Score',
-        line=dict(color='#1f77b4', width=3),
-        marker=dict(size=8)
-    ))
-    
-    # Add trend line if we have enough data points
-    if len(summary_data['score_trend']['scores']) > 2:
-        x_numeric = list(range(len(summary_data['score_trend']['scores'])))
-        z = np.polyfit(x_numeric, summary_data['score_trend']['scores'], 1)
-        p = np.poly1d(z)
-        fig.add_trace(go.Scatter(
-            x=summary_data['score_trend']['dates'],
-            y=p(x_numeric),
-            mode='lines',
-            name='Trend Line',
-            line=dict(color='red', dash='dash', width=2)
-        ))
-    
-    fig.update_layout(
-        title='📈 Credit Score Trend (Last 30 Days)',
-        xaxis_title='Date',
-        yaxis_title='Average Score',
-        height=400,
-        hovermode='x unified',
-        plot_bgcolor='rgba(240, 240, 240, 0.8)',
-        paper_bgcolor='rgba(255, 255, 255, 0.9)'
+def evaluate_random_forest(X_train, X_test, y_train, y_test, n_estimators=100, max_depth=10):
+    """Evaluate Random Forest model and return metrics"""
+    # Train Random Forest
+    model = RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        random_state=42
     )
+    model.fit(X_train, y_train)
     
-    return fig
-
-def create_risk_distribution_chart(summary_data):
-    """Create a pie chart showing risk distribution"""
-    if not summary_data.get('risk_distribution'):
-        return None
+    # Make predictions
+    y_pred = model.predict(X_test)
+    y_pred_proba = model.predict_proba(X_test)
     
-    labels = list(summary_data['risk_distribution'].keys())
-    values = list(summary_data['risk_distribution'].values())
+    # Calculate metrics
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
     
-    colors_risk = {
-        'Low': '#28a745',
-        'Medium': '#ffc107',
-        'High': '#dc3545'
+    # Cross-validation score
+    cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='accuracy')
+    cv_mean = cv_scores.mean()
+    cv_std = cv_scores.std()
+    
+    # Feature importance
+    feature_importance = pd.DataFrame({
+        'Feature': X_train.columns,
+        'Importance': model.feature_importances_
+    }).sort_values('Importance', ascending=False)
+    
+    return {
+        'model': model,
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1,
+        'cv_mean': cv_mean,
+        'cv_std': cv_std,
+        'feature_importance': feature_importance
     }
-    
-    pie_colors = [colors_risk.get(label, '#6c757d') for label in labels]
-    
-    fig = go.Figure(data=[go.Pie(
-        labels=labels,
-        values=values,
-        hole=.3,
-        marker_colors=pie_colors
-    )])
-    
-    fig.update_layout(
-        title='🎯 Risk Level Distribution',
-        height=400,
-        plot_bgcolor='rgba(240, 240, 240, 0.8)',
-        paper_bgcolor='rgba(255, 255, 255, 0.9)'
-    )
-    
-    return fig
 
 # ==================== MAIN APP CODE ====================
 
@@ -614,7 +271,7 @@ initialize_assessment_history()
 
 # Header Section
 st.markdown('<h1 class="main-header glowing-text">🏦 Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data in Zimbabwe")
+st.markdown("### 💳 AI-Powered Credit Scoring with Random Forest")
 st.markdown("---")
 
 # Load data with caching
@@ -628,8 +285,8 @@ df = load_data()
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-header">
-        <h2>🔮 Credit Assessment</h2>
-        <p>Enter your details below</p>
+        <h2>🔮 AI Credit Assessment</h2>
+        <p>Enter your details for AI analysis</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -686,8 +343,8 @@ with st.sidebar:
     st.markdown("---")
     user_name = st.text_input("👤 Your Name (for reports)", "Valued Customer")
 
-# Main content with tabs - ADDED NEW REPORTS TAB
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Quick Assessment", "🤖 Advanced ML Model", "📈 Reports"])
+# Main content with tabs
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🎯 AI Assessment", "🤖 Model Accuracy", "📈 Reports"])
 
 with tab1:
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
@@ -746,82 +403,14 @@ with tab1:
 
 with tab2:
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🔍 Data Analysis & Insights")
+    st.markdown("""
+    <div class="card">
+        <h2>🎯 AI Credit Assessment</h2>
+        <p>Get instant credit scoring powered by Random Forest</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📊 Distributions", "📈 Statistics", "🌍 Geographic"])
-    
-    with analysis_tab1:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### Credit Score Distribution")
-            score_counts = df['Credit_Score'].value_counts().sort_index()
-            st.bar_chart(score_counts)
-            
-            # Show as table
-            st.markdown("**Count by Credit Score:**")
-            dist_df = score_counts.reset_index()
-            dist_df.columns = ['Credit Score', 'Count']
-            st.dataframe(dist_df, use_container_width=True, hide_index=True)
-        
-        with col2:
-            st.markdown("#### Location Distribution")
-            location_counts = df['Location'].value_counts()
-            st.bar_chart(location_counts)
-            
-            st.markdown("**Count by Location:**")
-            loc_df = location_counts.reset_index()
-            loc_df.columns = ['Location', 'Count']
-            st.dataframe(loc_df, use_container_width=True, hide_index=True)
-    
-    with analysis_tab2:
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        selected_feature = st.selectbox("Select feature for detailed analysis:", numeric_cols)
-        
-        if selected_feature:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown(f"#### {selected_feature} Distribution")
-                hist_values = np.histogram(df[selected_feature], bins=20)[0]
-                st.bar_chart(hist_values)
-            
-            with col2:
-                st.markdown(f"#### 📊 Statistics for {selected_feature}")
-                stats_data = {
-                    'Metric': ['Mean', 'Median', 'Std Dev', 'Min', 'Max', '25th %ile', '75th %ile'],
-                    'Value': [
-                        f"{df[selected_feature].mean():.2f}",
-                        f"{df[selected_feature].median():.2f}",
-                        f"{df[selected_feature].std():.2f}",
-                        f"{df[selected_feature].min():.2f}",
-                        f"{df[selected_feature].max():.2f}",
-                        f"{df[selected_feature].quantile(0.25):.2f}",
-                        f"{df[selected_feature].quantile(0.75):.2f}"
-                    ]
-                }
-                stats_df = pd.DataFrame(stats_data)
-                st.dataframe(stats_df, use_container_width=True, hide_index=True)
-    
-    with analysis_tab3:
-        st.markdown("#### Credit Scores by Location")
-        location_summary = df.groupby('Location')['Credit_Score'].value_counts().unstack().fillna(0)
-        st.dataframe(location_summary, use_container_width=True)
-        
-        st.markdown("#### Location Performance Summary")
-        location_stats = df.groupby('Location').agg({
-            'Credit_Score': lambda x: (x == 'Good').mean()  # Example metric
-        }).round(3)
-        st.dataframe(location_stats, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ==================== UPDATED QUICK ASSESSMENT TAB (tab3) ====================
-
-with tab3:  # RENAMED to "🎯 Quick Assessment"
-    st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🎯 AI-Powered Credit Assessment")
-    
-    # Input summary in beautiful cards
+    # Input summary
     st.markdown("#### 📋 Your Input Summary")
     input_data = {
         "Feature": ["📍 Location", "👤 Gender", "🎂 Age", "📱 Mobile Transactions", 
@@ -843,7 +432,7 @@ with tab3:  # RENAMED to "🎯 Quick Assessment"
     if 'trained_model' in st.session_state and 'label_encoders' in st.session_state and 'target_encoder' in st.session_state:
         st.markdown("#### 🤖 AI Assessment in Progress...")
         
-        with st.spinner("🌳 Random Forest analyzing your financial profile..."):
+        with st.spinner("Analyzing your financial profile with AI..."):
             try:
                 # Prepare user data for prediction
                 user_data = pd.DataFrame({
@@ -866,7 +455,7 @@ with tab3:  # RENAMED to "🎯 Quick Assessment"
                             # Handle unseen labels
                             user_data[column] = -1
                 
-                # Predict with Random Forest
+                # Predict with trained model
                 model = st.session_state.trained_model
                 prediction_encoded = model.predict(user_data)
                 prediction_proba = model.predict_proba(user_data)
@@ -882,7 +471,7 @@ with tab3:  # RENAMED to "🎯 Quick Assessment"
                 }
                 
                 risk_level = risk_mapping.get(predicted_class, 'Medium')
-                score_percentage = confidence  # Use confidence as score percentage
+                score_percentage = confidence
                 
                 # Display AI assessment results
                 st.markdown("---")
@@ -907,32 +496,35 @@ with tab3:  # RENAMED to "🎯 Quick Assessment"
                 with col2:
                     # Display appropriate risk box
                     if predicted_class == 'Good':
-                        st.markdown("""
+                        st.markdown(f"""
                         <div class="success-box">
                             <h3>✅ EXCELLENT CREDITWORTHINESS</h3>
                             <p><strong>Recommendation:</strong> Strong candidate for credit approval with favorable terms and higher limits</p>
                             <p><strong>Risk Level:</strong> Low</p>
-                            <p><strong>AI Confidence:</strong> {:.1f}%</p>
+                            <p><strong>AI Confidence:</strong> {confidence:.1f}%</p>
+                            <p><strong>Model Accuracy:</strong> {st.session_state.model_accuracy:.1%}</p>
                         </div>
-                        """.format(confidence), unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
                     elif predicted_class == 'Fair':
-                        st.markdown("""
+                        st.markdown(f"""
                         <div class="warning-box">
                             <h3>⚠️ MODERATE RISK PROFILE</h3>
                             <p><strong>Recommendation:</strong> Standard verification process with moderate credit limits</p>
                             <p><strong>Risk Level:</strong> Medium</p>
-                            <p><strong>AI Confidence:</strong> {:.1f}%</p>
+                            <p><strong>AI Confidence:</strong> {confidence:.1f}%</p>
+                            <p><strong>Model Accuracy:</strong> {st.session_state.model_accuracy:.1%}</p>
                         </div>
-                        """.format(confidence), unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
                     else:
-                        st.markdown("""
+                        st.markdown(f"""
                         <div class="danger-box">
                             <h3>❌ HIGHER RISK PROFILE</h3>
                             <p><strong>Recommendation:</strong> Enhanced verification and possible collateral required</p>
                             <p><strong>Risk Level:</strong> High</p>
-                            <p><strong>AI Confidence:</strong> {:.1f}%</p>
+                            <p><strong>AI Confidence:</strong> {confidence:.1f}%</p>
+                            <p><strong>Model Accuracy:</strong> {st.session_state.model_accuracy:.1%}</p>
                         </div>
-                        """.format(confidence), unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
                 
                 # Probability distribution
                 st.markdown("#### 📊 AI Probability Distribution")
@@ -945,7 +537,7 @@ with tab3:  # RENAMED to "🎯 Quick Assessment"
                 
                 # Save assessment button
                 st.markdown("---")
-                if st.button("💾 Save This Assessment", type="primary", use_container_width=True):
+                if st.button("💾 Save AI Assessment", type="primary", use_container_width=True):
                     assessment_data = {
                         'user_name': user_name,
                         'location': Location,
@@ -959,6 +551,7 @@ with tab3:  # RENAMED to "🎯 Quick Assessment"
                         'risk_level': risk_level,
                         'predicted_class': predicted_class,
                         'ai_confidence': confidence,
+                        'model_accuracy': st.session_state.model_accuracy,
                         'assessment_type': 'AI-Powered'
                     }
                     
@@ -967,170 +560,40 @@ with tab3:  # RENAMED to "🎯 Quick Assessment"
                 
             except Exception as e:
                 st.error(f"❌ Error in AI assessment: {str(e)}")
-                st.info("Please ensure the AI model has been trained in the Advanced ML Model tab first.")
+                st.info("Please ensure the AI model has been evaluated in the Model Accuracy tab first.")
     else:
-        st.warning("""
+        st.error("""
         ⚠️ **AI Model Not Ready**
         
         To use AI-powered credit assessment:
         
-        1. Go to the **🤖 Advanced ML Model** tab
-        2. Click **"Train Random Forest Model"**
-        3. Once trained, return here for AI-powered predictions
+        1. Go to the **🤖 Model Accuracy** tab
+        2. Click **"Evaluate Random Forest Model"**
+        3. Once evaluated, return here for AI-powered predictions
         """)
-        
-        # Fallback to simple assessment if AI not ready
-        st.markdown("---")
-        st.markdown("#### 📊 Basic Assessment (Fallback)")
-        
-        # Simple assessment calculation (as backup)
-        score = 0
-        max_score = 6
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("##### 🎂 Age Factor")
-            if 30 <= Age <= 50:
-                score += 2
-                st.success("✅ Optimal (30-50 years)")
-                st.progress(1.0)
-            elif 25 <= Age < 30 or 50 < Age <= 60:
-                score += 1
-                st.warning("⚠️ Moderate")
-                st.progress(0.5)
-            else:
-                st.error("❌ Higher Risk")
-                st.progress(0.2)
-        
-        with col2:
-            st.markdown("##### 💰 Transaction Activity")
-            mobile_median = df['Mobile_Money_Txns'].median()
-            if Mobile_Money_Txns > mobile_median:
-                score += 1
-                st.success(f"✅ Above Average")
-                st.progress(1.0)
-            else:
-                st.warning("⚠️ Below Average")
-                st.progress(0.3)
-        
-        with col3:
-            st.markdown("##### 📈 Repayment History")
-            repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-            rep_score = repayment_scores[Loan_Repayment_History]
-            score += rep_score
-            progress_map = {'Poor': 0.2, 'Fair': 0.4, 'Good': 0.7, 'Excellent': 1.0}
-            st.info(f"📊 {Loan_Repayment_History}")
-            st.progress(progress_map[Loan_Repayment_History])
-        
-        # Final assessment
-        st.markdown("---")
-        percentage = (score / max_score) * 100
-        
-        # Determine risk level
-        if percentage >= 80:
-            risk_level = "Low"
-        elif percentage >= 50:
-            risk_level = "Medium"
-        else:
-            risk_level = "High"
-        
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            st.markdown("#### 📈 Basic Score")
-            st.markdown(f"# {score}/{max_score}")
-            st.markdown(f"### {percentage:.1f}%")
-            st.progress(percentage / 100)
-            
-            # Score interpretation
-            if score >= 5:
-                st.success("🎉 Excellent Score!")
-            elif score >= 3:
-                st.info("📊 Good Score")
-            else:
-                st.warning("📝 Needs Improvement")
-        
-        with col2:
-            st.markdown("#### 🎯 Basic Assessment")
-            if score >= 5:
-                st.markdown("""
-                <div class="success-box">
-                    <h3>✅ GOOD CREDITWORTHINESS</h3>
-                    <p><strong>Recommendation:</strong> Consider applying for credit with standard terms</p>
-                    <p><strong>Risk Level:</strong> Low</p>
-                    <p><em>Note: For more accurate assessment, train the AI model</em></p>
-                </div>
-                """, unsafe_allow_html=True)
-            elif score >= 3:
-                st.markdown("""
-                <div class="warning-box">
-                    <h3>⚠️ MODERATE RISK PROFILE</h3>
-                    <p><strong>Recommendation:</strong> Consider credit building options first</p>
-                    <p><strong>Risk Level:</strong> Medium</p>
-                    <p><em>Note: For more accurate assessment, train the AI model</em></p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div class="danger-box">
-                    <h3>❌ HIGHER RISK PROFILE</h3>
-                    <p><strong>Recommendation:</strong> Focus on improving financial habits</p>
-                    <p><strong>Risk Level:</strong> High</p>
-                    <p><em>Note: For more accurate assessment, train the AI model</em></p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Save basic assessment button
-        st.markdown("---")
-        if st.button("💾 Save Basic Assessment", type="primary", use_container_width=True):
-            assessment_data = {
-                'user_name': user_name,
-                'location': Location,
-                'gender': gender,
-                'age': Age,
-                'mobile_money_txns': Mobile_Money_Txns,
-                'airtime_spend': Airtime_Spend_ZWL,
-                'utility_payments': Utility_Payments_ZWL,
-                'repayment_history': Loan_Repayment_History,
-                'final_score': percentage,
-                'risk_level': risk_level,
-                'score_breakdown': score,
-                'max_score': max_score,
-                'assessment_type': 'Basic'
-            }
-            
-            save_assessment(assessment_data)
-            st.success(f"✅ Basic assessment saved successfully! Total assessments: {len(st.session_state.assessment_history)}")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ==================== UPDATED AI MODEL TAB (tab4) ====================
-
-with tab4:  # RENAMED to "🤖 Advanced ML Model"
+with tab3:  # Model Accuracy tab
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🤖 Advanced Machine Learning Model")
+    st.markdown("### 🤖 Random Forest Model Accuracy")
     
-    # System explanation
+    # Model explanation
     st.markdown("""
-    <div class="system-explanation">
-        <h4>🔬 About This Model</h4>
-        <p>This Random Forest model powers the <strong>AI-Powered Credit Assessment</strong> in the previous tab.</p>
-        <p><strong>Key Features:</strong></p>
-        <ul>
-            <li>🌳 <strong>Random Forest Algorithm</strong>: Ensemble of decision trees for robust predictions</li>
-            <li>📊 <strong>Trained on Historical Data</strong>: Learns patterns from Zimbabwe credit data</li>
-            <li>🎯 <strong>Powers Real Assessments</strong>: Once trained, used for live credit scoring</li>
-            <li>🔍 <strong>Explainable AI</strong>: Shows feature importance and confidence scores</li>
-        </ul>
-        <p><em>Train this model once, then use it for AI-powered assessments!</em></p>
+    <div class="card">
+        <h4>🌳 About Random Forest Model</h4>
+        <p>This is the machine learning model used for credit scoring in this app.</p>
+        <p><strong>Model Type:</strong> Random Forest Classifier</p>
+        <p><strong>Algorithm:</strong> Ensemble of decision trees</p>
+        <p><strong>Purpose:</strong> Predicts credit score (Good/Fair/Poor) based on financial behavior</p>
+        <p><em>Click the button below to evaluate the model's accuracy</em></p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Random Forest parameters configuration
-    st.markdown("#### ⚙️ Model Configuration")
+    # Model parameters
+    st.markdown("#### ⚙️ Model Parameters")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         n_estimators = st.slider("Number of Trees", 10, 500, 100, 10,
@@ -1140,36 +603,17 @@ with tab4:  # RENAMED to "🤖 Advanced ML Model"
         max_depth = st.slider("Max Tree Depth", 2, 20, 10, 1,
                              help="Maximum depth of each decision tree")
     
-    with col3:
-        min_samples_split = st.slider("Min Samples Split", 2, 20, 5, 1,
-                                     help="Minimum number of samples required to split an internal node")
+    # Test size
+    test_size = st.slider("Test Size %", 10, 40, 20, 5,
+                         help="Percentage of data to use for testing")
     
-    # Additional model parameters
-    st.markdown("#### 🔧 Advanced Parameters")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        test_size = st.slider("Test Size %", 10, 40, 20, 5,
-                             help="Percentage of data to use for testing")
-    
-    with col2:
-        random_state = st.slider("Random State", 0, 100, 42, 1,
-                                help="Random seed for reproducibility")
-    
-    with col3:
-        use_oob = st.checkbox("Use OOB Score", value=True,
-                             help="Use Out-of-Bag samples for validation")
-    
-    if st.button("🌳 Train AI Model", type="primary", use_container_width=True):
-        with st.spinner("🌳 Training AI model... This may take a few moments."):
+    # Button to evaluate model
+    if st.button("📊 Evaluate Random Forest Model", type="primary", use_container_width=True):
+        with st.spinner("🤖 Evaluating Random Forest model..."):
             try:
                 # Prepare data
                 X = df.drop("Credit_Score", axis=1)
                 y = df["Credit_Score"]
-                
-                # Check class distribution
-                st.info(f"📊 Training on {len(df)} historical credit records")
-                class_distribution = y.value_counts()
                 
                 # Encode categorical variables
                 label_encoders = {}
@@ -1182,211 +626,104 @@ with tab4:  # RENAMED to "🤖 Advanced ML Model"
                 target_encoder = LabelEncoder()
                 y_encoded = target_encoder.fit_transform(y)
                 
-                # Check if any class has only 1 sample
-                unique_classes, class_counts = np.unique(y_encoded, return_counts=True)
-                
-                if any(class_counts < 2):
-                    st.warning(f"⚠️ Some classes have very few samples. Using simple train-test split.")
-                    # Split data without stratification
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        X, y_encoded, 
-                        test_size=test_size/100, 
-                        random_state=random_state
-                    )
-                else:
-                    # Split data with stratification
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        X, y_encoded, 
-                        test_size=test_size/100, 
-                        random_state=random_state, 
-                        stratify=y_encoded
-                    )
-                
-                # Train Random Forest model with user parameters
-                model = RandomForestClassifier(
-                    n_estimators=n_estimators,
-                    max_depth=max_depth,
-                    min_samples_split=min_samples_split,
-                    random_state=random_state,
-                    n_jobs=-1,  # Use all available processors
-                    oob_score=use_oob,
-                    bootstrap=True
+                # Split data
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y_encoded, 
+                    test_size=test_size/100, 
+                    random_state=42, 
+                    stratify=y_encoded
                 )
-                model.fit(X_train, y_train)
                 
-                # Make predictions
-                y_pred = model.predict(X_test)
-                y_pred_proba = model.predict_proba(X_test)
+                # Evaluate model
+                results = evaluate_random_forest(X_train, X_test, y_train, y_test, n_estimators, max_depth)
                 
-                # ============= CALCULATE ACCURACY METRICS =============
-                accuracy = accuracy_score(y_test, y_pred)
-                train_accuracy = model.score(X_train, y_train)
-                precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
-                recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
-                f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
-                
-                # For multiclass ROC-AUC
-                try:
-                    roc_auc = roc_auc_score(y_test, y_pred_proba, multi_class='ovr', average='weighted')
-                    roc_auc_formatted = f"{roc_auc:.3f}"
-                except:
-                    roc_auc = None
-                    roc_auc_formatted = "N/A"
-                
-                # Save model and encoders to session state
-                st.session_state.trained_model = model
+                # Save model and results to session state
+                st.session_state.trained_model = results['model']
                 st.session_state.label_encoders = label_encoders
                 st.session_state.target_encoder = target_encoder
-                st.session_state.model_accuracy = accuracy
+                st.session_state.model_accuracy = results['accuracy']
                 
-                st.success("""
-                ✅ AI Model Trained Successfully!
+                st.success("✅ Random Forest model evaluated successfully!")
                 
-                **Now go to the 🎯 Quick Assessment tab to use this model for live credit scoring!**
-                """)
-                
-                # ============= CLEAR ACCURACY PERCENTAGE DISPLAY =============
+                # ============= DISPLAY ACCURACY RESULTS =============
                 st.markdown("---")
-                st.markdown("### 🎯 MODEL ACCURACY RESULTS")
+                st.markdown("### 🎯 Model Accuracy Results")
                 
-                # Simple, clear accuracy display
-                accuracy_percentage = accuracy * 100
+                # Display accuracy percentage in a big, clear way
+                accuracy_percentage = results['accuracy'] * 100
+                
+                st.markdown(f"""
+                <div style="text-align: center; margin: 30px 0;">
+                    <div class="accuracy-label">RANDOM FOREST MODEL ACCURACY</div>
+                    <div class="accuracy-display">{results['accuracy']:.1%}</div>
+                    <div style="color: #666; font-size: 18px;">
+                        {accuracy_percentage:.1f} out of 100 correct predictions
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Progress bar for accuracy
+                st.progress(results['accuracy'])
+                
+                # Interpretation
+                if results['accuracy'] >= 0.85:
+                    st.success(f"**Excellent Performance**: {results['accuracy']:.1%} accuracy exceeds industry standards for credit scoring.")
+                elif results['accuracy'] >= 0.75:
+                    st.warning(f"**Good Performance**: {results['accuracy']:.1%} accuracy is acceptable for deployment.")
+                else:
+                    st.error(f"**Needs Improvement**: {results['accuracy']:.1%} accuracy suggests the model needs optimization.")
+                
+                # ============= DETAILED METRICS =============
+                st.markdown("---")
+                st.markdown("#### 📊 Detailed Performance Metrics")
                 
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    st.markdown(f"""
-                    <div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                padding: 25px; border-radius: 15px; color: white; margin: 10px;">
-                        <h3 style="margin: 0; font-size: 16px;">OVERALL ACCURACY</h3>
-                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{accuracy:.1%}</h1>
-                        <p style="margin: 0; font-size: 14px;">Test Set Performance</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.metric("Precision", f"{results['precision']:.1%}")
                 
                 with col2:
-                    st.markdown(f"""
-                    <div style="text-align: center; background: #28a745; padding: 25px; border-radius: 15px; 
-                                color: white; margin: 10px;">
-                        <h3 style="margin: 0; font-size: 16px;">PRECISION</h3>
-                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{precision:.1%}</h1>
-                        <p style="margin: 0; font-size: 14px;">Minimizes false approvals</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.metric("Recall", f"{results['recall']:.1%}")
                 
                 with col3:
-                    st.markdown(f"""
-                    <div style="text-align: center; background: #17a2b8; padding: 25px; border-radius: 15px; 
-                                color: white; margin: 10px;">
-                        <h3 style="margin: 0; font-size: 16px;">RECALL</h3>
-                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{recall:.1%}</h1>
-                        <p style="margin: 0; font-size: 14px;">Minimizes false rejections</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.metric("F1-Score", f"{results['f1']:.1%}")
                 
                 with col4:
-                    st.markdown(f"""
-                    <div style="text-align: center; background: #ffc107; padding: 25px; border-radius: 15px; 
-                                color: white; margin: 10px;">
-                        <h3 style="margin: 0; font-size: 16px;">F1-SCORE</h1>
-                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{f1:.1%}</h1>
-                        <p style="margin: 0; font-size: 14px;">Balanced performance</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.metric("Cross-Validation", f"{results['cv_mean']:.1%}")
                 
-                # Simple interpretation
-                st.markdown(f"""
-                <div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #1f77b4;">
-                    <h4 style="margin: 0 0 15px 0; color: #1f77b4;">📊 AI MODEL PERFORMANCE SUMMARY</h4>
-                    <p style="margin: 0; font-size: 16px; line-height: 1.6;">
-                        The Random Forest AI model achieves <strong>{accuracy:.1%} overall accuracy</strong> 
-                        ({accuracy_percentage:.0f} out of 100 correct predictions).
-                        This model is now <strong>ready to power real-time credit assessments</strong> in the Quick Assessment tab.
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # ============= DETAILED METRICS SECTION =============
+                # ============= FEATURE IMPORTANCE =============
                 st.markdown("---")
-                st.markdown("#### 📋 Detailed Performance Metrics")
+                st.markdown("#### 🔍 Feature Importance")
                 
-                # Per-class metrics with error handling
-                try:
-                    precision_per_class = precision_score(y_test, y_pred, average=None, zero_division=0)
-                    recall_per_class = recall_score(y_test, y_pred, average=None, zero_division=0)
-                    f1_per_class = f1_score(y_test, y_pred, average=None, zero_division=0)
-                except:
-                    # If per-class metrics fail, use weighted averages
-                    precision_per_class = [precision] * len(target_encoder.classes_)
-                    recall_per_class = [recall] * len(target_encoder.classes_)
-                    f1_per_class = [f1] * len(target_encoder.classes_)
+                feature_importance = results['feature_importance']
                 
-                # Cross-validation score with error handling
-                try:
-                    cv_scores = cross_val_score(model, X, y_encoded, cv=min(5, len(X)), scoring='accuracy')
-                    cv_mean = cv_scores.mean()
-                    cv_std = cv_scores.std()
-                except:
-                    cv_mean = accuracy
-                    cv_std = 0
-                    st.warning("⚠️ Cross-validation could not be performed with current data distribution")
-                
-                # ============= FEATURE IMPORTANCE SECTION =============
-                st.markdown("---")
-                st.markdown("#### 🔍 Random Forest Feature Importance")
-                
-                feature_importance = pd.DataFrame({
-                    'Feature': X.columns,
-                    'Importance': model.feature_importances_
-                }).sort_values('Importance', ascending=False)
-                
-                # Create two columns for visualization and table
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # Interactive feature importance plot
-                    fig = go.Figure(data=[
-                        go.Bar(
-                            x=feature_importance['Importance'],
-                            y=feature_importance['Feature'],
-                            orientation='h',
-                            marker_color='lightblue'
-                        )
-                    ])
-                    
-                    fig.update_layout(
-                        title='Feature Importance Scores',
-                        xaxis_title='Importance',
-                        yaxis_title='Feature',
-                        height=400
+                # Create visualization
+                fig = go.Figure(data=[
+                    go.Bar(
+                        x=feature_importance['Importance'],
+                        y=feature_importance['Feature'],
+                        orientation='h',
+                        marker_color='lightblue'
                     )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
+                ])
                 
-                with col2:
-                    # Display as styled dataframe
-                    def color_feature_importance(val):
-                        if val >= 0.2:
-                            return 'background-color: rgba(0, 255, 0, 0.3)'
-                        elif val >= 0.1:
-                            return 'background-color: rgba(255, 255, 0, 0.3)'
-                        else:
-                            return 'background-color: rgba(255, 0, 0, 0.3)'
-                    
-                    styled_features = feature_importance.style.applymap(
-                        color_feature_importance, subset=['Importance']
-                    )
-                    
-                    st.dataframe(styled_features, 
-                               use_container_width=True, 
-                               hide_index=True,
-                               height=400)
+                fig.update_layout(
+                    title='Feature Importance Scores',
+                    xaxis_title='Importance',
+                    yaxis_title='Feature',
+                    height=400
+                )
                 
-                # ============= TEST THE TRAINED MODEL WITH USER INPUT =============
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Display as table
+                st.dataframe(feature_importance, use_container_width=True, hide_index=True)
+                
+                # ============= MODEL TESTING =============
                 st.markdown("---")
-                st.markdown("#### 🎯 Test the Trained Model")
+                st.markdown("#### 🎯 Test Model with Your Data")
                 
-                if st.button("🔮 Test with My Data", type="secondary", use_container_width=True):
+                if st.button("🔮 Test Model Prediction", type="secondary", use_container_width=True):
                     user_data = pd.DataFrame({
                         'Location': [Location],
                         'Gender': [gender],
@@ -1406,9 +743,9 @@ with tab4:  # RENAMED to "🤖 Advanced ML Model"
                             else:
                                 user_data[column] = -1
                     
-                    # Predict with Random Forest
-                    prediction_encoded = model.predict(user_data)
-                    prediction_proba = model.predict_proba(user_data)
+                    # Predict
+                    prediction_encoded = results['model'].predict(user_data)
+                    prediction_proba = results['model'].predict_proba(user_data)
                     
                     predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
                     confidence = np.max(prediction_proba) * 100
@@ -1419,9 +756,10 @@ with tab4:  # RENAMED to "🤖 Advanced ML Model"
                     with col1:
                         st.markdown(f"""
                         <div class="success-box">
-                            <h3>Model Prediction</h3>
+                            <h3>Test Result</h3>
                             <h1>{predicted_class}</h1>
                             <p><strong>Confidence:</strong> {confidence:.1f}%</p>
+                            <p><strong>Model Accuracy:</strong> {results['accuracy']:.1%}</p>
                         </div>
                         """, unsafe_allow_html=True)
                     
@@ -1434,172 +772,79 @@ with tab4:  # RENAMED to "🤖 Advanced ML Model"
                         st.dataframe(prob_df, use_container_width=True, hide_index=True)
                 
             except Exception as e:
-                st.error(f"❌ Error training AI model: {str(e)}")
-                st.exception(e)
+                st.error(f"❌ Error evaluating model: {str(e)}")
     
-    # If model is already trained, show status
-    elif 'trained_model' in st.session_state:
+    # If model is already evaluated
+    elif 'model_accuracy' in st.session_state and st.session_state.model_accuracy is not None:
         st.markdown("---")
-        st.markdown("""
+        st.markdown(f"""
         <div class="success-box">
-            <h3>✅ AI Model Already Trained</h3>
-            <p>The Random Forest model is ready for use in the <strong>🎯 Quick Assessment</strong> tab.</p>
-            <p><strong>Model Accuracy:</strong> {:.1%}</p>
+            <h3>✅ Model Already Evaluated</h3>
+            <p><strong>Model Accuracy:</strong> {st.session_state.model_accuracy:.1%}</p>
+            <p><strong>Model Type:</strong> Random Forest</p>
+            <p><em>This model is ready for use in the AI Assessment tab.</em></p>
         </div>
-        """.format(st.session_state.model_accuracy), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
-        # Option to retrain
-        if st.button("🔄 Retrain Model with New Parameters", type="secondary"):
+        # Show accuracy percentage
+        accuracy_percentage = st.session_state.model_accuracy * 100
+        
+        st.markdown(f"""
+        <div style="text-align: center; margin: 30px 0;">
+            <div class="accuracy-label">CURRENT MODEL ACCURACY</div>
+            <div class="accuracy-display">{st.session_state.model_accuracy:.1%}</div>
+            <div style="color: #666; font-size: 18px;">
+                {accuracy_percentage:.1f} out of 100 correct predictions
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.progress(st.session_state.model_accuracy)
+        
+        # Option to re-evaluate
+        if st.button("🔄 Re-evaluate Model", type="secondary"):
             st.session_state.pop('trained_model', None)
-            st.session_state.pop('label_encoders', None)
-            st.session_state.pop('target_encoder', None)
+            st.session_state.pop('model_accuracy', None)
             st.rerun()
-    
-    # Model information section
-    st.markdown("---")
-    st.markdown("""
-    <div class="card">
-        <h4>🌳 How Random Forest Works for Credit Scoring</h4>
-        <ol>
-            <li><strong>Multiple Decision Trees:</strong> Creates an ensemble of decision trees from random data subsets</li>
-            <li><strong>Voting System:</strong> Each tree makes a prediction, majority vote determines final result</li>
-            <li><strong>Feature Importance:</strong> Calculates which features most influence credit decisions</li>
-            <li><strong>Robustness:</strong> Reduces overfitting compared to single decision trees</li>
-            <li><strong>Confidence Scores:</strong> Provides probability estimates for each prediction</li>
-        </ol>
-        <p><em>This approach makes credit assessments more accurate and reliable.</em></p>
-    </div>
-    """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ==================== REPORTS TAB (tab5) ====================
-
-with tab5:  # REPORTS TAB
+with tab4:
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 📈 30-Day Assessment Reports")
+    st.markdown("### 📈 Assessment Reports")
     
     # Check if we have assessment history
     recent_assessments = get_last_30_days_assessments()
     
     if not recent_assessments:
-        st.warning("📭 No assessment history found for the last 30 days.")
-        st.info("Complete an assessment in the '🎯 Assessment' tab and click 'Save This Assessment' to generate reports.")
+        st.warning("📭 No assessment history found.")
+        st.info("Complete an assessment in the '🎯 AI Assessment' tab first.")
     else:
         # Calculate summary
         summary = calculate_30_day_summary()
         
         # Display summary statistics
-        st.markdown("#### 📊 Executive Summary")
+        st.markdown("#### 📊 Summary")
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Assessments", summary['total_assessments'])
         with col2:
             st.metric("Average Score", f"{summary['average_score']:.1f}/100")
         with col3:
-            most_common_risk = max(summary['risk_distribution'].items(), key=lambda x: x[1])[0] if summary['risk_distribution'] else "N/A"
-            st.metric("Most Common Risk", most_common_risk)
-        with col4:
-            date_range = f"{summary['date_range']['start']} to {summary['date_range']['end']}"
-            st.metric("Period", date_range)
-        
-        st.markdown("---")
-        
-        # Visualizations
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Score trend chart
-            trend_fig = create_score_trend_chart(summary)
-            if trend_fig:
-                st.plotly_chart(trend_fig, use_container_width=True)
+            if summary['risk_distribution']:
+                most_common_risk = max(summary['risk_distribution'].items(), key=lambda x: x[1])[0]
+                st.metric("Most Common Risk", most_common_risk)
             else:
-                st.info("Not enough data for trend analysis")
+                st.metric("Most Common Risk", "N/A")
         
-        with col2:
-            # Risk distribution chart
-            risk_fig = create_risk_distribution_chart(summary)
-            if risk_fig:
-                st.plotly_chart(risk_fig, use_container_width=True)
-            else:
-                st.info("Risk distribution data not available")
+        # Display assessments
+        st.markdown("#### 📋 Recent Assessments")
         
-        st.markdown("---")
-        
-        # Report Generation Section
-        st.markdown("#### 📄 Generate Comprehensive Report")
-        
-        st.markdown("""
-        <div class="report-box">
-            <h4>📊 Report Includes:</h4>
-            <ul>
-                <li>Executive Summary with key metrics</li>
-                <li>Risk level distribution analysis</li>
-                <li>Score trend visualization</li>
-                <li>Detailed assessment history</li>
-                <li>Key insights and recommendations</li>
-                <li>Professional formatting</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([2, 1, 1])
-        
-        with col1:
-            # Additional report options
-            include_trends = st.checkbox("Include trend analysis", value=True)
-            include_details = st.checkbox("Include detailed history", value=True)
-            include_recommendations = st.checkbox("Include recommendations", value=True)
-        
-        with col2:
-            # Generate HTML report
-            if st.button("📥 Generate HTML Report", type="primary", use_container_width=True):
-                with st.spinner("Generating HTML report..."):
-                    try:
-                        html_report = generate_html_report(summary, user_name)
-                        
-                        # Create download link
-                        st.markdown(
-                            create_download_link(html_report, f"Zim_Credit_Report_{date.today()}.html", "html"),
-                            unsafe_allow_html=True
-                        )
-                        
-                        st.success("✅ HTML report generated successfully!")
-                        
-                        # Show preview
-                        st.markdown("#### 👁️ Report Preview")
-                        st.components.v1.html(html_report, height=400, scrolling=True)
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error generating report: {str(e)}")
-        
-        with col3:
-            # Export to CSV
-            if st.button("📊 Export to CSV", type="secondary", use_container_width=True):
-                history_df = pd.DataFrame(recent_assessments)
-                csv = history_df.to_csv(index=False)
-                b64 = base64.b64encode(csv.encode()).decode()
-                href = f'''
-                <a href="data:file/csv;base64,{b64}" download="credit_assessments_{date.today()}.csv" 
-                   style="text-decoration: none; padding: 10px 20px; background: #6c757d; color: white; 
-                          border-radius: 5px; font-weight: bold; display: inline-block; margin: 5px;">
-                   📊 Download CSV
-                </a>
-                '''
-                st.markdown(href, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Detailed Assessment History
-        st.markdown("#### 📋 Detailed Assessment History")
-        
-        # Create a DataFrame for display
         history_df = pd.DataFrame(recent_assessments)
         
         # Select columns to display
-        display_columns = ['date', 'user_name', 'final_score', 'risk_level', 'age', 
-                          'mobile_money_txns', 'repayment_history']
+        display_columns = ['date', 'user_name', 'final_score', 'risk_level', 'predicted_class']
         
         # Filter to available columns
         available_columns = [col for col in display_columns if col in history_df.columns]
@@ -1615,9 +860,7 @@ with tab5:  # REPORTS TAB
                 'user_name': 'User',
                 'final_score': 'Score',
                 'risk_level': 'Risk Level',
-                'age': 'Age',
-                'mobile_money_txns': 'Mobile Txns',
-                'repayment_history': 'Repayment History'
+                'predicted_class': 'Prediction'
             }
             
             display_df.rename(columns=column_names, inplace=True)
@@ -1629,47 +872,7 @@ with tab5:  # REPORTS TAB
                 height=300
             )
         else:
-            st.info("No detailed assessment data available")
-        
-        st.markdown("---")
-        
-        # Advanced Analytics Section
-        st.markdown("#### 🔍 Advanced Analytics")
-        
-        if 'final_score' in history_df.columns and 'risk_level' in history_df.columns:
-            analytics_tab1, analytics_tab2 = st.tabs(["Score Analysis", "Risk Correlation"])
-            
-            with analytics_tab1:
-                # Score distribution histogram
-                fig_hist = px.histogram(
-                    history_df, 
-                    x='final_score',
-                    nbins=20,
-                    title='Score Distribution',
-                    labels={'final_score': 'Credit Score'},
-                    color_discrete_sequence=['#1f77b4']
-                )
-                fig_hist.update_layout(bargap=0.1)
-                st.plotly_chart(fig_hist, use_container_width=True)
-            
-            with analytics_tab2:
-                # Correlation heatmap for numeric columns
-                numeric_cols = history_df.select_dtypes(include=[np.number]).columns
-                if len(numeric_cols) > 1:
-                    corr_matrix = history_df[numeric_cols].corr()
-                    
-                    fig_corr = px.imshow(
-                        corr_matrix,
-                        text_auto='.2f',
-                        aspect="auto",
-                        title='Feature Correlation Matrix',
-                        color_continuous_scale='RdBu'
-                    )
-                    st.plotly_chart(fig_corr, use_container_width=True)
-                else:
-                    st.info("Not enough numeric data for correlation analysis")
-        else:
-            st.info("Advanced analytics require more assessment data")
+            st.info("No assessment data available")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1677,7 +880,7 @@ with tab5:  # REPORTS TAB
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #6c757d; padding: 20px;">
-    <p>Zim Smart Credit App | Alternative Credit Scoring for Zimbabwe | © 2024</p>
-    <p><small>All assessments are stored locally in your browser session</small></p>
+    <p>Zim Smart Credit App | AI-Powered Credit Scoring | © 2024</p>
+    <p><small>Model Accuracy: {}</small></p>
 </div>
-""", unsafe_allow_html=True)
+""".format(f"{st.session_state.model_accuracy:.1%}" if st.session_state.model_accuracy else "Not evaluated"), unsafe_allow_html=True)
