@@ -127,6 +127,15 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         border: 2px solid #e9ecef;
     }
+    
+    .monthly-report-card {
+        background: linear-gradient(135deg, rgba(135, 206, 235, 0.95) 0%, rgba(70, 130, 180, 0.95) 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        color: white;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -204,7 +213,7 @@ def save_assessment(assessment_data):
     
     st.session_state.assessments_history.append(assessment_data.copy())
     
-    # Keep only last 30 days of assessments
+    # Keep only last 30 days of assessments (one month)
     cutoff_date = datetime.now() - timedelta(days=30)
     st.session_state.assessments_history = [
         a for a in st.session_state.assessments_history 
@@ -213,8 +222,8 @@ def save_assessment(assessment_data):
     
     return assessment_data['assessment_id']
 
-def get_30day_assessment_stats():
-    """Calculate statistics from last 30 days of assessments"""
+def get_monthly_assessment_stats():
+    """Calculate statistics from last month of assessments"""
     if not st.session_state.assessments_history:
         return None
     
@@ -227,32 +236,32 @@ def get_30day_assessment_stats():
     # Convert timestamp to datetime
     assessments_df['datetime'] = pd.to_datetime(assessments_df['timestamp'])
     
-    # Get last 30 days
+    # Get last month (30 days)
     cutoff_date = datetime.now() - timedelta(days=30)
-    recent_assessments = assessments_df[assessments_df['datetime'] >= cutoff_date]
+    monthly_assessments = assessments_df[assessments_df['datetime'] >= cutoff_date]
     
-    if len(recent_assessments) == 0:
+    if len(monthly_assessments) == 0:
         return None
     
     # Calculate statistics
     stats = {
-        'total_assessments': int(len(recent_assessments)),
-        'average_score': float(recent_assessments['score'].mean()),
-        'median_score': float(recent_assessments['score'].median()),
-        'approval_rate': float((recent_assessments['score'] >= 3).mean() * 100),
-        'high_risk_rate': float((recent_assessments['score'] < 3).mean() * 100),
-        'low_risk_rate': float((recent_assessments['score'] >= 5).mean() * 100),
-        'daily_counts': recent_assessments.groupby('date').size().to_dict(),
-        'daily_scores': recent_assessments.groupby('date')['score'].mean().to_dict(),
-        'risk_distribution': recent_assessments['risk_level'].value_counts().to_dict(),
-        'ai_confidence_avg': float(recent_assessments['confidence'].mean() if 'confidence' in recent_assessments.columns and recent_assessments['confidence'].notna().any() else 0),
-        'latest_assessment': recent_assessments.iloc[-1].to_dict() if len(recent_assessments) > 0 else None
+        'total_assessments': int(len(monthly_assessments)),
+        'average_score': float(monthly_assessments['score'].mean()),
+        'median_score': float(monthly_assessments['score'].median()),
+        'approval_rate': float((monthly_assessments['score'] >= 3).mean() * 100),
+        'high_risk_rate': float((monthly_assessments['score'] < 3).mean() * 100),
+        'low_risk_rate': float((monthly_assessments['score'] >= 5).mean() * 100),
+        'daily_counts': monthly_assessments.groupby('date').size().to_dict(),
+        'daily_scores': monthly_assessments.groupby('date')['score'].mean().to_dict(),
+        'risk_distribution': monthly_assessments['risk_level'].value_counts().to_dict(),
+        'ai_confidence_avg': float(monthly_assessments['confidence'].mean() if 'confidence' in monthly_assessments.columns and monthly_assessments['confidence'].notna().any() else 0),
+        'latest_assessment': monthly_assessments.iloc[-1].to_dict() if len(monthly_assessments) > 0 else None
     }
     
     return stats
 
-def generate_30day_trend_chart(stats):
-    """Generate 30-day trend chart from actual assessment data"""
+def generate_monthly_trend_chart(stats):
+    """Generate monthly trend chart from actual assessment data"""
     if not stats or 'daily_counts' not in stats or not stats['daily_counts']:
         return None
     
@@ -271,7 +280,7 @@ def generate_30day_trend_chart(stats):
     ))
     
     fig.update_layout(
-        title='30-Day Assessment Volume Trend',
+        title='Monthly Assessment Volume Trend',
         xaxis_title='Date',
         yaxis_title='Number of Assessments',
         hovermode='x unified',
@@ -281,7 +290,7 @@ def generate_30day_trend_chart(stats):
     return fig
 
 def generate_score_trend_chart(stats):
-    """Generate 30-day score trend chart"""
+    """Generate monthly score trend chart"""
     if not stats or 'daily_scores' not in stats or not stats['daily_scores']:
         return None
     
@@ -308,7 +317,7 @@ def generate_score_trend_chart(stats):
     )
     
     fig.update_layout(
-        title='30-Day Average Score Trend',
+        title='Monthly Average Score Trend',
         xaxis_title='Date',
         yaxis_title='Average Score',
         yaxis=dict(range=[0, 6]),
@@ -338,7 +347,7 @@ def generate_risk_distribution_chart(stats):
     ])
     
     fig.update_layout(
-        title='30-Day Risk Level Distribution',
+        title='Monthly Risk Level Distribution',
         height=400
     )
     
@@ -466,8 +475,8 @@ with st.sidebar:
             st.success("✅ Model trained successfully!")
             st.rerun()
 
-# Main tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model", "📈 Model Accuracy", "📋 30-Day Reports"])
+# Main tabs - Changed tab6 name from "📋 30-Day Reports" to "📋 Monthly Reports"
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model", "📈 Model Accuracy", "📋 Monthly Reports"])
 
 with tab1:
     st.markdown("### 📈 Dataset Overview")
@@ -710,27 +719,27 @@ with tab5:
         })
         st.dataframe(cv_df, use_container_width=True, hide_index=True)
 
-# NEW 30-DAY REPORTS TAB
+# UPDATED: MONTHLY REPORTS TAB (was 30-Day Reports)
 with tab6:
-    st.markdown("### 📋 30-Day Assessment Reports")
+    st.markdown("### 📋 Monthly Assessment Reports")
     
     st.markdown("""
-    <div class="card">
-        <h3>📊 30-Day Assessment Analytics</h3>
-        <p>Comprehensive reports based on actual assessment data from the last 30 days. 
+    <div class="monthly-report-card">
+        <h3>📊 Monthly Assessment Analytics</h3>
+        <p>Comprehensive reports based on actual assessment data from the last month. 
         All trends and statistics are generated from real assessment history.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Get 30-day statistics
-    stats = get_30day_assessment_stats()
+    # Get monthly statistics
+    stats = get_monthly_assessment_stats()
     
     if not stats or stats['total_assessments'] == 0:
-        st.warning("📭 No assessment data available for the last 30 days.")
+        st.warning("📭 No assessment data available for the last month.")
         st.info("Please complete some assessments in the Assessment tab to generate reports.")
     else:
         # Display key metrics
-        st.markdown("#### 📈 30-Day Summary")
+        st.markdown("#### 📈 Monthly Summary")
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -766,12 +775,12 @@ with tab6:
             """, unsafe_allow_html=True)
         
         # Generate visualizations
-        st.markdown("#### 📊 30-Day Trends")
+        st.markdown("#### 📊 Monthly Trends")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            volume_chart = generate_30day_trend_chart(stats)
+            volume_chart = generate_monthly_trend_chart(stats)
             if volume_chart:
                 st.plotly_chart(volume_chart, use_container_width=True)
             else:
@@ -831,22 +840,22 @@ with tab6:
         
         # Report generation
         st.markdown("---")
-        st.markdown("#### 📄 Generate 30-Day Report")
+        st.markdown("#### 📄 Generate Monthly Report")
         
         report_type = st.selectbox(
             "Select report type:",
             ["Executive Summary", "Detailed Analytics", "Trend Analysis", "Full Report"]
         )
         
-        if st.button("📊 Generate 30-Day Report", type="primary", use_container_width=True):
-            st.markdown(f"#### 📋 {report_type} - Last 30 Days")
+        if st.button("📊 Generate Monthly Report", type="primary", use_container_width=True):
+            st.markdown(f"#### 📋 {report_type} - Last Month")
             
             # Report header
             st.markdown(f"""
             <div class="report-card">
                 <h2>ZIM SMART CREDIT APP</h2>
-                <h3>30-Day Assessment Report - {report_type}</h3>
-                <p><strong>Report Period:</strong> Last 30 Days</p>
+                <h3>Monthly Assessment Report - {report_type}</h3>
+                <p><strong>Report Period:</strong> Last Month (30 Days)</p>
                 <p><strong>Total Assessments:</strong> {stats['total_assessments']}</p>
                 <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             </div>
@@ -878,9 +887,9 @@ with tab6:
             with col1:
                 # Text report
                 report_text = f"""
-                30-DAY ASSESSMENT REPORT - ZIM SMART CREDIT APP
+                MONTHLY ASSESSMENT REPORT - ZIM SMART CREDIT APP
                 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                Report Period: Last 30 Days
+                Report Period: Last Month (30 Days)
                 
                 SUMMARY STATISTICS:
                 - Total Assessments: {stats['total_assessments']}
@@ -905,7 +914,7 @@ with tab6:
                 st.download_button(
                     label="📄 Download Text Report",
                     data=report_text,
-                    file_name=f"30day_report_{datetime.now().strftime('%Y%m%d')}.txt",
+                    file_name=f"monthly_report_{datetime.now().strftime('%Y%m%d')}.txt",
                     mime="text/plain",
                     use_container_width=True
                 )
@@ -913,8 +922,8 @@ with tab6:
             with col2:
                 # CSV report
                 csv_data = {
-                    'report_type': ['30-Day Assessment Report'],
-                    'period': ['Last 30 Days'],
+                    'report_type': ['Monthly Assessment Report'],
+                    'period': ['Last Month (30 Days)'],
                     'total_assessments': [stats['total_assessments']],
                     'average_score': [stats['average_score']],
                     'approval_rate': [stats['approval_rate']],
@@ -937,7 +946,7 @@ with tab6:
                 st.download_button(
                     label="📊 Download CSV Report",
                     data=csv_content,
-                    file_name=f"30day_report_{datetime.now().strftime('%Y%m%d')}.csv",
+                    file_name=f"monthly_report_{datetime.now().strftime('%Y%m%d')}.csv",
                     mime="text/csv",
                     use_container_width=True
                 )
@@ -946,8 +955,8 @@ with tab6:
                 # JSON report
                 json_report = {
                     'timestamp': datetime.now().isoformat(),
-                    'report_type': f'30-Day {report_type}',
-                    'report_period': 'Last 30 Days',
+                    'report_type': f'Monthly {report_type}',
+                    'report_period': 'Last Month (30 Days)',
                     'summary': {
                         'total_assessments': stats['total_assessments'],
                         'average_score': stats['average_score'],
@@ -970,7 +979,7 @@ with tab6:
                 st.download_button(
                     label="🔤 Download JSON Report",
                     data=json_str,
-                    file_name=f"30day_report_{datetime.now().strftime('%Y%m%d')}.json",
+                    file_name=f"monthly_report_{datetime.now().strftime('%Y%m%d')}.json",
                     mime="application/json",
                     use_container_width=True
                 )
