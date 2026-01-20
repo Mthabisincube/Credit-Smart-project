@@ -1094,49 +1094,66 @@ with tab4:
                 
                 st.success("✅ Random Forest model trained successfully!")
                 
-                # ============= DISPLAY ACCURACY DASHBOARD =============
+                # ============= CLEAR ACCURACY PERCENTAGE DISPLAY =============
                 st.markdown("---")
-                st.markdown("#### 📊 MODEL ACCURACY REPORT")
+                st.markdown("### 🎯 MODEL ACCURACY RESULTS")
                 
-                # Create a beautiful accuracy dashboard
+                # Simple, clear accuracy display
                 col1, col2, col3, col4 = st.columns(4)
+                
                 with col1:
                     st.markdown(f"""
-                    <div class="metric-card {'accuracy-high' if accuracy >= 0.85 else 'accuracy-medium' if accuracy >= 0.75 else 'accuracy-low'}">
-                        <h3>🎯 Test Accuracy</h3>
-                        <h2>{accuracy:.1%}</h2>
-                        <small>On {len(y_test)} test samples</small>
+                    <div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                padding: 25px; border-radius: 15px; color: white; margin: 10px;">
+                        <h3 style="margin: 0; font-size: 16px;">OVERALL ACCURACY</h3>
+                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{accuracy:.1%}</h1>
+                        <p style="margin: 0; font-size: 14px;">Test Set Performance</p>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col2:
                     st.markdown(f"""
-                    <div class="metric-card">
-                        <h3>📚 Training Accuracy</h3>
-                        <h2>{train_accuracy:.1%}</h2>
-                        <small>On {len(y_train)} training samples</small>
+                    <div style="text-align: center; background: #28a745; padding: 25px; border-radius: 15px; 
+                                color: white; margin: 10px;">
+                        <h3 style="margin: 0; font-size: 16px;">PRECISION</h3>
+                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{precision:.1%}</h1>
+                        <p style="margin: 0; font-size: 14px;">Minimizes false approvals</p>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col3:
-                    overfitting_gap = train_accuracy - accuracy
-                    gap_color = "accuracy-low" if overfitting_gap > 0.05 else "accuracy-high"
                     st.markdown(f"""
-                    <div class="metric-card {gap_color}">
-                        <h3>⚖️ Generalization Gap</h3>
-                        <h2>{overfitting_gap:.1%}</h2>
-                        <small>{"Low overfitting" if overfitting_gap <= 0.05 else "Moderate overfitting"}</small>
+                    <div style="text-align: center; background: #17a2b8; padding: 25px; border-radius: 15px; 
+                                color: white; margin: 10px;">
+                        <h3 style="margin: 0; font-size: 16px;">RECALL</h3>
+                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{recall:.1%}</h1>
+                        <p style="margin: 0; font-size: 14px;">Minimizes false rejections</p>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col4:
                     st.markdown(f"""
-                    <div class="metric-card {'accuracy-high' if cv_mean >= 0.85 else 'accuracy-medium' if cv_mean >= 0.75 else 'accuracy-low'}">
-                        <h3>📈 Validation Score</h3>
-                        <h2>{cv_mean:.1%}</h2>
-                        <small>{"Cross-validation" if cv_std > 0 else "Using test accuracy"}</small>
+                    <div style="text-align: center; background: #ffc107; padding: 25px; border-radius: 15px; 
+                                color: white; margin: 10px;">
+                        <h3 style="margin: 0; font-size: 16px;">F1-SCORE</h3>
+                        <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{f1:.1%}</h1>
+                        <p style="margin: 0; font-size: 14px;">Balanced performance</p>
                     </div>
                     """, unsafe_allow_html=True)
+                
+                # Simple interpretation
+                accuracy_percentage = accuracy * 100
+                st.markdown(f"""
+                <div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #1f77b4;">
+                    <h4 style="margin: 0 0 15px 0; color: #1f77b4;">📊 MODEL PERFORMANCE SUMMARY</h4>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.6;">
+                        The Random Forest model achieves <strong>{accuracy:.1%} overall accuracy</strong>, 
+                        correctly predicting credit scores for <strong>{accuracy_percentage:.0f} out of 100</strong> applicants.
+                        This represents <strong>{'excellent' if accuracy >= 0.85 else 'good' if accuracy >= 0.75 else 'acceptable'}</strong> 
+                        performance for credit scoring applications.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
                 
                 # ============= DATA DISTRIBUTION INFO =============
                 st.markdown("---")
@@ -1384,7 +1401,7 @@ with tab4:
                     <p><strong>F1-Score (Weighted):</strong> {f1:.1%} (balanced performance)</p>
                     <p><strong>ROC-AUC Score:</strong> {roc_auc_formatted} (excellent discrimination)</p>
                     <p><strong>Cross-Validation Score:</strong> {cv_mean:.1%} ± {cv_std:.1%} (5-fold)</p>
-                    <p><strong>Generalization Gap:</strong> {overfitting_gap:.1%} (low overfitting)</p>
+                    <p><strong>Generalization Gap:</strong> {train_accuracy - accuracy:.1%} (low overfitting)</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -1403,7 +1420,7 @@ with tab4:
                 -------------------
                 Overall Test Accuracy: {accuracy:.2%}
                 Training Accuracy: {train_accuracy:.2%}
-                Generalization Gap: {overfitting_gap:.2%}
+                Generalization Gap: {train_accuracy - accuracy:.2%}
                 Cross-Validation (5-fold): {cv_mean:.2%} ± {cv_std:.2%}
                 
                 DETAILED METRICS:
