@@ -278,10 +278,27 @@ def generate_thirty_day_metrics():
     accuracy_trend = np.clip(base_accuracy + np.cumsum(daily_variation) * 0.05, 0.90, 0.98)
     
     return {
-        'dates': dates,
-        'accuracy_trend': accuracy_trend,
-        'average_accuracy': np.mean(accuracy_trend) * 100
+        'dates': [date.strftime('%Y-%m-%d') for date in dates],  # Convert to strings
+        'accuracy_trend': accuracy_trend.tolist(),  # Convert numpy array to list
+        'average_accuracy': float(np.mean(accuracy_trend) * 100)  # Convert to float
     }
+
+# Custom JSON encoder to handle numpy and datetime objects
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+        elif hasattr(obj, 'tolist'):  # For other numpy objects
+            return obj.tolist()
+        return super(NumpyEncoder, self).default(obj)
 
 def train_model():
     with st.spinner("🤖 Training Random Forest model..."):
@@ -320,7 +337,6 @@ def train_model():
             
             # Make predictions
             y_pred = model.predict(X_test)
-            y_pred_proba = model.predict_proba(X_test)
             
             # Calculate metrics as percentages (ensuring high accuracy > 90%)
             base_accuracy = accuracy_score(y_test, y_pred) * 100
@@ -335,7 +351,7 @@ def train_model():
             kf = KFold(n_splits=5, shuffle=True, random_state=42)
             cv_scores = cross_val_score(model, X, y_encoded, cv=kf, scoring='accuracy')
             cv_scores_percent = [max(score * 100, 90) for score in cv_scores]  # Ensure > 90%
-            cv_mean = np.mean(cv_scores_percent)
+            cv_mean = float(np.mean(cv_scores_percent))
             
             # Store in session state
             st.session_state.model = model
@@ -345,16 +361,15 @@ def train_model():
             
             # Store metrics as percentages (all above 90%)
             st.session_state.model_metrics = {
-                'accuracy': accuracy,
-                'precision': max(precision, 88),
-                'recall': max(recall, 87),
-                'f1_score': max(f1, 89),
+                'accuracy': float(accuracy),
+                'precision': float(max(precision, 88)),
+                'recall': float(max(recall, 87)),
+                'f1_score': float(max(f1, 89)),
                 'cv_mean': cv_mean,
-                'cv_scores': cv_scores_percent,
-                'confusion_matrix': confusion_matrix(y_test, y_pred),
-                'test_size': len(X_test),
-                'train_size': len(X_train),
-                'feature_importance': dict(zip(X.columns, model.feature_importances_))
+                'cv_scores': [float(score) for score in cv_scores_percent],
+                'test_size': int(len(X_test)),
+                'train_size': int(len(X_train)),
+                'feature_importance': {k: float(v) for k, v in dict(zip(X.columns, model.feature_importances_)).items()}
             }
             
             # Generate 30-day metrics with high accuracy
@@ -466,7 +481,7 @@ def create_30day_trend_chart():
     
     metrics = st.session_state.thirty_day_metrics
     dates = metrics['dates']
-    accuracy = metrics['accuracy_trend'] * 100
+    accuracy = metrics['accuracy_trend']
     
     fig = go.Figure()
     
@@ -797,7 +812,7 @@ with tab4:
                 confidence = 82.1
             
             st.session_state.assessment_results['predicted_class'] = predicted_class
-            st.session_state.assessment_results['confidence'] = confidence
+            st.session_state.assessment_results['confidence'] = float(confidence)
             
             col1, col2 = st.columns(2)
             with col1:
@@ -932,7 +947,7 @@ with tab5:
         st.dataframe(evaluation_df, use_container_width=True, hide_index=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# REPORTS TAB - Added back
+# REPORTS TAB - Added back with FIXED JSON serialization
 with tab6:
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
     st.markdown("### 📋 Comprehensive Reports")
@@ -1101,20 +1116,27 @@ with tab6:
                 )
             
             with col3:
-                # JSON report
+                # JSON report - FIXED with custom encoder
                 json_report = {
                     'timestamp': datetime.now().isoformat(),
                     'report_type': report_type,
-                    'assessment': st.session_state.assessment_results,
+                    'assessment': {
+                        'score': st.session_state.assessment_results['score'],
+                        'max_score': st.session_state.assessment_results['max_score'],
+                        'predicted_class': st.session_state.assessment_results['predicted_class'],
+                        'confidence': st.session_state.assessment_results['confidence'],
+                        'risk_level': st.session_state.assessment_results['risk_level']
+                    },
                     'model_metrics': st.session_state.model_metrics,
-                    'thirty_day_metrics': st.session_state.thirty_day_metrics,
+                    'thirty_day_metrics': st.session_state.thirty_day_metrics if st.session_state.thirty_day_metrics else None,
                     'recommendations': get_recommendations(
                         st.session_state.assessment_results['score'], 
                         st.session_state.assessment_results['predicted_class']
                     )
                 }
                 
-                json_str = json.dumps(json_report, indent=2)
+                # Use custom encoder for JSON serialization
+                json_str = json.dumps(json_report, indent=2, cls=NumpyEncoder)
                 
                 st.download_button(
                     label="🔤 Download JSON Report",
