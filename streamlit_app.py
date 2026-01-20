@@ -230,6 +230,15 @@ st.markdown("""
         background: linear-gradient(135deg, #F44336 0%, #d32f2f 100%);
         color: white;
     }
+    
+    .system-explanation {
+        background: linear-gradient(135deg, rgba(220, 237, 255, 0.95) 0%, rgba(195, 220, 255, 0.95) 100%);
+        border: 2px solid #1f77b4;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: #0d47a1;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -241,6 +250,15 @@ def initialize_assessment_history():
         st.session_state.assessment_history = []
     if 'current_assessment' not in st.session_state:
         st.session_state.current_assessment = None
+    # Initialize model storage
+    if 'trained_model' not in st.session_state:
+        st.session_state.trained_model = None
+    if 'label_encoders' not in st.session_state:
+        st.session_state.label_encoders = None
+    if 'target_encoder' not in st.session_state:
+        st.session_state.target_encoder = None
+    if 'model_accuracy' not in st.session_state:
+        st.session_state.model_accuracy = None
 
 def save_assessment(assessment_data):
     """Save an assessment to history"""
@@ -669,7 +687,7 @@ with st.sidebar:
     user_name = st.text_input("👤 Your Name (for reports)", "Valued Customer")
 
 # Main content with tabs - ADDED NEW REPORTS TAB
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model", "📈 Reports"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Quick Assessment", "🤖 Advanced ML Model", "📈 Reports"])
 
 with tab1:
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
@@ -797,9 +815,11 @@ with tab2:
         st.dataframe(location_stats, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-with tab3:
+# ==================== UPDATED QUICK ASSESSMENT TAB (tab3) ====================
+
+with tab3:  # RENAMED to "🎯 Quick Assessment"
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🎯 Credit Assessment Results")
+    st.markdown("### 🎯 AI-Powered Credit Assessment")
     
     # Input summary in beautiful cards
     st.markdown("#### 📋 Your Input Summary")
@@ -819,151 +839,296 @@ with tab3:
         height=280
     )
     
-    # Assessment calculation with beautiful progress bars
-    st.markdown("#### 📊 Assessment Factors")
-    
-    score = 0
-    max_score = 6
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("##### 🎂 Age Factor")
-        if 30 <= Age <= 50:
-            score += 2
-            st.success("✅ Optimal (30-50 years)")
-            st.progress(1.0)
-        elif 25 <= Age < 30 or 50 < Age <= 60:
-            score += 1
-            st.warning("⚠️ Moderate")
-            st.progress(0.5)
-        else:
-            st.error("❌ Higher Risk")
-            st.progress(0.2)
-    
-    with col2:
-        st.markdown("##### 💰 Transaction Activity")
-        mobile_median = df['Mobile_Money_Txns'].median()
-        if Mobile_Money_Txns > mobile_median:
-            score += 1
-            st.success(f"✅ Above Average")
-            st.progress(1.0)
-        else:
-            st.warning("⚠️ Below Average")
-            st.progress(0.3)
-    
-    with col3:
-        st.markdown("##### 📈 Repayment History")
-        repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-        rep_score = repayment_scores[Loan_Repayment_History]
-        score += rep_score
-        progress_map = {'Poor': 0.2, 'Fair': 0.4, 'Good': 0.7, 'Excellent': 1.0}
-        st.info(f"📊 {Loan_Repayment_History}")
-        st.progress(progress_map[Loan_Repayment_History])
-    
-    # Final assessment
-    st.markdown("---")
-    percentage = (score / max_score) * 100
-    
-    # Determine risk level
-    if percentage >= 80:
-        risk_level = "Low"
-        risk_color = "success"
-    elif percentage >= 50:
-        risk_level = "Medium"
-        risk_color = "warning"
+    # Check if model has been trained
+    if 'trained_model' in st.session_state and 'label_encoders' in st.session_state and 'target_encoder' in st.session_state:
+        st.markdown("#### 🤖 AI Assessment in Progress...")
+        
+        with st.spinner("🌳 Random Forest analyzing your financial profile..."):
+            try:
+                # Prepare user data for prediction
+                user_data = pd.DataFrame({
+                    'Location': [Location],
+                    'Gender': [gender],
+                    'Age': [Age],
+                    'Mobile_Money_Txns': [Mobile_Money_Txns],
+                    'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
+                    'Utility_Payments_ZWL': [Utility_Payments_ZWL],
+                    'Loan_Repayment_History': [Loan_Repayment_History]
+                })
+                
+                # Encode user input using saved encoders
+                for column in user_data.select_dtypes(include=['object']).columns:
+                    if column in st.session_state.label_encoders:
+                        le = st.session_state.label_encoders[column]
+                        if user_data[column].iloc[0] in le.classes_:
+                            user_data[column] = le.transform(user_data[column])
+                        else:
+                            # Handle unseen labels
+                            user_data[column] = -1
+                
+                # Predict with Random Forest
+                model = st.session_state.trained_model
+                prediction_encoded = model.predict(user_data)
+                prediction_proba = model.predict_proba(user_data)
+                
+                predicted_class = st.session_state.target_encoder.inverse_transform(prediction_encoded)[0]
+                confidence = np.max(prediction_proba) * 100
+                
+                # Map prediction to risk levels
+                risk_mapping = {
+                    'Good': 'Low',
+                    'Fair': 'Medium', 
+                    'Poor': 'High'
+                }
+                
+                risk_level = risk_mapping.get(predicted_class, 'Medium')
+                score_percentage = confidence  # Use confidence as score percentage
+                
+                # Display AI assessment results
+                st.markdown("---")
+                st.markdown("#### 📊 AI Assessment Results")
+                
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    st.markdown("#### 🎯 AI Prediction")
+                    st.markdown(f"# {predicted_class}")
+                    st.markdown(f"### {confidence:.1f}% Confidence")
+                    st.progress(confidence / 100)
+                    
+                    # Score interpretation
+                    if predicted_class == 'Good':
+                        st.success("✅ Excellent Credit Score!")
+                    elif predicted_class == 'Fair':
+                        st.info("📊 Moderate Credit Score")
+                    else:
+                        st.warning("📝 Needs Improvement")
+                
+                with col2:
+                    # Display appropriate risk box
+                    if predicted_class == 'Good':
+                        st.markdown("""
+                        <div class="success-box">
+                            <h3>✅ EXCELLENT CREDITWORTHINESS</h3>
+                            <p><strong>Recommendation:</strong> Strong candidate for credit approval with favorable terms and higher limits</p>
+                            <p><strong>Risk Level:</strong> Low</p>
+                            <p><strong>AI Confidence:</strong> {:.1f}%</p>
+                        </div>
+                        """.format(confidence), unsafe_allow_html=True)
+                    elif predicted_class == 'Fair':
+                        st.markdown("""
+                        <div class="warning-box">
+                            <h3>⚠️ MODERATE RISK PROFILE</h3>
+                            <p><strong>Recommendation:</strong> Standard verification process with moderate credit limits</p>
+                            <p><strong>Risk Level:</strong> Medium</p>
+                            <p><strong>AI Confidence:</strong> {:.1f}%</p>
+                        </div>
+                        """.format(confidence), unsafe_allow_html=True)
+                    else:
+                        st.markdown("""
+                        <div class="danger-box">
+                            <h3>❌ HIGHER RISK PROFILE</h3>
+                            <p><strong>Recommendation:</strong> Enhanced verification and possible collateral required</p>
+                            <p><strong>Risk Level:</strong> High</p>
+                            <p><strong>AI Confidence:</strong> {:.1f}%</p>
+                        </div>
+                        """.format(confidence), unsafe_allow_html=True)
+                
+                # Probability distribution
+                st.markdown("#### 📊 AI Probability Distribution")
+                prob_df = pd.DataFrame({
+                    'Credit Score': st.session_state.target_encoder.classes_,
+                    'Probability (%)': (prediction_proba[0] * 100).round(2)
+                }).sort_values('Probability (%)', ascending=False)
+                
+                st.dataframe(prob_df, use_container_width=True, hide_index=True)
+                
+                # Save assessment button
+                st.markdown("---")
+                if st.button("💾 Save This Assessment", type="primary", use_container_width=True):
+                    assessment_data = {
+                        'user_name': user_name,
+                        'location': Location,
+                        'gender': gender,
+                        'age': Age,
+                        'mobile_money_txns': Mobile_Money_Txns,
+                        'airtime_spend': Airtime_Spend_ZWL,
+                        'utility_payments': Utility_Payments_ZWL,
+                        'repayment_history': Loan_Repayment_History,
+                        'final_score': score_percentage,
+                        'risk_level': risk_level,
+                        'predicted_class': predicted_class,
+                        'ai_confidence': confidence,
+                        'assessment_type': 'AI-Powered'
+                    }
+                    
+                    save_assessment(assessment_data)
+                    st.success(f"✅ AI assessment saved successfully! Total assessments: {len(st.session_state.assessment_history)}")
+                
+            except Exception as e:
+                st.error(f"❌ Error in AI assessment: {str(e)}")
+                st.info("Please ensure the AI model has been trained in the Advanced ML Model tab first.")
     else:
-        risk_level = "High"
-        risk_color = "danger"
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.markdown("#### 📈 Overall Score")
-        st.markdown(f"# {score}/{max_score}")
-        st.markdown(f"### {percentage:.1f}%")
-        st.progress(percentage / 100)
+        st.warning("""
+        ⚠️ **AI Model Not Ready**
         
-        # Score interpretation
-        if score >= 5:
-            st.success("🎉 Excellent Score!")
-        elif score >= 3:
-            st.info("📊 Good Score")
-        else:
-            st.warning("📝 Needs Improvement")
-    
-    with col2:
-        st.markdown("#### 🎯 Final Assessment")
-        if score >= 5:
-            st.markdown("""
-            <div class="success-box">
-                <h3>✅ EXCELLENT CREDITWORTHINESS</h3>
-                <p><strong>Recommendation:</strong> Strong candidate for credit approval with favorable terms and higher limits</p>
-                <p><strong>Risk Level:</strong> Low</p>
-            </div>
-            """, unsafe_allow_html=True)
-        elif score >= 3:
-            st.markdown("""
-            <div class="warning-box">
-                <h3>⚠️ MODERATE RISK PROFILE</h3>
-                <p><strong>Recommendation:</strong> Standard verification process with moderate credit limits</p>
-                <p><strong>Risk Level:</strong> Medium</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="danger-box">
-                <h3>❌ HIGHER RISK PROFILE</h3>
-                <p><strong>Recommendation:</strong> Enhanced verification and possible collateral required</p>
-                <p><strong>Risk Level:</strong> High</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Save assessment button
-    st.markdown("---")
-    if st.button("💾 Save This Assessment", type="primary", use_container_width=True):
-        assessment_data = {
-            'user_name': user_name,
-            'location': Location,
-            'gender': gender,
-            'age': Age,
-            'mobile_money_txns': Mobile_Money_Txns,
-            'airtime_spend': Airtime_Spend_ZWL,
-            'utility_payments': Utility_Payments_ZWL,
-            'repayment_history': Loan_Repayment_History,
-            'final_score': percentage,
-            'risk_level': risk_level,
-            'score_breakdown': score,
-            'max_score': max_score
-        }
+        To use AI-powered credit assessment:
         
-        save_assessment(assessment_data)
-        st.success(f"✅ Assessment saved successfully! Total assessments: {len(st.session_state.assessment_history)}")
+        1. Go to the **🤖 Advanced ML Model** tab
+        2. Click **"Train Random Forest Model"**
+        3. Once trained, return here for AI-powered predictions
+        """)
+        
+        # Fallback to simple assessment if AI not ready
+        st.markdown("---")
+        st.markdown("#### 📊 Basic Assessment (Fallback)")
+        
+        # Simple assessment calculation (as backup)
+        score = 0
+        max_score = 6
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("##### 🎂 Age Factor")
+            if 30 <= Age <= 50:
+                score += 2
+                st.success("✅ Optimal (30-50 years)")
+                st.progress(1.0)
+            elif 25 <= Age < 30 or 50 < Age <= 60:
+                score += 1
+                st.warning("⚠️ Moderate")
+                st.progress(0.5)
+            else:
+                st.error("❌ Higher Risk")
+                st.progress(0.2)
+        
+        with col2:
+            st.markdown("##### 💰 Transaction Activity")
+            mobile_median = df['Mobile_Money_Txns'].median()
+            if Mobile_Money_Txns > mobile_median:
+                score += 1
+                st.success(f"✅ Above Average")
+                st.progress(1.0)
+            else:
+                st.warning("⚠️ Below Average")
+                st.progress(0.3)
+        
+        with col3:
+            st.markdown("##### 📈 Repayment History")
+            repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
+            rep_score = repayment_scores[Loan_Repayment_History]
+            score += rep_score
+            progress_map = {'Poor': 0.2, 'Fair': 0.4, 'Good': 0.7, 'Excellent': 1.0}
+            st.info(f"📊 {Loan_Repayment_History}")
+            st.progress(progress_map[Loan_Repayment_History])
+        
+        # Final assessment
+        st.markdown("---")
+        percentage = (score / max_score) * 100
+        
+        # Determine risk level
+        if percentage >= 80:
+            risk_level = "Low"
+        elif percentage >= 50:
+            risk_level = "Medium"
+        else:
+            risk_level = "High"
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.markdown("#### 📈 Basic Score")
+            st.markdown(f"# {score}/{max_score}")
+            st.markdown(f"### {percentage:.1f}%")
+            st.progress(percentage / 100)
+            
+            # Score interpretation
+            if score >= 5:
+                st.success("🎉 Excellent Score!")
+            elif score >= 3:
+                st.info("📊 Good Score")
+            else:
+                st.warning("📝 Needs Improvement")
+        
+        with col2:
+            st.markdown("#### 🎯 Basic Assessment")
+            if score >= 5:
+                st.markdown("""
+                <div class="success-box">
+                    <h3>✅ GOOD CREDITWORTHINESS</h3>
+                    <p><strong>Recommendation:</strong> Consider applying for credit with standard terms</p>
+                    <p><strong>Risk Level:</strong> Low</p>
+                    <p><em>Note: For more accurate assessment, train the AI model</em></p>
+                </div>
+                """, unsafe_allow_html=True)
+            elif score >= 3:
+                st.markdown("""
+                <div class="warning-box">
+                    <h3>⚠️ MODERATE RISK PROFILE</h3>
+                    <p><strong>Recommendation:</strong> Consider credit building options first</p>
+                    <p><strong>Risk Level:</strong> Medium</p>
+                    <p><em>Note: For more accurate assessment, train the AI model</em></p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="danger-box">
+                    <h3>❌ HIGHER RISK PROFILE</h3>
+                    <p><strong>Recommendation:</strong> Focus on improving financial habits</p>
+                    <p><strong>Risk Level:</strong> High</p>
+                    <p><em>Note: For more accurate assessment, train the AI model</em></p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Save basic assessment button
+        st.markdown("---")
+        if st.button("💾 Save Basic Assessment", type="primary", use_container_width=True):
+            assessment_data = {
+                'user_name': user_name,
+                'location': Location,
+                'gender': gender,
+                'age': Age,
+                'mobile_money_txns': Mobile_Money_Txns,
+                'airtime_spend': Airtime_Spend_ZWL,
+                'utility_payments': Utility_Payments_ZWL,
+                'repayment_history': Loan_Repayment_History,
+                'final_score': percentage,
+                'risk_level': risk_level,
+                'score_breakdown': score,
+                'max_score': max_score,
+                'assessment_type': 'Basic'
+            }
+            
+            save_assessment(assessment_data)
+            st.success(f"✅ Basic assessment saved successfully! Total assessments: {len(st.session_state.assessment_history)}")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-with tab4:
+# ==================== UPDATED AI MODEL TAB (tab4) ====================
+
+with tab4:  # RENAMED to "🤖 Advanced ML Model"
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-    st.markdown("### 🤖 AI-Powered Credit Scoring with Random Forest")
+    st.markdown("### 🤖 Advanced Machine Learning Model")
     
-    # Random Forest Information Section
+    # System explanation
     st.markdown("""
-    <div class="rf-info-box">
-        <h3>🌳 Random Forest Algorithm</h3>
-        <p><strong>Random Forest</strong> is an ensemble learning method that operates by constructing multiple decision trees during training. 
-        For classification tasks, the output is the class selected by most trees. It's particularly well-suited for credit scoring because:</p>
+    <div class="system-explanation">
+        <h4>🔬 About This Model</h4>
+        <p>This Random Forest model powers the <strong>AI-Powered Credit Assessment</strong> in the previous tab.</p>
+        <p><strong>Key Features:</strong></p>
         <ul>
-            <li>✅ Handles both numerical and categorical data well</li>
-            <li>✅ Reduces overfitting compared to single decision trees</li>
-            <li>✅ Provides feature importance scores</li>
-            <li>✅ Works well with datasets having multiple features</li>
-            <li>✅ Robust to outliers and noise in data</li>
+            <li>🌳 <strong>Random Forest Algorithm</strong>: Ensemble of decision trees for robust predictions</li>
+            <li>📊 <strong>Trained on Historical Data</strong>: Learns patterns from Zimbabwe credit data</li>
+            <li>🎯 <strong>Powers Real Assessments</strong>: Once trained, used for live credit scoring</li>
+            <li>🔍 <strong>Explainable AI</strong>: Shows feature importance and confidence scores</li>
         </ul>
+        <p><em>Train this model once, then use it for AI-powered assessments!</em></p>
     </div>
     """, unsafe_allow_html=True)
     
     # Random Forest parameters configuration
-    st.markdown("#### ⚙️ Random Forest Configuration")
+    st.markdown("#### ⚙️ Model Configuration")
     
     col1, col2, col3 = st.columns(3)
     
@@ -995,18 +1160,16 @@ with tab4:
         use_oob = st.checkbox("Use OOB Score", value=True,
                              help="Use Out-of-Bag samples for validation")
     
-    if st.button("🌳 Train Random Forest Model", type="primary", use_container_width=True):
-        with st.spinner("🌳 Training Random Forest model... This may take a few moments."):
+    if st.button("🌳 Train AI Model", type="primary", use_container_width=True):
+        with st.spinner("🌳 Training AI model... This may take a few moments."):
             try:
                 # Prepare data
                 X = df.drop("Credit_Score", axis=1)
                 y = df["Credit_Score"]
                 
                 # Check class distribution
-                st.info(f"📊 Dataset has {len(df)} total samples")
+                st.info(f"📊 Training on {len(df)} historical credit records")
                 class_distribution = y.value_counts()
-                st.write("**Class Distribution:**")
-                st.write(class_distribution)
                 
                 # Encode categorical variables
                 label_encoders = {}
@@ -1023,8 +1186,7 @@ with tab4:
                 unique_classes, class_counts = np.unique(y_encoded, return_counts=True)
                 
                 if any(class_counts < 2):
-                    st.warning(f"⚠️ Some classes have very few samples. Classes with counts: {dict(zip(unique_classes, class_counts))}")
-                    st.info("Using simple train-test split without stratification to avoid errors.")
+                    st.warning(f"⚠️ Some classes have very few samples. Using simple train-test split.")
                     # Split data without stratification
                     X_train, X_test, y_train, y_test = train_test_split(
                         X, y_encoded, 
@@ -1071,34 +1233,25 @@ with tab4:
                     roc_auc = None
                     roc_auc_formatted = "N/A"
                 
-                # Per-class metrics with error handling
-                try:
-                    precision_per_class = precision_score(y_test, y_pred, average=None, zero_division=0)
-                    recall_per_class = recall_score(y_test, y_pred, average=None, zero_division=0)
-                    f1_per_class = f1_score(y_test, y_pred, average=None, zero_division=0)
-                except:
-                    # If per-class metrics fail, use weighted averages
-                    precision_per_class = [precision] * len(target_encoder.classes_)
-                    recall_per_class = [recall] * len(target_encoder.classes_)
-                    f1_per_class = [f1] * len(target_encoder.classes_)
+                # Save model and encoders to session state
+                st.session_state.trained_model = model
+                st.session_state.label_encoders = label_encoders
+                st.session_state.target_encoder = target_encoder
+                st.session_state.model_accuracy = accuracy
                 
-                # Cross-validation score with error handling
-                try:
-                    cv_scores = cross_val_score(model, X, y_encoded, cv=min(5, len(X)), scoring='accuracy')
-                    cv_mean = cv_scores.mean()
-                    cv_std = cv_scores.std()
-                except:
-                    cv_mean = accuracy
-                    cv_std = 0
-                    st.warning("⚠️ Cross-validation could not be performed with current data distribution")
+                st.success("""
+                ✅ AI Model Trained Successfully!
                 
-                st.success("✅ Random Forest model trained successfully!")
+                **Now go to the 🎯 Quick Assessment tab to use this model for live credit scoring!**
+                """)
                 
                 # ============= CLEAR ACCURACY PERCENTAGE DISPLAY =============
                 st.markdown("---")
                 st.markdown("### 🎯 MODEL ACCURACY RESULTS")
                 
                 # Simple, clear accuracy display
+                accuracy_percentage = accuracy * 100
+                
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
@@ -1135,342 +1288,48 @@ with tab4:
                     st.markdown(f"""
                     <div style="text-align: center; background: #ffc107; padding: 25px; border-radius: 15px; 
                                 color: white; margin: 10px;">
-                        <h3 style="margin: 0; font-size: 16px;">F1-SCORE</h3>
+                        <h3 style="margin: 0; font-size: 16px;">F1-SCORE</h1>
                         <h1 style="margin: 10px 0; font-size: 42px; font-weight: bold;">{f1:.1%}</h1>
                         <p style="margin: 0; font-size: 14px;">Balanced performance</p>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 # Simple interpretation
-                accuracy_percentage = accuracy * 100
                 st.markdown(f"""
                 <div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #1f77b4;">
-                    <h4 style="margin: 0 0 15px 0; color: #1f77b4;">📊 MODEL PERFORMANCE SUMMARY</h4>
+                    <h4 style="margin: 0 0 15px 0; color: #1f77b4;">📊 AI MODEL PERFORMANCE SUMMARY</h4>
                     <p style="margin: 0; font-size: 16px; line-height: 1.6;">
-                        The Random Forest model achieves <strong>{accuracy:.1%} overall accuracy</strong>, 
-                        correctly predicting credit scores for <strong>{accuracy_percentage:.0f} out of 100</strong> applicants.
-                        This represents <strong>{'excellent' if accuracy >= 0.85 else 'good' if accuracy >= 0.75 else 'acceptable'}</strong> 
-                        performance for credit scoring applications.
+                        The Random Forest AI model achieves <strong>{accuracy:.1%} overall accuracy</strong> 
+                        ({accuracy_percentage:.0f} out of 100 correct predictions).
+                        This model is now <strong>ready to power real-time credit assessments</strong> in the Quick Assessment tab.
                     </p>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # ============= DATA DISTRIBUTION INFO =============
-                st.markdown("---")
-                st.markdown("#### 📊 Dataset Information")
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Total Samples", len(df))
-                with col2:
-                    st.metric("Number of Classes", len(class_distribution))
-                with col3:
-                    st.metric("Smallest Class", f"{class_distribution.min()} samples")
-                
-                # Show class distribution chart
-                fig_dist = go.Figure(data=[go.Bar(
-                    x=class_distribution.index,
-                    y=class_distribution.values,
-                    marker_color='#1f77b4'
-                )])
-                fig_dist.update_layout(
-                    title='Class Distribution in Dataset',
-                    xaxis_title='Credit Score Class',
-                    yaxis_title='Number of Samples',
-                    height=300
-                )
-                st.plotly_chart(fig_dist, use_container_width=True)
                 
                 # ============= DETAILED METRICS SECTION =============
                 st.markdown("---")
                 st.markdown("#### 📋 Detailed Performance Metrics")
                 
-                # Create tabs for different metric views
-                metric_tab1, metric_tab2, metric_tab3 = st.tabs(["Overall Metrics", "Per-Class Metrics", "Confidence Intervals"])
+                # Per-class metrics with error handling
+                try:
+                    precision_per_class = precision_score(y_test, y_pred, average=None, zero_division=0)
+                    recall_per_class = recall_score(y_test, y_pred, average=None, zero_division=0)
+                    f1_per_class = f1_score(y_test, y_pred, average=None, zero_division=0)
+                except:
+                    # If per-class metrics fail, use weighted averages
+                    precision_per_class = [precision] * len(target_encoder.classes_)
+                    recall_per_class = [recall] * len(target_encoder.classes_)
+                    f1_per_class = [f1] * len(target_encoder.classes_)
                 
-                with metric_tab1:
-                    st.markdown("##### 📊 Overall Model Performance")
-                    
-                    # Create a metrics dataframe
-                    overall_metrics = pd.DataFrame({
-                        'Metric': ['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC', 'Training Accuracy'],
-                        'Value': [f"{accuracy:.2%}", f"{precision:.2%}", f"{recall:.2%}", 
-                                 f"{f1:.2%}", roc_auc_formatted, f"{train_accuracy:.2%}"],
-                        'Interpretation': [
-                            'Overall correctness',
-                            'Minimizes false approvals',
-                            'Minimizes false rejections',
-                            'Balanced measure',
-                            'Discrimination power',
-                            'Learning capability'
-                        ]
-                    })
-                    
-                    # Display with color coding
-                    def color_metric(val):
-                        if '%' in val:
-                            num = float(val.strip('%')) / 100
-                            if num >= 0.85:
-                                return 'background-color: rgba(76, 175, 80, 0.3)'
-                            elif num >= 0.75:
-                                return 'background-color: rgba(255, 193, 7, 0.3)'
-                            else:
-                                return 'background-color: rgba(244, 67, 54, 0.3)'
-                        return ''
-                    
-                    styled_overall = overall_metrics.style.applymap(color_metric, subset=['Value'])
-                    st.dataframe(styled_overall, use_container_width=True, hide_index=True)
-                    
-                    # Interpretation
-                    st.markdown("##### 💡 Performance Interpretation")
-                    if accuracy >= 0.85:
-                        st.success(f"**Excellent Performance**: {accuracy:.1%} accuracy indicates the model correctly classifies credit scores for {(accuracy*100):.0f} out of 100 applicants. This exceeds industry standards for credit scoring systems.")
-                    elif accuracy >= 0.75:
-                        st.warning(f"**Good Performance**: {accuracy:.1%} accuracy is acceptable for deployment but may benefit from further optimization.")
-                    else:
-                        st.error(f"**Needs Improvement**: {accuracy:.1%} accuracy suggests the model requires additional feature engineering or algorithm tuning.")
-                
-                with metric_tab2:
-                    st.markdown("##### 🎯 Per-Class Performance Analysis")
-                    
-                    # Create per-class metrics dataframe
-                    classes = target_encoder.classes_
-                    per_class_data = []
-                    for i, cls in enumerate(classes):
-                        per_class_data.append({
-                            'Credit Class': cls,
-                            'Precision': f"{precision_per_class[i]:.2%}",
-                            'Recall': f"{recall_per_class[i]:.2%}",
-                            'F1-Score': f"{f1_per_class[i]:.2%}",
-                            'Support': np.sum(y_test == i),
-                            'Class Weight': f"{(np.sum(y_encoded == i) / len(y_encoded)):.1%}"
-                        })
-                    
-                    per_class_df = pd.DataFrame(per_class_data)
-                    
-                    # Color code based on F1-score
-                    def color_per_class(val):
-                        if '%' in val:
-                            num = float(val.strip('%')) / 100
-                            if num >= 0.85:
-                                return 'background-color: rgba(76, 175, 80, 0.3)'
-                            elif num >= 0.70:
-                                return 'background-color: rgba(255, 193, 7, 0.3)'
-                            else:
-                                return 'background-color: rgba(244, 67, 54, 0.3)'
-                        return ''
-                    
-                    styled_per_class = per_class_df.style.applymap(color_per_class, subset=['Precision', 'Recall', 'F1-Score'])
-                    st.dataframe(styled_per_class, use_container_width=True, hide_index=True)
-                    
-                    # Class balance analysis
-                    st.markdown("##### ⚖️ Class Distribution Analysis")
-                    class_counts = pd.Series(y_encoded).value_counts()
-                    fig_class_dist = go.Figure(data=[go.Pie(
-                        labels=target_encoder.classes_,
-                        values=class_counts.values,
-                        hole=.3,
-                        marker_colors=['#4CAF50', '#FFC107', '#F44336']
-                    )])
-                    fig_class_dist.update_layout(
-                        title='Class Distribution in Dataset',
-                        height=300
-                    )
-                    st.plotly_chart(fig_class_dist, use_container_width=True)
-                
-                with metric_tab3:
-                    st.markdown("##### 📊 Statistical Confidence Intervals")
-                    
-                    # Calculate confidence intervals
-                    n_test = len(y_test)
-                    accuracy_se = np.sqrt((accuracy * (1 - accuracy)) / n_test)
-                    confidence_95 = 1.96 * accuracy_se
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric(
-                            "95% Confidence Interval",
-                            f"{accuracy:.1%}",
-                            delta=f"±{confidence_95:.1%}",
-                            help=f"With 95% confidence, the true accuracy lies between {(accuracy-confidence_95):.1%} and {(accuracy+confidence_95):.1%}"
-                        )
-                    
-                    with col2:
-                        st.metric(
-                            "Standard Error",
-                            f"{accuracy_se:.3f}",
-                            delta="Lower is better",
-                            help="Standard error of the accuracy estimate"
-                        )
-                    
-                    # Show accuracy distribution
-                    st.markdown("##### 📈 Accuracy Distribution Simulation")
-                    
-                    # Simulate accuracy distribution
-                    np.random.seed(42)
-                    simulated_accuracies = np.random.binomial(n_test, accuracy, 1000) / n_test
-                    
-                    fig_dist = go.Figure(data=[go.Histogram(
-                        x=simulated_accuracies,
-                        nbinsx=30,
-                        marker_color='#1f77b4',
-                        opacity=0.7,
-                        name='Accuracy Distribution'
-                    )])
-                    
-                    # Add confidence interval lines
-                    fig_dist.add_vline(x=accuracy-confidence_95, line_dash="dash", line_color="red", 
-                                     annotation_text="95% CI Lower")
-                    fig_dist.add_vline(x=accuracy+confidence_95, line_dash="dash", line_color="red",
-                                     annotation_text="95% CI Upper")
-                    fig_dist.add_vline(x=accuracy, line_dash="solid", line_color="green",
-                                     annotation_text=f"Mean: {accuracy:.1%}")
-                    
-                    fig_dist.update_layout(
-                        title='Simulated Accuracy Distribution',
-                        xaxis_title='Accuracy',
-                        yaxis_title='Frequency',
-                        height=400
-                    )
-                    
-                    st.plotly_chart(fig_dist, use_container_width=True)
-                
-                # ============= COMPARISON TO BASELINES =============
-                st.markdown("---")
-                st.markdown("#### ⚖️ Comparison to Baseline Models")
-                
-                # Train baseline models for comparison
-                baseline_models = {
-                    'Random Forest': model,
-                    'Decision Tree': DecisionTreeClassifier(random_state=42),
-                    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
-                    'Dummy Classifier': DummyClassifier(strategy='stratified')
-                }
-                
-                comparison_results = []
-                for name, baseline_model in baseline_models.items():
-                    if name != 'Random Forest':  # We already have RF trained
-                        baseline_model.fit(X_train, y_train)
-                        y_pred_baseline = baseline_model.predict(X_test)
-                        baseline_accuracy = accuracy_score(y_test, y_pred_baseline)
-                    else:
-                        baseline_accuracy = accuracy
-                    
-                    comparison_results.append({
-                        'Model': name,
-                        'Accuracy': baseline_accuracy,
-                        'Relative Improvement': f"+{(baseline_accuracy - 0.33)*100:.1f}%" if name != 'Dummy Classifier' else "Baseline"
-                    })
-                
-                comparison_df = pd.DataFrame(comparison_results).sort_values('Accuracy', ascending=False)
-                
-                # Display comparison
-                fig_comparison = go.Figure(data=[
-                    go.Bar(
-                        x=comparison_df['Model'],
-                        y=comparison_df['Accuracy'],
-                        text=comparison_df['Accuracy'].apply(lambda x: f"{x:.1%}"),
-                        textposition='auto',
-                        marker_color=['#4CAF50' if x == 'Random Forest' else '#2196F3' for x in comparison_df['Model']]
-                    )
-                ])
-                
-                fig_comparison.update_layout(
-                    title='Model Accuracy Comparison',
-                    yaxis_title='Accuracy',
-                    yaxis_tickformat='.0%',
-                    height=400
-                )
-                
-                st.plotly_chart(fig_comparison, use_container_width=True)
-                
-                # Display comparison table
-                st.dataframe(comparison_df, use_container_width=True)
-                
-                # ============= ACCURACY FOR DOCUMENTATION =============
-                st.markdown("---")
-                st.markdown("#### 📄 Accuracy Summary for Documentation")
-                
-                # Create a nice summary box
-                st.markdown(f"""
-                <div class="success-box">
-                    <h3>📊 FINAL MODEL ACCURACY REPORT</h3>
-                    <p><strong>Overall Test Accuracy:</strong> {accuracy:.1%} ({(accuracy*100):.0f} out of 100 correct classifications)</p>
-                    <p><strong>Precision (Weighted):</strong> {precision:.1%} (minimizes false approvals)</p>
-                    <p><strong>Recall (Weighted):</strong> {recall:.1%} (minimizes false rejections)</p>
-                    <p><strong>F1-Score (Weighted):</strong> {f1:.1%} (balanced performance)</p>
-                    <p><strong>ROC-AUC Score:</strong> {roc_auc_formatted} (excellent discrimination)</p>
-                    <p><strong>Cross-Validation Score:</strong> {cv_mean:.1%} ± {cv_std:.1%} (5-fold)</p>
-                    <p><strong>Generalization Gap:</strong> {train_accuracy - accuracy:.1%} (low overfitting)</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Add export option for documentation
-                st.markdown("##### 📥 Export Accuracy Report")
-                
-                accuracy_report = f"""
-                ZIM SMART CREDIT APP - MODEL ACCURACY REPORT
-                ============================================
-                
-                Model: Random Forest Classifier
-                Dataset: Zimbabwe Alternative Credit Data
-                Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                
-                PERFORMANCE METRICS:
-                -------------------
-                Overall Test Accuracy: {accuracy:.2%}
-                Training Accuracy: {train_accuracy:.2%}
-                Generalization Gap: {train_accuracy - accuracy:.2%}
-                Cross-Validation (5-fold): {cv_mean:.2%} ± {cv_std:.2%}
-                
-                DETAILED METRICS:
-                -----------------
-                Precision (Weighted): {precision:.2%}
-                Recall (Weighted): {recall:.2%}
-                F1-Score (Weighted): {f1:.2%}
-                ROC-AUC Score: {roc_auc_formatted}
-                
-                PER-CLASS PERFORMANCE:
-                ----------------------
-                """
-                
-                for i, cls in enumerate(target_encoder.classes_):
-                    accuracy_report += f"{cls}: Precision={precision_per_class[i]:.2%}, Recall={recall_per_class[i]:.2%}, F1={f1_per_class[i]:.2%}\n"
-                
-                accuracy_report += f"""
-                
-                CONFIDENCE INTERVALS:
-                --------------------
-                95% Confidence Interval: {accuracy:.2%} ± {confidence_95:.2%}
-                Standard Error: {accuracy_se:.4f}
-                
-                MODEL PARAMETERS:
-                -----------------
-                Number of Trees: {n_estimators}
-                Max Tree Depth: {max_depth}
-                Min Samples Split: {min_samples_split}
-                Test Size: {test_size}%
-                Random State: {random_state}
-                
-                DATASET INFORMATION:
-                --------------------
-                Total Samples: {len(df)}
-                Training Samples: {len(X_train)}
-                Test Samples: {len(X_test)}
-                Number of Features: {X.shape[1]}
-                
-                CONCLUSION:
-                -----------
-                The Random Forest model achieves {accuracy:.1%} accuracy, significantly outperforming
-                traditional credit scoring methods in Zimbabwe. The balanced precision and recall scores
-                ensure fair treatment across all credit risk categories while maintaining strong
-                discriminatory power as evidenced by the ROC-AUC score of {roc_auc_formatted}.
-                """
-                
-                # Create download button for the report
-                b64 = base64.b64encode(accuracy_report.encode()).decode()
-                href = f'<a href="data:text/plain;base64,{b64}" download="model_accuracy_report.txt" style="text-decoration: none; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 5px; font-weight: bold;">📄 Download Accuracy Report for Documentation</a>'
-                st.markdown(href, unsafe_allow_html=True)
+                # Cross-validation score with error handling
+                try:
+                    cv_scores = cross_val_score(model, X, y_encoded, cv=min(5, len(X)), scoring='accuracy')
+                    cv_mean = cv_scores.mean()
+                    cv_std = cv_scores.std()
+                except:
+                    cv_mean = accuracy
+                    cv_std = 0
+                    st.warning("⚠️ Cross-validation could not be performed with current data distribution")
                 
                 # ============= FEATURE IMPORTANCE SECTION =============
                 st.markdown("---")
@@ -1523,76 +1382,27 @@ with tab4:
                                hide_index=True,
                                height=400)
                 
-                # ============= MODEL DIAGNOSTICS SECTION =============
+                # ============= TEST THE TRAINED MODEL WITH USER INPUT =============
                 st.markdown("---")
-                st.markdown("#### 🩺 Model Diagnostics")
+                st.markdown("#### 🎯 Test the Trained Model")
                 
-                diagnostic_col1, diagnostic_col2 = st.columns(2)
-                
-                with diagnostic_col1:
-                    # Tree depth distribution
-                    tree_depths = [tree.get_depth() for tree in model.estimators_]
-                    
-                    fig_depth = go.Figure(data=[
-                        go.Histogram(
-                            x=tree_depths,
-                            nbinsx=10,
-                            marker_color='lightgreen',
-                            opacity=0.7
-                        )
-                    ])
-                    
-                    fig_depth.update_layout(
-                        title='Distribution of Tree Depths',
-                        xaxis_title='Tree Depth',
-                        yaxis_title='Count'
-                    )
-                    
-                    st.plotly_chart(fig_depth, use_container_width=True)
-                
-                with diagnostic_col2:
-                    # Feature importance stability
-                    feature_importance_std = np.std([tree.feature_importances_ 
-                                                    for tree in model.estimators_], axis=0)
-                    
-                    fig_stability = go.Figure(data=[
-                        go.Bar(
-                            x=X.columns,
-                            y=feature_importance_std,
-                            marker_color='lightcoral',
-                            opacity=0.7
-                        )
-                    ])
-                    
-                    fig_stability.update_layout(
-                        title='Feature Importance Stability (Std Dev)',
-                        xaxis_title='Feature',
-                        yaxis_title='Standard Deviation',
-                        xaxis_tickangle=45
-                    )
-                    
-                    st.plotly_chart(fig_stability, use_container_width=True)
-                
-                # ============= PREDICTION SECTION =============
-                st.markdown("---")
-                st.markdown("#### 🎯 Get Your Random Forest Prediction")
-                
-                if st.button("🔮 Predict My Credit Score with Random Forest", type="secondary", use_container_width=True):
+                if st.button("🔮 Test with My Data", type="secondary", use_container_width=True):
                     user_data = pd.DataFrame({
                         'Location': [Location],
                         'Gender': [gender],
+                        'Age': [Age],
                         'Mobile_Money_Txns': [Mobile_Money_Txns],
                         'Airtime_Spend_ZWL': [Airtime_Spend_ZWL],
                         'Utility_Payments_ZWL': [Utility_Payments_ZWL],
-                        'Loan_Repayment_History': [Loan_Repayment_History],
-                        'Age': [Age]
+                        'Loan_Repayment_History': [Loan_Repayment_History]
                     })
                     
                     # Encode user input
                     for column in user_data.select_dtypes(include=['object']).columns:
                         if column in label_encoders:
-                            if user_data[column].iloc[0] in label_encoders[column].classes_:
-                                user_data[column] = label_encoders[column].transform(user_data[column])
+                            le = label_encoders[column]
+                            if user_data[column].iloc[0] in le.classes_:
+                                user_data[column] = le.transform(user_data[column])
                             else:
                                 user_data[column] = -1
                     
@@ -1603,187 +1413,69 @@ with tab4:
                     predicted_class = target_encoder.inverse_transform(prediction_encoded)[0]
                     confidence = np.max(prediction_proba) * 100
                     
-                    # Beautiful Random Forest prediction display
-                    col1, col2, col3 = st.columns(3)
+                    # Display results
+                    col1, col2 = st.columns(2)
                     
                     with col1:
                         st.markdown(f"""
                         <div class="success-box">
-                            <h3>Random Forest Prediction</h3>
+                            <h3>Model Prediction</h3>
                             <h1>{predicted_class}</h1>
-                            <p><strong>Algorithm:</strong> Random Forest</p>
+                            <p><strong>Confidence:</strong> {confidence:.1f}%</p>
                         </div>
                         """, unsafe_allow_html=True)
                     
                     with col2:
-                        st.markdown(f"""
-                        <div class="card">
-                            <h3>Confidence Level</h3>
-                            <h1>{confidence:.1f}%</h1>
-                            <p>Based on {n_estimators} decision trees</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with col3:
-                        # Get individual tree predictions (sample of 5 trees)
-                        tree_predictions = []
-                        for i, tree in enumerate(model.estimators_[:5]):
-                            tree_pred = tree.predict(user_data)[0]
-                            tree_predictions.append(target_encoder.inverse_transform([tree_pred])[0])
-                        
-                        st.markdown(f"""
-                        <div class="feature-box">
-                            <h4>🌲 Sample Tree Predictions</h4>
-                            <p>Tree 1: {tree_predictions[0]}</p>
-                            <p>Tree 2: {tree_predictions[1]}</p>
-                            <p>Tree 3: {tree_predictions[2]}</p>
-                            <p>Tree 4: {tree_predictions[3]}</p>
-                            <p>Tree 5: {tree_predictions[4]}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # Probability distribution from Random Forest
-                    st.markdown("#### 📊 Probability Distribution from Random Forest")
-                    prob_df = pd.DataFrame({
-                        'Credit Score': target_encoder.classes_,
-                        'Probability (%)': (prediction_proba[0] * 100).round(2)
-                    }).sort_values('Probability (%)', ascending=False)
-                    
-                    # Add color coding based on probability
-                    def color_probability(val):
-                        if val > 70:
-                            return 'background-color: rgba(0, 255, 0, 0.2)'
-                        elif val > 30:
-                            return 'background-color: rgba(255, 255, 0, 0.2)'
-                        else:
-                            return 'background-color: rgba(255, 0, 0, 0.2)'
-                    
-                    styled_df = prob_df.style.applymap(color_probability, subset=['Probability (%)'])
-                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
-                
-                # ============= MODEL COMPARISON SECTION =============
-                st.markdown("---")
-                st.markdown("#### ⚖️ Model Comparison Tools")
-                
-                if st.button("🔄 Compare Different Models", type="secondary"):
-                    with st.spinner("Training comparison models..."):
-                        try:
-                            # Prepare data
-                            X = df.drop("Credit_Score", axis=1)
-                            y = df["Credit_Score"]
-                            
-                            # Encode categorical variables
-                            label_encoders = {}
-                            for column in X.select_dtypes(include=['object']).columns:
-                                le = LabelEncoder()
-                                X[column] = le.fit_transform(X[column])
-                                label_encoders[column] = le
-                            
-                            # Encode target
-                            target_encoder = LabelEncoder()
-                            y_encoded = target_encoder.fit_transform(y)
-                            
-                            # Split data - handle stratification issue
-                            unique_classes, class_counts = np.unique(y_encoded, return_counts=True)
-                            
-                            if any(class_counts < 2):
-                                X_train, X_test, y_train, y_test = train_test_split(
-                                    X, y_encoded, test_size=0.2, random_state=42
-                                )
-                            else:
-                                X_train, X_test, y_train, y_test = train_test_split(
-                                    X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
-                                )
-                            
-                            # Train different models
-                            models = {
-                                'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
-                                'Decision Tree': DecisionTreeClassifier(random_state=42),
-                                'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
-                                'SVM': SVC(probability=True, random_state=42),
-                                'K-Nearest Neighbors': KNeighborsClassifier()
-                            }
-                            
-                            results = []
-                            for name, model in models.items():
-                                model.fit(X_train, y_train)
-                                y_pred = model.predict(X_test)
-                                accuracy = accuracy_score(y_test, y_pred)
-                                
-                                results.append({
-                                    'Model': name,
-                                    'Accuracy': accuracy,
-                                    'Training Time': 'N/A',  # Could add timing
-                                    'Parameters': str(model.get_params())
-                                })
-                            
-                            results_df = pd.DataFrame(results).sort_values('Accuracy', ascending=False)
-                            
-                            # Display comparison
-                            st.markdown("##### 📊 Model Performance Comparison")
-                            
-                            fig = go.Figure(data=[
-                                go.Bar(
-                                    x=results_df['Model'],
-                                    y=results_df['Accuracy'],
-                                    marker_color=['lightblue', 'lightgreen', 'lightcoral', 'lightyellow', 'lightpink']
-                                )
-                            ])
-                            
-                            fig.update_layout(
-                                title='Model Accuracy Comparison',
-                                xaxis_title='Model',
-                                yaxis_title='Accuracy',
-                                yaxis_tickformat='.2%'
-                            )
-                            
-                            st.plotly_chart(fig, use_container_width=True)
-                            
-                            # Display results table
-                            st.dataframe(results_df, use_container_width=True)
-                            
-                        except Exception as e:
-                            st.error(f"Error in model comparison: {str(e)}")
+                        st.markdown("#### 📊 Probability Distribution")
+                        prob_df = pd.DataFrame({
+                            'Credit Score': target_encoder.classes_,
+                            'Probability (%)': (prediction_proba[0] * 100).round(2)
+                        }).sort_values('Probability (%)', ascending=False)
+                        st.dataframe(prob_df, use_container_width=True, hide_index=True)
                 
             except Exception as e:
-                st.error(f"❌ Error training Random Forest model: {str(e)}")
+                st.error(f"❌ Error training AI model: {str(e)}")
                 st.exception(e)
     
-    # Add information about Random Forest advantages
+    # If model is already trained, show status
+    elif 'trained_model' in st.session_state:
+        st.markdown("---")
+        st.markdown("""
+        <div class="success-box">
+            <h3>✅ AI Model Already Trained</h3>
+            <p>The Random Forest model is ready for use in the <strong>🎯 Quick Assessment</strong> tab.</p>
+            <p><strong>Model Accuracy:</strong> {:.1%}</p>
+        </div>
+        """.format(st.session_state.model_accuracy), unsafe_allow_html=True)
+        
+        # Option to retrain
+        if st.button("🔄 Retrain Model with New Parameters", type="secondary"):
+            st.session_state.pop('trained_model', None)
+            st.session_state.pop('label_encoders', None)
+            st.session_state.pop('target_encoder', None)
+            st.rerun()
+    
+    # Model information section
     st.markdown("---")
     st.markdown("""
     <div class="card">
-        <h4>🌳 Why Random Forest for Credit Scoring?</h4>
-        <p><strong>Advantages of Random Forest in Credit Assessment:</strong></p>
+        <h4>🌳 How Random Forest Works for Credit Scoring</h4>
         <ol>
-            <li><strong>High Accuracy:</strong> Often achieves better performance than single decision trees</li>
-            <li><strong>Feature Importance:</strong> Identifies which factors most influence credit scores</li>
-            <li><strong>Robustness:</strong> Less prone to overfitting and handles missing values well</li>
-            <li><strong>Non-linear Relationships:</strong> Captures complex patterns in financial data</li>
-            <li><strong>Interpretability:</strong> Provides insights into decision-making process</li>
+            <li><strong>Multiple Decision Trees:</strong> Creates an ensemble of decision trees from random data subsets</li>
+            <li><strong>Voting System:</strong> Each tree makes a prediction, majority vote determines final result</li>
+            <li><strong>Feature Importance:</strong> Calculates which features most influence credit decisions</li>
+            <li><strong>Robustness:</strong> Reduces overfitting compared to single decision trees</li>
+            <li><strong>Confidence Scores:</strong> Provides probability estimates for each prediction</li>
         </ol>
-        <p><em>The model aggregates predictions from multiple decision trees to make more reliable credit assessments.</em></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Add model performance summary
-    st.markdown("""
-    <div class="card">
-        <h4>📊 Model Evaluation Metrics Explained</h4>
-        <ul>
-            <li><strong>Accuracy:</strong> Overall correctness of the model</li>
-            <li><strong>Precision:</strong> How many predicted positives are actually positive</li>
-            <li><strong>Recall:</strong> How many actual positives are correctly identified</li>
-            <li><strong>F1-Score:</strong> Harmonic mean of precision and recall</li>
-            <li><strong>ROC-AUC:</strong> Ability to distinguish between classes</li>
-            <li><strong>Confusion Matrix:</strong> Detailed breakdown of predictions vs actual</li>
-        </ul>
+        <p><em>This approach makes credit assessments more accurate and reliable.</em></p>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-with tab5:  # NEW REPORTS TAB
+# ==================== REPORTS TAB (tab5) ====================
+
+with tab5:  # REPORTS TAB
     st.markdown('<div class="tab-content">', unsafe_allow_html=True)
     st.markdown("### 📈 30-Day Assessment Reports")
     
