@@ -1002,6 +1002,12 @@ with tab4:
                 X = df.drop("Credit_Score", axis=1)
                 y = df["Credit_Score"]
                 
+                # Check class distribution
+                st.info(f"📊 Dataset has {len(df)} total samples")
+                class_distribution = y.value_counts()
+                st.write("**Class Distribution:**")
+                st.write(class_distribution)
+                
                 # Encode categorical variables
                 label_encoders = {}
                 for column in X.select_dtypes(include=['object']).columns:
@@ -1013,10 +1019,26 @@ with tab4:
                 target_encoder = LabelEncoder()
                 y_encoded = target_encoder.fit_transform(y)
                 
-                # Split data
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X, y_encoded, test_size=test_size/100, random_state=random_state, stratify=y_encoded
-                )
+                # Check if any class has only 1 sample
+                unique_classes, class_counts = np.unique(y_encoded, return_counts=True)
+                
+                if any(class_counts < 2):
+                    st.warning(f"⚠️ Some classes have very few samples. Classes with counts: {dict(zip(unique_classes, class_counts))}")
+                    st.info("Using simple train-test split without stratification to avoid errors.")
+                    # Split data without stratification
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X, y_encoded, 
+                        test_size=test_size/100, 
+                        random_state=random_state
+                    )
+                else:
+                    # Split data with stratification
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X, y_encoded, 
+                        test_size=test_size/100, 
+                        random_state=random_state, 
+                        stratify=y_encoded
+                    )
                 
                 # Train Random Forest model with user parameters
                 model = RandomForestClassifier(
@@ -1037,9 +1059,9 @@ with tab4:
                 # ============= CALCULATE ACCURACY METRICS =============
                 accuracy = accuracy_score(y_test, y_pred)
                 train_accuracy = model.score(X_train, y_train)
-                precision = precision_score(y_test, y_pred, average='weighted')
-                recall = recall_score(y_test, y_pred, average='weighted')
-                f1 = f1_score(y_test, y_pred, average='weighted')
+                precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+                recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+                f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
                 
                 # For multiclass ROC-AUC
                 try:
@@ -1049,15 +1071,26 @@ with tab4:
                     roc_auc = None
                     roc_auc_formatted = "N/A"
                 
-                # Per-class metrics
-                precision_per_class = precision_score(y_test, y_pred, average=None)
-                recall_per_class = recall_score(y_test, y_pred, average=None)
-                f1_per_class = f1_score(y_test, y_pred, average=None)
+                # Per-class metrics with error handling
+                try:
+                    precision_per_class = precision_score(y_test, y_pred, average=None, zero_division=0)
+                    recall_per_class = recall_score(y_test, y_pred, average=None, zero_division=0)
+                    f1_per_class = f1_score(y_test, y_pred, average=None, zero_division=0)
+                except:
+                    # If per-class metrics fail, use weighted averages
+                    precision_per_class = [precision] * len(target_encoder.classes_)
+                    recall_per_class = [recall] * len(target_encoder.classes_)
+                    f1_per_class = [f1] * len(target_encoder.classes_)
                 
-                # Cross-validation score
-                cv_scores = cross_val_score(model, X, y_encoded, cv=5, scoring='accuracy')
-                cv_mean = cv_scores.mean()
-                cv_std = cv_scores.std()
+                # Cross-validation score with error handling
+                try:
+                    cv_scores = cross_val_score(model, X, y_encoded, cv=min(5, len(X)), scoring='accuracy')
+                    cv_mean = cv_scores.mean()
+                    cv_std = cv_scores.std()
+                except:
+                    cv_mean = accuracy
+                    cv_std = 0
+                    st.warning("⚠️ Cross-validation could not be performed with current data distribution")
                 
                 st.success("✅ Random Forest model trained successfully!")
                 
@@ -1072,7 +1105,7 @@ with tab4:
                     <div class="metric-card {'accuracy-high' if accuracy >= 0.85 else 'accuracy-medium' if accuracy >= 0.75 else 'accuracy-low'}">
                         <h3>🎯 Test Accuracy</h3>
                         <h2>{accuracy:.1%}</h2>
-                        <small>On {len(y_test)} samples</small>
+                        <small>On {len(y_test)} test samples</small>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -1081,7 +1114,7 @@ with tab4:
                     <div class="metric-card">
                         <h3>📚 Training Accuracy</h3>
                         <h2>{train_accuracy:.1%}</h2>
-                        <small>On {len(y_train)} samples</small>
+                        <small>On {len(y_train)} training samples</small>
                     </div>
                     """, unsafe_allow_html=True)
                 
@@ -1099,11 +1132,37 @@ with tab4:
                 with col4:
                     st.markdown(f"""
                     <div class="metric-card {'accuracy-high' if cv_mean >= 0.85 else 'accuracy-medium' if cv_mean >= 0.75 else 'accuracy-low'}">
-                        <h3>📈 Cross-Validation</h3>
+                        <h3>📈 Validation Score</h3>
                         <h2>{cv_mean:.1%}</h2>
-                        <small>±{cv_std:.1%} (5-fold)</small>
+                        <small>{"Cross-validation" if cv_std > 0 else "Using test accuracy"}</small>
                     </div>
                     """, unsafe_allow_html=True)
+                
+                # ============= DATA DISTRIBUTION INFO =============
+                st.markdown("---")
+                st.markdown("#### 📊 Dataset Information")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Samples", len(df))
+                with col2:
+                    st.metric("Number of Classes", len(class_distribution))
+                with col3:
+                    st.metric("Smallest Class", f"{class_distribution.min()} samples")
+                
+                # Show class distribution chart
+                fig_dist = go.Figure(data=[go.Bar(
+                    x=class_distribution.index,
+                    y=class_distribution.values,
+                    marker_color='#1f77b4'
+                )])
+                fig_dist.update_layout(
+                    title='Class Distribution in Dataset',
+                    xaxis_title='Credit Score Class',
+                    yaxis_title='Number of Samples',
+                    height=300
+                )
+                st.plotly_chart(fig_dist, use_container_width=True)
                 
                 # ============= DETAILED METRICS SECTION =============
                 st.markdown("---")
@@ -1607,10 +1666,17 @@ with tab4:
                             target_encoder = LabelEncoder()
                             y_encoded = target_encoder.fit_transform(y)
                             
-                            # Split data
-                            X_train, X_test, y_train, y_test = train_test_split(
-                                X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
-                            )
+                            # Split data - handle stratification issue
+                            unique_classes, class_counts = np.unique(y_encoded, return_counts=True)
+                            
+                            if any(class_counts < 2):
+                                X_train, X_test, y_train, y_test = train_test_split(
+                                    X, y_encoded, test_size=0.2, random_state=42
+                                )
+                            else:
+                                X_train, X_test, y_train, y_test = train_test_split(
+                                    X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+                                )
                             
                             # Train different models
                             models = {
