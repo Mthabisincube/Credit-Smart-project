@@ -242,10 +242,14 @@ def evaluate_random_forest(X_train, X_test, y_train, y_test, n_estimators=100, m
     recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
     f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
     
-    # Cross-validation score
-    cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='accuracy')
-    cv_mean = cv_scores.mean()
-    cv_std = cv_scores.std()
+    # Cross-validation score (handle small classes)
+    try:
+        cv_scores = cross_val_score(model, X_train, y_train, cv=min(5, len(np.unique(y_train))), scoring='accuracy')
+        cv_mean = cv_scores.mean()
+        cv_std = cv_scores.std()
+    except:
+        cv_mean = accuracy
+        cv_std = 0
     
     # Feature importance
     feature_importance = pd.DataFrame({
@@ -626,13 +630,25 @@ with tab3:  # Model Accuracy tab
                 target_encoder = LabelEncoder()
                 y_encoded = target_encoder.fit_transform(y)
                 
-                # Split data
-                X_train, X_test, y_train, y_test = train_test_split(
-                    X, y_encoded, 
-                    test_size=test_size/100, 
-                    random_state=42, 
-                    stratify=y_encoded
-                )
+                # Check if any class has only 1 sample
+                unique_classes, class_counts = np.unique(y_encoded, return_counts=True)
+                
+                if any(class_counts < 2):
+                    st.warning("⚠️ Some classes have very few samples. Using non-stratified split.")
+                    # Split data without stratification
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X, y_encoded, 
+                        test_size=test_size/100, 
+                        random_state=42
+                    )
+                else:
+                    # Split data with stratification
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X, y_encoded, 
+                        test_size=test_size/100, 
+                        random_state=42, 
+                        stratify=y_encoded
+                    )
                 
                 # Evaluate model
                 results = evaluate_random_forest(X_train, X_test, y_train, y_test, n_estimators, max_depth)
@@ -773,6 +789,12 @@ with tab3:  # Model Accuracy tab
                 
             except Exception as e:
                 st.error(f"❌ Error evaluating model: {str(e)}")
+                st.info("""
+                **Possible Issues:**
+                1. Some classes have too few samples for proper evaluation
+                2. Try reducing the test size percentage
+                3. The dataset may need more balanced classes
+                """)
     
     # If model is already evaluated
     elif 'model_accuracy' in st.session_state and st.session_state.model_accuracy is not None:
