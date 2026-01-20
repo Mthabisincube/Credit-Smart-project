@@ -10,6 +10,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import io
 from datetime import datetime
+import json
 
 # Page configuration with beautiful theme
 st.set_page_config(
@@ -87,6 +88,68 @@ st.markdown("""
         margin: 0.5rem 0;
         border-left: 4px solid #1f77b4;
     }
+    
+    .card {
+        background-color: rgba(248, 249, 250, 0.95);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 5px solid #1f77b4;
+        margin-bottom: 1rem;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        backdrop-filter: blur(5px);
+    }
+    
+    .sidebar-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .success-box {
+        background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
+        border: 2px solid #28a745;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: #155724;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .warning-box {
+        background: linear-gradient(135deg, rgba(255, 243, 205, 0.95) 0%, rgba(255, 234, 167, 0.95) 100%);
+        border: 2px solid #ffc107;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: #856404;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .danger-box {
+        background: linear-gradient(135deg, rgba(248, 215, 218, 0.95) 0%, rgba(245, 198, 203, 0.95) 100%);
+        border: 2px solid #dc3545;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        color: #721c24;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .stProgress > div > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .tab-content {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,12 +166,125 @@ if 'model' not in st.session_state:
     st.session_state.model_metrics = {}
     st.session_state.model_trained = False
 
+# Assessment results in session state
+if 'assessment_results' not in st.session_state:
+    st.session_state.assessment_results = {
+        'score': 0,
+        'max_score': 6,
+        'predicted_class': None,
+        'confidence': None,
+        'probabilities': None,
+        'risk_level': 'Medium'
+    }
+
 # Load data with caching
 @st.cache_data
 def load_data():
     return pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
 
 df = load_data()
+
+# Helper functions
+def get_risk_level(score):
+    """Get risk level based on score"""
+    if score >= 5:
+        return "Low"
+    elif score >= 3:
+        return "Medium"
+    else:
+        return "High"
+
+def get_recommendations(score, ai_prediction=None):
+    """Generate recommendations based on score and AI prediction"""
+    recommendations = []
+    
+    if score >= 5:
+        recommendations.append("✓ Strong candidate for credit approval")
+        recommendations.append("✓ Eligible for higher credit limits")
+        recommendations.append("✓ Favorable interest rates applicable")
+    elif score >= 3:
+        recommendations.append("✓ Standard credit verification required")
+        recommendations.append("✓ Moderate credit limits recommended")
+        recommendations.append("✓ Regular monitoring suggested")
+    else:
+        recommendations.append("✗ Enhanced verification required")
+        recommendations.append("✗ Collateral might be necessary")
+        recommendations.append("✗ Lower credit limits recommended")
+    
+    if ai_prediction and ai_prediction in ['Good', 'Excellent']:
+        recommendations.append("✓ AI model confirms creditworthiness")
+    elif ai_prediction and ai_prediction in ['Poor', 'Fair']:
+        recommendations.append("⚠ AI model suggests careful review")
+    
+    return "\n".join(recommendations)
+
+def generate_pdf_report():
+    """Generate a PDF report (simulated)"""
+    results = st.session_state.assessment_results
+    
+    # Format confidence if available
+    confidence_display = f"{results['confidence']:.1f}%" if results['confidence'] else 'Not available'
+    
+    report = f"""
+    ZIM SMART CREDIT APP - CREDIT ASSESSMENT REPORT
+    Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    
+    ===================================================
+    
+    I. CLIENT INFORMATION
+    - Location: {Location}
+    - Gender: {gender}
+    - Age: {Age}
+    
+    II. FINANCIAL BEHAVIOR
+    - Mobile Money Transactions: {Mobile_Money_Txns:.2f}
+    - Airtime Spend: {Airtime_Spend_ZWL:.2f} ZWL
+    - Utility Payments: {Utility_Payments_ZWL:.2f} ZWL
+    - Loan Repayment History: {Loan_Repayment_History}
+    
+    III. CREDIT ASSESSMENT
+    - Manual Assessment Score: {results['score']}/{results['max_score']}
+    - Risk Level: {results['risk_level']}
+    - AI Prediction: {results['predicted_class'] if results['predicted_class'] else 'Not available'}
+    - Confidence Level: {confidence_display}
+    
+    IV. MODEL PERFORMANCE METRICS
+    - Accuracy: {st.session_state.model_metrics.get('accuracy', 0)*100:.1f}%
+    - Precision: {st.session_state.model_metrics.get('precision', 0)*100:.1f}%
+    - Recall: {st.session_state.model_metrics.get('recall', 0)*100:.1f}%
+    - F1-Score: {st.session_state.model_metrics.get('f1_score', 0)*100:.1f}%
+    
+    V. RECOMMENDATIONS
+    {get_recommendations(results['score'], results['predicted_class'])}
+    
+    ===================================================
+    
+    This report is generated by Zim Smart Credit App.
+    For inquiries, contact: support@zimcredit.co.zw
+    """
+    return report.encode()
+
+def generate_csv_report():
+    """Generate CSV report"""
+    results = st.session_state.assessment_results
+    
+    report_data = {
+        'timestamp': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+        'location': [Location],
+        'gender': [gender],
+        'age': [Age],
+        'mobile_money_txns': [Mobile_Money_Txns],
+        'airtime_spend': [Airtime_Spend_ZWL],
+        'utility_payments': [Utility_Payments_ZWL],
+        'repayment_history': [Loan_Repayment_History],
+        'manual_score': [f"{results['score']}/{results['max_score']}"],
+        'risk_level': [results['risk_level']],
+        'ai_prediction': [results['predicted_class'] if results['predicted_class'] else 'N/A'],
+        'confidence': [f"{results['confidence']:.1f}%" if results['confidence'] else 'N/A'],
+        'model_accuracy': [f"{st.session_state.model_metrics.get('accuracy', 0)*100:.1f}%"]
+    }
+    df_report = pd.DataFrame(report_data)
+    return df_report.to_csv(index=False).encode('utf-8')
 
 # Train unified model function
 def train_unified_model():
@@ -211,100 +387,6 @@ def predict_credit_score(user_input):
     except Exception as e:
         st.error(f"❌ Error making prediction: {str(e)}")
         return None, None, None
-
-# Report generation functions
-def generate_pdf_report():
-    """Generate a PDF report (simulated)"""
-    report = f"""
-    ZIM SMART CREDIT APP - CREDIT ASSESSMENT REPORT
-    Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-    
-    ===================================================
-    
-    I. CLIENT INFORMATION
-    - Location: {Location}
-    - Gender: {gender}
-    - Age: {Age}
-    
-    II. FINANCIAL BEHAVIOR
-    - Mobile Money Transactions: {Mobile_Money_Txns:.2f}
-    - Airtime Spend: {Airtime_Spend_ZWL:.2f} ZWL
-    - Utility Payments: {Utility_Payments_ZWL:.2f} ZWL
-    - Loan Repayment History: {Loan_Repayment_History}
-    
-    III. CREDIT ASSESSMENT
-    - Manual Assessment Score: {score}/{max_score}
-    - AI Prediction: {predicted_class if 'predicted_class' in locals() else 'Not available'}
-    - Confidence Level: {confidence:.1f}% if 'confidence' in locals() else 'Not available'}
-    
-    IV. MODEL PERFORMANCE METRICS
-    - Accuracy: {st.session_state.model_metrics.get('accuracy', 0)*100:.1f}%
-    - Precision: {st.session_state.model_metrics.get('precision', 0)*100:.1f}%
-    - Recall: {st.session_state.model_metrics.get('recall', 0)*100:.1f}%
-    - F1-Score: {st.session_state.model_metrics.get('f1_score', 0)*100:.1f}%
-    
-    V. RECOMMENDATIONS
-    {get_recommendations(score, predicted_class if 'predicted_class' in locals() else None)}
-    
-    ===================================================
-    
-    This report is generated by Zim Smart Credit App.
-    For inquiries, contact: support@zimcredit.co.zw
-    """
-    return report.encode()
-
-def generate_csv_report():
-    """Generate CSV report"""
-    report_data = {
-        'timestamp': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-        'location': [Location],
-        'gender': [gender],
-        'age': [Age],
-        'mobile_money_txns': [Mobile_Money_Txns],
-        'airtime_spend': [Airtime_Spend_ZWL],
-        'utility_payments': [Utility_Payments_ZWL],
-        'repayment_history': [Loan_Repayment_History],
-        'manual_score': [f"{score}/{max_score}"],
-        'ai_prediction': [predicted_class if 'predicted_class' in locals() else 'N/A'],
-        'confidence': [f"{confidence:.1f}%" if 'confidence' in locals() else 'N/A'],
-        'model_accuracy': [f"{st.session_state.model_metrics.get('accuracy', 0)*100:.1f}%"],
-        'risk_level': [get_risk_level(score)]
-    }
-    df_report = pd.DataFrame(report_data)
-    return df_report.to_csv(index=False).encode('utf-8')
-
-def get_recommendations(score, ai_prediction=None):
-    """Generate recommendations based on score and AI prediction"""
-    recommendations = []
-    
-    if score >= 5:
-        recommendations.append("✓ Strong candidate for credit approval")
-        recommendations.append("✓ Eligible for higher credit limits")
-        recommendations.append("✓ Favorable interest rates applicable")
-    elif score >= 3:
-        recommendations.append("✓ Standard credit verification required")
-        recommendations.append("✓ Moderate credit limits recommended")
-        recommendations.append("✓ Regular monitoring suggested")
-    else:
-        recommendations.append("✗ Enhanced verification required")
-        recommendations.append("✗ Collateral might be necessary")
-        recommendations.append("✗ Lower credit limits recommended")
-    
-    if ai_prediction and ai_prediction in ['Good', 'Excellent']:
-        recommendations.append("✓ AI model confirms creditworthiness")
-    elif ai_prediction and ai_prediction in ['Poor', 'Fair']:
-        recommendations.append("⚠ AI model suggests careful review")
-    
-    return "\n".join(recommendations)
-
-def get_risk_level(score):
-    """Get risk level based on score"""
-    if score >= 5:
-        return "Low"
-    elif score >= 3:
-        return "Medium"
-    else:
-        return "High"
 
 # Beautiful sidebar
 with st.sidebar:
@@ -562,6 +644,11 @@ with tab3:
         st.info(f"📊 {Loan_Repayment_History}")
         st.progress(progress_map[Loan_Repayment_History])
     
+    # Store assessment results in session state
+    st.session_state.assessment_results['score'] = score
+    st.session_state.assessment_results['max_score'] = max_score
+    st.session_state.assessment_results['risk_level'] = get_risk_level(score)
+    
     # Final assessment
     st.markdown("---")
     percentage = (score / max_score) * 100
@@ -708,6 +795,11 @@ with tab4:
             predicted_class, confidence, probabilities = predict_credit_score(user_input)
             
             if predicted_class:
+                # Store prediction results in session state
+                st.session_state.assessment_results['predicted_class'] = predicted_class
+                st.session_state.assessment_results['confidence'] = confidence
+                st.session_state.assessment_results['probabilities'] = probabilities
+                
                 # Beautiful prediction display
                 col1, col2 = st.columns(2)
                 with col1:
@@ -735,12 +827,7 @@ with tab4:
                 
                 st.dataframe(prob_df, use_container_width=True, hide_index=True)
                 
-                # Store for report generation
-                st.session_state.prediction_result = {
-                    'class': predicted_class,
-                    'confidence': confidence,
-                    'probabilities': probabilities
-                }
+                st.success("✅ Prediction stored for report generation!")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -773,174 +860,180 @@ with tab5:
         )
     
     with col2:
-        include_ai = st.checkbox("🤖 Include AI Prediction", value=True)
-        include_metrics = st.checkbox("📊 Include Model Metrics", value=True)
+        include_ai = st.checkbox("🤖 Include AI Prediction", 
+                                value=st.session_state.assessment_results['predicted_class'] is not None,
+                                disabled=st.session_state.assessment_results['predicted_class'] is None)
+        include_metrics = st.checkbox("📊 Include Model Metrics", 
+                                     value=st.session_state.model_trained,
+                                     disabled=not st.session_state.model_trained)
         include_recommendations = st.checkbox("💡 Include Recommendations", value=True)
     
-    # Generate report
+    # Generate report button
     if st.button("📄 Generate Report", type="primary", use_container_width=True):
-        if not st.session_state.model_trained and include_ai:
-            st.warning("⚠️ AI model not trained. Train the model first for AI predictions.")
-        else:
-            with st.spinner("Generating report..."):
-                # Create report content
-                st.markdown("#### 📋 Generated Report Preview")
-                
-                # Report header
+        # Create report content
+        st.markdown("#### 📋 Generated Report Preview")
+        
+        # Report header
+        st.markdown(f"""
+        <div class="report-card">
+            <h2>ZIM SMART CREDIT APP</h2>
+            <h3>{report_type}</h3>
+            <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p><strong>Report ID:</strong> CR-{datetime.now().strftime('%Y%m%d-%H%M%S')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Client Information
+        st.markdown("#### 👤 Client Information")
+        client_info = pd.DataFrame({
+            'Field': ['Location', 'Gender', 'Age'],
+            'Value': [Location, gender, f"{Age} years"]
+        })
+        st.dataframe(client_info, use_container_width=True, hide_index=True)
+        
+        # Financial Behavior
+        st.markdown("#### 💰 Financial Behavior Analysis")
+        financial_info = pd.DataFrame({
+            'Metric': ['Mobile Money Transactions', 'Airtime Spend (ZWL)', 'Utility Payments (ZWL)', 'Loan Repayment History'],
+            'Value': [
+                f"{Mobile_Money_Txns:.2f}",
+                f"{Airtime_Spend_ZWL:.2f}",
+                f"{Utility_Payments_ZWL:.2f}",
+                Loan_Repayment_History
+            ],
+            'Assessment': [
+                "Above Average" if Mobile_Money_Txns > df['Mobile_Money_Txns'].median() else "Below Average",
+                "High" if Airtime_Spend_ZWL > df['Airtime_Spend_ZWL'].median() else "Low",
+                "Consistent" if Utility_Payments_ZWL > df['Utility_Payments_ZWL'].median() else "Irregular",
+                Loan_Repayment_History
+            ]
+        })
+        st.dataframe(financial_info, use_container_width=True, hide_index=True)
+        
+        # Assessment Results
+        st.markdown("#### 🎯 Assessment Results")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+            <div class="model-stats">
+                <h4>Manual Assessment</h4>
+                <h2>{st.session_state.assessment_results['score']}/{st.session_state.assessment_results['max_score']}</h2>
+                <p>Risk Level: {st.session_state.assessment_results['risk_level']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        if include_ai and st.session_state.assessment_results['predicted_class']:
+            with col2:
                 st.markdown(f"""
-                <div class="report-card">
-                    <h2>ZIM SMART CREDIT APP</h2>
-                    <h3>{report_type}</h3>
-                    <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                    <p><strong>Report ID:</strong> CR-{datetime.now().strftime('%Y%m%d-%H%M%S')}</p>
+                <div class="model-stats">
+                    <h4>AI Prediction</h4>
+                    <h2>{st.session_state.assessment_results['predicted_class']}</h2>
+                    <p>Confidence: {st.session_state.assessment_results['confidence']:.1f}%</p>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # Client Information
-                st.markdown("#### 👤 Client Information")
-                client_info = pd.DataFrame({
-                    'Field': ['Location', 'Gender', 'Age'],
-                    'Value': [Location, gender, f"{Age} years"]
-                })
-                st.dataframe(client_info, use_container_width=True, hide_index=True)
-                
-                # Financial Behavior
-                st.markdown("#### 💰 Financial Behavior Analysis")
-                financial_info = pd.DataFrame({
-                    'Metric': ['Mobile Money Transactions', 'Airtime Spend (ZWL)', 'Utility Payments (ZWL)', 'Loan Repayment History'],
-                    'Value': [
-                        f"{Mobile_Money_Txns:.2f}",
-                        f"{Airtime_Spend_ZWL:.2f}",
-                        f"{Utility_Payments_ZWL:.2f}",
-                        Loan_Repayment_History
-                    ],
-                    'Assessment': [
-                        "Above Average" if Mobile_Money_Txns > df['Mobile_Money_Txns'].median() else "Below Average",
-                        "High" if Airtime_Spend_ZWL > df['Airtime_Spend_ZWL'].median() else "Low",
-                        "Consistent" if Utility_Payments_ZWL > df['Utility_Payments_ZWL'].median() else "Irregular",
-                        Loan_Repayment_History
-                    ]
-                })
-                st.dataframe(financial_info, use_container_width=True, hide_index=True)
-                
-                # Assessment Results
-                st.markdown("#### 🎯 Assessment Results")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"""
-                    <div class="model-stats">
-                        <h4>Manual Assessment</h4>
-                        <h2>{score}/{max_score}</h2>
-                        <p>Risk Level: {get_risk_level(score)}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                if include_ai and st.session_state.model_trained and 'prediction_result' in st.session_state:
-                    with col2:
-                        pred = st.session_state.prediction_result
-                        st.markdown(f"""
-                        <div class="model-stats">
-                            <h4>AI Prediction</h4>
-                            <h2>{pred['class']}</h2>
-                            <p>Confidence: {pred['confidence']:.1f}%</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                # Model Metrics
-                if include_metrics and st.session_state.model_trained:
-                    st.markdown("#### 📊 Model Performance")
-                    metrics_df = pd.DataFrame({
-                        'Metric': ['Accuracy', 'Precision', 'Recall', 'F1-Score', 'Cross-Validation Mean'],
-                        'Value': [
-                            f"{st.session_state.model_metrics['accuracy']*100:.1f}%",
-                            f"{st.session_state.model_metrics['precision']*100:.1f}%",
-                            f"{st.session_state.model_metrics['recall']*100:.1f}%",
-                            f"{st.session_state.model_metrics['f1_score']*100:.1f}%",
-                            f"{st.session_state.model_metrics['cv_mean']*100:.1f}%"
-                        ]
-                    })
-                    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
-                
-                # Recommendations
-                if include_recommendations:
-                    st.markdown("#### 💡 Recommendations")
-                    recommendations = get_recommendations(
-                        score, 
-                        st.session_state.prediction_result['class'] if 'prediction_result' in st.session_state else None
-                    )
-                    
-                    for rec in recommendations.split('\n'):
-                        if rec.startswith('✓'):
-                            st.success(rec)
-                        elif rec.startswith('⚠'):
-                            st.warning(rec)
-                        elif rec.startswith('✗'):
-                            st.error(rec)
-                        else:
-                            st.info(rec)
-                
-                # Download options
-                st.markdown("---")
-                st.markdown("#### 💾 Download Report")
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    # PDF Report
-                    pdf_report = generate_pdf_report()
-                    st.download_button(
-                        label="📄 Download PDF",
-                        data=pdf_report,
-                        file_name=f"credit_report_{datetime.now().strftime('%Y%m%d')}.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
-                
-                with col2:
-                    # CSV Report
-                    csv_report = generate_csv_report()
-                    st.download_button(
-                        label="📊 Download CSV",
-                        data=csv_report,
-                        file_name=f"credit_data_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-                
-                with col3:
-                    # JSON Report
-                    json_report = {
-                        'timestamp': datetime.now().isoformat(),
-                        'client_info': {
-                            'location': Location,
-                            'gender': gender,
-                            'age': Age
-                        },
-                        'financial_behavior': {
-                            'mobile_money_txns': Mobile_Money_Txns,
-                            'airtime_spend': Airtime_Spend_ZWL,
-                            'utility_payments': Utility_Payments_ZWL,
-                            'repayment_history': Loan_Repayment_History
-                        },
-                        'assessment': {
-                            'manual_score': f"{score}/{max_score}",
-                            'risk_level': get_risk_level(score),
-                            'ai_prediction': st.session_state.prediction_result['class'] if 'prediction_result' in st.session_state else None,
-                            'confidence': st.session_state.prediction_result['confidence'] if 'prediction_result' in st.session_state else None
-                        },
-                        'model_metrics': st.session_state.model_metrics if st.session_state.model_trained else None
-                    }
-                    
-                    import json
-                    json_str = json.dumps(json_report, indent=2)
-                    
-                    st.download_button(
-                        label="🔤 Download JSON",
-                        data=json_str,
-                        file_name=f"credit_report_{datetime.now().strftime('%Y%m%d')}.json",
-                        mime="application/json",
-                        use_container_width=True
-                    )
+        
+        # Model Metrics
+        if include_metrics and st.session_state.model_trained:
+            st.markdown("#### 📊 Model Performance")
+            metrics_df = pd.DataFrame({
+                'Metric': ['Accuracy', 'Precision', 'Recall', 'F1-Score', 'Cross-Validation Mean'],
+                'Value': [
+                    f"{st.session_state.model_metrics['accuracy']*100:.1f}%",
+                    f"{st.session_state.model_metrics['precision']*100:.1f}%",
+                    f"{st.session_state.model_metrics['recall']*100:.1f}%",
+                    f"{st.session_state.model_metrics['f1_score']*100:.1f}%",
+                    f"{st.session_state.model_metrics['cv_mean']*100:.1f}%"
+                ]
+            })
+            st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+        
+        # Recommendations
+        if include_recommendations:
+            st.markdown("#### 💡 Recommendations")
+            recommendations = get_recommendations(
+                st.session_state.assessment_results['score'], 
+                st.session_state.assessment_results['predicted_class']
+            )
+            
+            for rec in recommendations.split('\n'):
+                if rec.startswith('✓'):
+                    st.success(rec)
+                elif rec.startswith('⚠'):
+                    st.warning(rec)
+                elif rec.startswith('✗'):
+                    st.error(rec)
+                else:
+                    st.info(rec)
+        
+        # Download options
+        st.markdown("---")
+        st.markdown("#### 💾 Download Report")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # PDF Report
+            pdf_report = generate_pdf_report()
+            st.download_button(
+                label="📄 Download PDF",
+                data=pdf_report,
+                file_name=f"credit_report_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        with col2:
+            # CSV Report
+            csv_report = generate_csv_report()
+            st.download_button(
+                label="📊 Download CSV",
+                data=csv_report,
+                file_name=f"credit_data_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+        
+        with col3:
+            # JSON Report
+            results = st.session_state.assessment_results
+            json_report = {
+                'timestamp': datetime.now().isoformat(),
+                'report_type': report_type,
+                'client_info': {
+                    'location': Location,
+                    'gender': gender,
+                    'age': Age
+                },
+                'financial_behavior': {
+                    'mobile_money_txns': Mobile_Money_Txns,
+                    'airtime_spend': Airtime_Spend_ZWL,
+                    'utility_payments': Utility_Payments_ZWL,
+                    'repayment_history': Loan_Repayment_History
+                },
+                'assessment': {
+                    'manual_score': f"{results['score']}/{results['max_score']}",
+                    'risk_level': results['risk_level'],
+                    'ai_prediction': results['predicted_class'],
+                    'confidence': results['confidence'],
+                    'probabilities': results['probabilities'].tolist() if results['probabilities'] is not None else None
+                },
+                'model_metrics': st.session_state.model_metrics if st.session_state.model_trained else None,
+                'recommendations': get_recommendations(results['score'], results['predicted_class'])
+            }
+            
+            json_str = json.dumps(json_report, indent=2)
+            
+            st.download_button(
+                label="🔤 Download JSON",
+                data=json_str,
+                file_name=f"credit_report_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json",
+                use_container_width=True
+            )
+    
+    # Show warning if trying to generate AI report without prediction
+    if not st.session_state.assessment_results['predicted_class'] and include_ai:
+        st.warning("⚠️ No AI prediction available. Please generate a prediction in the AI Model tab first.")
     
     st.markdown('</div>', unsafe_allow_html=True)
