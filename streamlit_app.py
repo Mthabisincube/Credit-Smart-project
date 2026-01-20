@@ -10,10 +10,6 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import json
 import uuid
-import time
-import unittest
-from io import StringIO
-import sys
 
 # Page configuration
 st.set_page_config(
@@ -131,33 +127,6 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         border: 2px solid #e9ecef;
     }
-    
-    .test-pass {
-        background-color: #d4edda;
-        color: #155724;
-        padding: 0.5rem;
-        border-radius: 5px;
-        margin: 0.2rem 0;
-        border-left: 4px solid #28a745;
-    }
-    
-    .test-fail {
-        background-color: #f8d7da;
-        color: #721c24;
-        padding: 0.5rem;
-        border-radius: 5px;
-        margin: 0.2rem 0;
-        border-left: 4px solid #dc3545;
-    }
-    
-    .test-running {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 0.5rem;
-        border-radius: 5px;
-        margin: 0.2rem 0;
-        border-left: 4px solid #ffc107;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -187,613 +156,6 @@ if 'assessment_results' not in st.session_state:
         'assessment_id': None,
         'timestamp': None
     }
-
-# ============================================================================
-# BACKEND TESTING MODULE
-# ============================================================================
-
-class BackendTesting:
-    """Comprehensive backend testing for the credit scoring application"""
-    
-    @staticmethod
-    def run_all_tests():
-        """Run all backend tests and return results"""
-        test_results = {
-            'passed': 0,
-            'failed': 0,
-            'total': 0,
-            'details': []
-        }
-        
-        # Test 1: Data Loading and Validation
-        result1 = BackendTesting.test_data_loading()
-        test_results['details'].append(result1)
-        test_results['total'] += 1
-        if result1['status'] == 'PASS': test_results['passed'] += 1
-        else: test_results['failed'] += 1
-        
-        # Test 2: Model Training
-        result2 = BackendTesting.test_model_training()
-        test_results['details'].append(result2)
-        test_results['total'] += 1
-        if result2['status'] == 'PASS': test_results['passed'] += 1
-        else: test_results['failed'] += 1
-        
-        # Test 3: Assessment Calculation
-        result3 = BackendTesting.test_assessment_calculation()
-        test_results['details'].append(result3)
-        test_results['total'] += 1
-        if result3['status'] == 'PASS': test_results['passed'] += 1
-        else: test_results['failed'] += 1
-        
-        # Test 4: Data Storage
-        result4 = BackendTesting.test_data_storage()
-        test_results['details'].append(result4)
-        test_results['total'] += 1
-        if result4['status'] == 'PASS': test_results['passed'] += 1
-        else: test_results['failed'] += 1
-        
-        # Test 5: Report Generation
-        result5 = BackendTesting.test_report_generation()
-        test_results['details'].append(result5)
-        test_results['total'] += 1
-        if result5['status'] == 'PASS': test_results['passed'] += 1
-        else: test_results['failed'] += 1
-        
-        # Test 6: Performance Testing
-        result6 = BackendTesting.test_performance()
-        test_results['details'].append(result6)
-        test_results['total'] += 1
-        if result6['status'] == 'PASS': test_results['passed'] += 1
-        else: test_results['failed'] += 1
-        
-        # Test 7: Error Handling
-        result7 = BackendTesting.test_error_handling()
-        test_results['details'].append(result7)
-        test_results['total'] += 1
-        if result7['status'] == 'PASS': test_results['passed'] += 1
-        else: test_results['failed'] += 1
-        
-        return test_results
-    
-    @staticmethod
-    def test_data_loading():
-        """Test 1: Data Loading and Validation"""
-        test_result = {
-            'test_name': 'Data Loading and Validation',
-            'status': 'RUNNING',
-            'message': '',
-            'details': []
-        }
-        
-        try:
-            # Load data
-            data_url = "https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv"
-            df = pd.read_csv(data_url)
-            
-            # Validate data structure
-            test_result['details'].append(f"✓ Data loaded successfully: {len(df)} rows, {len(df.columns)} columns")
-            
-            # Check required columns
-            required_columns = ['Credit_Score', 'Location', 'Gender', 'Age', 'Mobile_Money_Txns', 
-                              'Airtime_Spend_ZWL', 'Utility_Payments_ZWL', 'Loan_Repayment_History']
-            
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            if missing_columns:
-                test_result['details'].append(f"✗ Missing required columns: {missing_columns}")
-                test_result['status'] = 'FAIL'
-            else:
-                test_result['details'].append("✓ All required columns present")
-            
-            # Check data types
-            numeric_cols = ['Age', 'Mobile_Money_Txns', 'Airtime_Spend_ZWL', 'Utility_Payments_ZWL']
-            for col in numeric_cols:
-                if col in df.columns and not pd.api.types.is_numeric_dtype(df[col]):
-                    test_result['details'].append(f"✗ Column {col} should be numeric")
-                    test_result['status'] = 'FAIL'
-                else:
-                    test_result['details'].append(f"✓ Column {col} has correct data type")
-            
-            # Check for missing values
-            missing_values = df.isnull().sum().sum()
-            if missing_values > 0:
-                test_result['details'].append(f"✗ Found {missing_values} missing values")
-                test_result['status'] = 'FAIL'
-            else:
-                test_result['details'].append("✓ No missing values found")
-            
-            # Check for duplicates
-            duplicates = df.duplicated().sum()
-            if duplicates > 0:
-                test_result['details'].append(f"✗ Found {duplicates} duplicate rows")
-                test_result['status'] = 'FAIL'
-            else:
-                test_result['details'].append("✓ No duplicate rows found")
-            
-            # Check target variable distribution
-            if 'Credit_Score' in df.columns:
-                class_distribution = df['Credit_Score'].value_counts()
-                test_result['details'].append(f"✓ Target variable distribution: {dict(class_distribution)}")
-                
-                # Check for class imbalance
-                if len(class_distribution) < 2:
-                    test_result['details'].append("✗ Insufficient classes in target variable")
-                    test_result['status'] = 'FAIL'
-            
-            if test_result['status'] == 'RUNNING':
-                test_result['status'] = 'PASS'
-                test_result['message'] = 'Data loading and validation tests passed'
-            
-        except Exception as e:
-            test_result['status'] = 'FAIL'
-            test_result['message'] = f'Data loading test failed: {str(e)}'
-            test_result['details'].append(f"✗ Error loading data: {str(e)}")
-        
-        return test_result
-    
-    @staticmethod
-    def test_model_training():
-        """Test 2: Model Training and Validation"""
-        test_result = {
-            'test_name': 'Model Training',
-            'status': 'RUNNING',
-            'message': '',
-            'details': []
-        }
-        
-        try:
-            # Load sample data
-            data_url = "https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv"
-            df = pd.read_csv(data_url)
-            
-            # Prepare data
-            X = df.drop("Credit_Score", axis=1)
-            y = df["Credit_Score"]
-            
-            # Encode categorical variables
-            label_encoders = {}
-            for column in X.select_dtypes(include=['object']).columns:
-                le = LabelEncoder()
-                X[column] = le.fit_transform(X[column])
-                label_encoders[column] = le
-            
-            # Encode target
-            target_encoder = LabelEncoder()
-            y_encoded = target_encoder.fit_transform(y)
-            
-            test_result['details'].append("✓ Data preprocessing completed")
-            
-            # Split data
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y_encoded, test_size=0.2, random_state=42
-            )
-            
-            test_result['details'].append(f"✓ Data split: {len(X_train)} train, {len(X_test)} test samples")
-            
-            # Train model
-            start_time = time.time()
-            model = RandomForestClassifier(
-                n_estimators=100,
-                random_state=42,
-                class_weight='balanced'
-            )
-            model.fit(X_train, y_train)
-            training_time = time.time() - start_time
-            
-            test_result['details'].append(f"✓ Model trained in {training_time:.2f} seconds")
-            
-            # Make predictions
-            y_pred = model.predict(X_test)
-            
-            # Calculate metrics
-            accuracy = accuracy_score(y_test, y_pred) * 100
-            precision = precision_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            recall = recall_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            
-            test_result['details'].append(f"✓ Model accuracy: {accuracy:.2f}%")
-            test_result['details'].append(f"✓ Model precision: {precision:.2f}%")
-            test_result['details'].append(f"✓ Model recall: {recall:.2f}%")
-            test_result['details'].append(f"✓ Model F1-score: {f1:.2f}%")
-            
-            # Validate metrics
-            if accuracy < 70:  # Minimum acceptable accuracy
-                test_result['details'].append("✗ Model accuracy below acceptable threshold (70%)")
-                test_result['status'] = 'FAIL'
-            else:
-                test_result['details'].append("✓ Model accuracy meets minimum requirements")
-            
-            # Feature importance check
-            feature_importance = model.feature_importances_
-            if len(feature_importance) == 0:
-                test_result['details'].append("✗ No feature importance calculated")
-                test_result['status'] = 'FAIL'
-            else:
-                test_result['details'].append(f"✓ Feature importance calculated for {len(feature_importance)} features")
-            
-            # Cross-validation
-            cv_scores = cross_val_score(model, X, y_encoded, cv=3, scoring='accuracy')
-            test_result['details'].append(f"✓ Cross-validation scores: {[f'{score*100:.1f}%' for score in cv_scores]}")
-            test_result['details'].append(f"✓ Cross-validation mean: {cv_scores.mean()*100:.1f}%")
-            
-            if test_result['status'] == 'RUNNING':
-                test_result['status'] = 'PASS'
-                test_result['message'] = 'Model training tests passed'
-            
-        except Exception as e:
-            test_result['status'] = 'FAIL'
-            test_result['message'] = f'Model training test failed: {str(e)}'
-            test_result['details'].append(f"✗ Error in model training: {str(e)}")
-        
-        return test_result
-    
-    @staticmethod
-    def test_assessment_calculation():
-        """Test 3: Assessment Calculation Logic"""
-        test_result = {
-            'test_name': 'Assessment Calculation',
-            'status': 'RUNNING',
-            'message': '',
-            'details': []
-        }
-        
-        try:
-            # Test cases for assessment calculation
-            test_cases = [
-                {'age': 35, 'mobile_txns': 150, 'repayment': 'Excellent', 'expected_score': 6},
-                {'age': 25, 'mobile_txns': 50, 'repayment': 'Good', 'expected_score': 4},
-                {'age': 20, 'mobile_txns': 20, 'repayment': 'Poor', 'expected_score': 0},
-            ]
-            
-            for i, test_case in enumerate(test_cases):
-                score = 0
-                
-                # Age factor
-                if 30 <= test_case['age'] <= 50:
-                    score += 2
-                elif 25 <= test_case['age'] < 30 or 50 < test_case['age'] <= 60:
-                    score += 1
-                
-                # Transaction activity (mock median = 100)
-                if test_case['mobile_txns'] > 100:
-                    score += 1
-                
-                # Repayment history
-                repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-                score += repayment_scores[test_case['repayment']]
-                
-                # Validate score
-                if score == test_case['expected_score']:
-                    test_result['details'].append(f"✓ Test case {i+1} passed: Score {score} == Expected {test_case['expected_score']}")
-                else:
-                    test_result['details'].append(f"✗ Test case {i+1} failed: Score {score} != Expected {test_case['expected_score']}")
-                    test_result['status'] = 'FAIL'
-            
-            # Test risk level calculation
-            risk_test_cases = [
-                {'score': 6, 'expected_risk': 'Low'},
-                {'score': 4, 'expected_risk': 'Medium'},
-                {'score': 2, 'expected_risk': 'High'},
-            ]
-            
-            for i, test_case in enumerate(risk_test_cases):
-                if test_case['score'] >= 5:
-                    risk_level = "Low"
-                elif test_case['score'] >= 3:
-                    risk_level = "Medium"
-                else:
-                    risk_level = "High"
-                
-                if risk_level == test_case['expected_risk']:
-                    test_result['details'].append(f"✓ Risk test {i+1} passed: {risk_level} == Expected {test_case['expected_risk']}")
-                else:
-                    test_result['details'].append(f"✗ Risk test {i+1} failed: {risk_level} != Expected {test_case['expected_risk']}")
-                    test_result['status'] = 'FAIL'
-            
-            if test_result['status'] == 'RUNNING':
-                test_result['status'] = 'PASS'
-                test_result['message'] = 'Assessment calculation tests passed'
-            
-        except Exception as e:
-            test_result['status'] = 'FAIL'
-            test_result['message'] = f'Assessment calculation test failed: {str(e)}'
-            test_result['details'].append(f"✗ Error in assessment calculation: {str(e)}")
-        
-        return test_result
-    
-    @staticmethod
-    def test_data_storage():
-        """Test 4: Data Storage and Retrieval"""
-        test_result = {
-            'test_name': 'Data Storage',
-            'status': 'RUNNING',
-            'message': '',
-            'details': []
-        }
-        
-        try:
-            # Create mock assessment data
-            assessment_data = {
-                'location': 'Harare',
-                'gender': 'Male',
-                'age': 35,
-                'mobile_money_txns': 150.0,
-                'airtime_spend': 5000.0,
-                'utility_payments': 3000.0,
-                'repayment_history': 'Excellent',
-                'score': 6,
-                'max_score': 6,
-                'risk_level': 'Low',
-                'predicted_class': 'Excellent',
-                'confidence': 95.5,
-                'assessment_id': 'TEST001',
-                'timestamp': datetime.now().isoformat(),
-                'date': datetime.now().strftime('%Y-%m-%d')
-            }
-            
-            # Test JSON serialization
-            try:
-                json_str = json.dumps(assessment_data)
-                test_result['details'].append("✓ Assessment data JSON serialization successful")
-            except Exception as e:
-                test_result['details'].append(f"✗ JSON serialization failed: {str(e)}")
-                test_result['status'] = 'FAIL'
-            
-            # Test data structure
-            required_fields = ['score', 'risk_level', 'assessment_id', 'timestamp']
-            for field in required_fields:
-                if field not in assessment_data:
-                    test_result['details'].append(f"✗ Missing required field: {field}")
-                    test_result['status'] = 'FAIL'
-                else:
-                    test_result['details'].append(f"✓ Required field {field} present")
-            
-            # Test date format
-            try:
-                datetime.fromisoformat(assessment_data['timestamp'].replace('Z', '+00:00'))
-                test_result['details'].append("✓ Timestamp format valid")
-            except Exception as e:
-                test_result['details'].append(f"✗ Invalid timestamp format: {str(e)}")
-                test_result['status'] = 'FAIL'
-            
-            # Test data types
-            if not isinstance(assessment_data['score'], (int, float)):
-                test_result['details'].append("✗ Score should be numeric")
-                test_result['status'] = 'FAIL'
-            else:
-                test_result['details'].append("✓ Score has correct data type")
-            
-            if test_result['status'] == 'RUNNING':
-                test_result['status'] = 'PASS'
-                test_result['message'] = 'Data storage tests passed'
-            
-        except Exception as e:
-            test_result['status'] = 'FAIL'
-            test_result['message'] = f'Data storage test failed: {str(e)}'
-            test_result['details'].append(f"✗ Error in data storage test: {str(e)}")
-        
-        return test_result
-    
-    @staticmethod
-    def test_report_generation():
-        """Test 5: Report Generation"""
-        test_result = {
-            'test_name': 'Report Generation',
-            'status': 'RUNNING',
-            'message': '',
-            'details': []
-        }
-        
-        try:
-            # Create mock statistics
-            stats = {
-                'total_assessments': 150,
-                'average_score': 4.2,
-                'approval_rate': 75.3,
-                'high_risk_rate': 12.5,
-                'daily_counts': {'2024-01-01': 5, '2024-01-02': 7},
-                'risk_distribution': {'Low': 80, 'Medium': 50, 'High': 20}
-            }
-            
-            # Test text report generation
-            try:
-                report_text = f"""
-                30-DAY ASSESSMENT REPORT
-                Total Assessments: {stats['total_assessments']}
-                Average Score: {stats['average_score']:.1f}/6
-                Approval Rate: {stats['approval_rate']:.1f}%
-                High Risk Rate: {stats['high_risk_rate']:.1f}%
-                """
-                test_result['details'].append("✓ Text report generation successful")
-            except Exception as e:
-                test_result['details'].append(f"✗ Text report generation failed: {str(e)}")
-                test_result['status'] = 'FAIL'
-            
-            # Test CSV report generation
-            try:
-                csv_data = {
-                    'metric': ['Total Assessments', 'Average Score', 'Approval Rate'],
-                    'value': [stats['total_assessments'], stats['average_score'], stats['approval_rate']]
-                }
-                csv_df = pd.DataFrame(csv_data)
-                csv_content = csv_df.to_csv(index=False)
-                test_result['details'].append("✓ CSV report generation successful")
-            except Exception as e:
-                test_result['details'].append(f"✗ CSV report generation failed: {str(e)}")
-                test_result['status'] = 'FAIL'
-            
-            # Test JSON report generation
-            try:
-                json_report = {
-                    'timestamp': datetime.now().isoformat(),
-                    'summary': stats
-                }
-                json_str = json.dumps(json_report, indent=2)
-                test_result['details'].append("✓ JSON report generation successful")
-            except Exception as e:
-                test_result['details'].append(f"✗ JSON report generation failed: {str(e)}")
-                test_result['status'] = 'FAIL'
-            
-            if test_result['status'] == 'RUNNING':
-                test_result['status'] = 'PASS'
-                test_result['message'] = 'Report generation tests passed'
-            
-        except Exception as e:
-            test_result['status'] = 'FAIL'
-            test_result['message'] = f'Report generation test failed: {str(e)}'
-            test_result['details'].append(f"✗ Error in report generation: {str(e)}")
-        
-        return test_result
-    
-    @staticmethod
-    def test_performance():
-        """Test 6: Performance Testing"""
-        test_result = {
-            'test_name': 'Performance Testing',
-            'status': 'RUNNING',
-            'message': '',
-            'details': []
-        }
-        
-        try:
-            # Test assessment calculation performance
-            start_time = time.time()
-            
-            # Simulate 1000 assessment calculations
-            for i in range(1000):
-                score = 0
-                age = np.random.randint(18, 70)
-                mobile_txns = np.random.uniform(0, 300)
-                
-                if 30 <= age <= 50:
-                    score += 2
-                elif 25 <= age < 30 or 50 < age <= 60:
-                    score += 1
-                
-                if mobile_txns > 100:
-                    score += 1
-                
-                repayment = np.random.choice(['Poor', 'Fair', 'Good', 'Excellent'])
-                repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-                score += repayment_scores[repayment]
-            
-            calculation_time = time.time() - start_time
-            test_result['details'].append(f"✓ 1000 assessment calculations in {calculation_time:.3f} seconds")
-            test_result['details'].append(f"✓ Average time per calculation: {calculation_time/1000*1000:.2f} milliseconds")
-            
-            if calculation_time > 5.0:  # Should complete in under 5 seconds
-                test_result['details'].append("✗ Assessment calculation too slow")
-                test_result['status'] = 'FAIL'
-            
-            # Test data processing performance
-            start_time = time.time()
-            
-            # Create sample data
-            sample_size = 10000
-            sample_data = {
-                'Age': np.random.randint(18, 70, sample_size),
-                'Mobile_Money_Txns': np.random.uniform(0, 500, sample_size),
-                'Score': np.random.randint(0, 7, sample_size)
-            }
-            
-            df_sample = pd.DataFrame(sample_data)
-            
-            # Perform common operations
-            df_sample['Age_Group'] = pd.cut(df_sample['Age'], bins=[0, 30, 50, 100])
-            avg_score_by_age = df_sample.groupby('Age_Group')['Score'].mean()
-            
-            processing_time = time.time() - start_time
-            test_result['details'].append(f"✓ Data processing for {sample_size} records in {processing_time:.3f} seconds")
-            
-            if processing_time > 2.0:  # Should process in under 2 seconds
-                test_result['details'].append("✗ Data processing too slow")
-                test_result['status'] = 'FAIL'
-            
-            if test_result['status'] == 'RUNNING':
-                test_result['status'] = 'PASS'
-                test_result['message'] = 'Performance tests passed'
-            
-        except Exception as e:
-            test_result['status'] = 'FAIL'
-            test_result['message'] = f'Performance test failed: {str(e)}'
-            test_result['details'].append(f"✗ Error in performance testing: {str(e)}")
-        
-        return test_result
-    
-    @staticmethod
-    def test_error_handling():
-        """Test 7: Error Handling and Edge Cases"""
-        test_result = {
-            'test_name': 'Error Handling',
-            'status': 'RUNNING',
-            'message': '',
-            'details': []
-        }
-        
-        try:
-            # Test invalid age handling
-            test_cases = [
-                {'age': -5, 'expected': 'handles negative age'},
-                {'age': 150, 'expected': 'handles unrealistic age'},
-                {'age': 'invalid', 'expected': 'handles non-numeric age'},
-            ]
-            
-            for i, test_case in enumerate(test_cases):
-                try:
-                    age = test_case['age']
-                    if not isinstance(age, (int, float)):
-                        raise ValueError("Age must be numeric")
-                    if age < 0 or age > 120:
-                        raise ValueError("Age out of reasonable range")
-                    
-                    # Normal calculation
-                    score = 0
-                    if 30 <= age <= 50:
-                        score += 2
-                    
-                    test_result['details'].append(f"✓ Test case {i+1} passed: {test_case['expected']}")
-                    
-                except (ValueError, TypeError) as e:
-                    test_result['details'].append(f"✓ Test case {i+1} passed: Properly handles error - {str(e)}")
-                except Exception as e:
-                    test_result['details'].append(f"✗ Test case {i+1} failed: Unexpected error - {str(e)}")
-                    test_result['status'] = 'FAIL'
-            
-            # Test missing data handling
-            try:
-                incomplete_data = {'age': 30}  # Missing other fields
-                score = incomplete_data.get('score', 0)  # Default value
-                test_result['details'].append("✓ Handles missing data with default values")
-            except Exception as e:
-                test_result['details'].append(f"✗ Failed to handle missing data: {str(e)}")
-                test_result['status'] = 'FAIL'
-            
-            # Test boundary conditions
-            try:
-                # Minimum possible score
-                min_score_calc = 0  # Age <25, low transactions, Poor repayment
-                # Maximum possible score
-                max_score_calc = 6  # Age 30-50, high transactions, Excellent repayment
-                
-                test_result['details'].append("✓ Boundary conditions handled correctly")
-            except Exception as e:
-                test_result['details'].append(f"✗ Boundary condition test failed: {str(e)}")
-                test_result['status'] = 'FAIL'
-            
-            if test_result['status'] == 'RUNNING':
-                test_result['status'] = 'PASS'
-                test_result['message'] = 'Error handling tests passed'
-            
-        except Exception as e:
-            test_result['status'] = 'FAIL'
-            test_result['message'] = f'Error handling test failed: {str(e)}'
-            test_result['details'].append(f"✗ Error in error handling test: {str(e)}")
-        
-        return test_result
-
-# ============================================================================
-# MAIN APPLICATION FUNCTIONS
-# ============================================================================
 
 # Load data
 @st.cache_data
@@ -883,6 +245,99 @@ def get_30day_assessment_stats():
     }
     
     return stats
+
+def generate_30day_trend_chart(stats):
+    """Generate 30-day trend chart from actual assessment data"""
+    if not stats or 'daily_counts' not in stats or not stats['daily_counts']:
+        return None
+    
+    dates = list(stats['daily_counts'].keys())
+    counts = list(stats['daily_counts'].values())
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=dates,
+        y=counts,
+        mode='lines+markers',
+        name='Daily Assessments',
+        line=dict(color='#1f77b4', width=3),
+        marker=dict(size=8)
+    ))
+    
+    fig.update_layout(
+        title='30-Day Assessment Volume Trend',
+        xaxis_title='Date',
+        yaxis_title='Number of Assessments',
+        hovermode='x unified',
+        height=400
+    )
+    
+    return fig
+
+def generate_score_trend_chart(stats):
+    """Generate 30-day score trend chart"""
+    if not stats or 'daily_scores' not in stats or not stats['daily_scores']:
+        return None
+    
+    dates = list(stats['daily_scores'].keys())
+    scores = list(stats['daily_scores'].values())
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=dates,
+        y=scores,
+        mode='lines+markers',
+        name='Average Daily Score',
+        line=dict(color='#28a745', width=3),
+        marker=dict(size=8)
+    ))
+    
+    # Add target line (score of 3)
+    fig.add_hline(
+        y=3,
+        line_dash="dash",
+        line_color="red",
+        annotation_text="Approval Threshold (Score = 3)"
+    )
+    
+    fig.update_layout(
+        title='Monthly Average Score Trend',
+        xaxis_title='Date',
+        yaxis_title='Average Score',
+        yaxis=dict(range=[0, 6]),
+        hovermode='x unified',
+        height=400
+    )
+    
+    return fig
+
+def generate_risk_distribution_chart(stats):
+    """Generate risk distribution chart"""
+    if not stats or 'risk_distribution' not in stats or not stats['risk_distribution']:
+        return None
+    
+    risks = list(stats['risk_distribution'].keys())
+    counts = list(stats['risk_distribution'].values())
+    
+    colors = ['#28a745', '#ffc107', '#dc3545']  # Green, Yellow, Red
+    
+    fig = go.Figure(data=[
+        go.Pie(
+            labels=risks,
+            values=counts,
+            hole=.3,
+            marker=dict(colors=colors[:len(risks)])
+        )
+    ])
+    
+    fig.update_layout(
+        title='30-Day Risk Level Distribution',
+        height=400
+    )
+    
+    return fig
 
 # Custom JSON encoder
 class NumpyEncoder(json.JSONEncoder):
@@ -1001,49 +456,13 @@ with st.sidebar:
                                          sorted(df['Loan_Repayment_History'].unique()))
     
     st.markdown("---")
-    
-    # Backend Testing Button
-    if st.button("🔧 Run Backend Tests", type="secondary", use_container_width=True):
-        st.info("Running comprehensive backend tests...")
-        test_results = BackendTesting.run_all_tests()
-        
-        # Display test results
-        st.markdown(f"### 📊 Test Results: {test_results['passed']}/{test_results['total']} Passed")
-        
-        for test in test_results['details']:
-            if test['status'] == 'PASS':
-                st.markdown(f"""
-                <div class="test-pass">
-                    <strong>✅ {test['test_name']}</strong><br>
-                    {test['message']}
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="test-fail">
-                    <strong>❌ {test['test_name']}</strong><br>
-                    {test['message']}
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Show details
-            with st.expander(f"View details for {test['test_name']}"):
-                for detail in test['details']:
-                    st.write(detail)
-        
-        # Overall status
-        if test_results['failed'] == 0:
-            st.success("🎉 All backend tests passed successfully!")
-        else:
-            st.error(f"⚠️ {test_results['failed']} test(s) failed. Please review the details.")
-    
     if st.button("🚀 Train Model", type="primary", use_container_width=True):
         if train_model():
             st.success("✅ Model trained successfully!")
             st.rerun()
 
-# Main tabs - ADDED BACKEND TESTING TAB
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model", "📈 Model Accuracy", "📋 30-Day Reports", "🧪 Backend Testing"])
+# Main tabs - Clean 6 tabs only
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model", "📈 Model Accuracy", "📋 Monthly Reports"])
 
 with tab1:
     st.markdown("### 📈 Dataset Overview")
@@ -1323,6 +742,70 @@ with tab6:
             </div>
             """, unsafe_allow_html=True)
         
+        # Generate visualizations
+        st.markdown("#### 📊 30-Day Trends")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            volume_chart = generate_30day_trend_chart(stats)
+            if volume_chart:
+                st.plotly_chart(volume_chart, use_container_width=True)
+            else:
+                st.info("No trend data available")
+        
+        with col2:
+            score_chart = generate_score_trend_chart(stats)
+            if score_chart:
+                st.plotly_chart(score_chart, use_container_width=True)
+            else:
+                st.info("No score trend data available")
+        
+        # Risk distribution
+        st.markdown("#### 🎯 Risk Distribution")
+        
+        risk_chart = generate_risk_distribution_chart(stats)
+        if risk_chart:
+            st.plotly_chart(risk_chart, use_container_width=True)
+        
+        # Detailed statistics
+        st.markdown("#### 📋 Detailed Statistics")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("##### 📊 Assessment Metrics")
+            metrics_data = {
+                'Metric': ['Total Assessments', 'Average Score', 'Median Score', 
+                          'Approval Rate', 'High Risk Rate', 'Low Risk Rate'],
+                'Value': [
+                    f"{stats['total_assessments']}",
+                    f"{stats['average_score']:.2f}",
+                    f"{stats['median_score']:.2f}",
+                    f"{stats['approval_rate']:.1f}%",
+                    f"{stats['high_risk_rate']:.1f}%",
+                    f"{stats['low_risk_rate']:.1f}%"
+                ]
+            }
+            metrics_df = pd.DataFrame(metrics_data)
+            st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+        
+        with col2:
+            st.markdown("##### 📈 Daily Performance")
+            if stats['daily_counts']:
+                daily_data = []
+                for date, count in list(stats['daily_counts'].items())[-7:]:  # Last 7 days
+                    avg_score = stats['daily_scores'].get(date, 0)
+                    daily_data.append({
+                        'Date': date,
+                        'Assessments': count,
+                        'Avg Score': f"{avg_score:.1f}"
+                    })
+                
+                if daily_data:
+                    daily_df = pd.DataFrame(daily_data)
+                    st.dataframe(daily_df, use_container_width=True, hide_index=True)
+        
         # Report generation
         st.markdown("---")
         st.markdown("#### 📄 Generate 30-Day Report")
@@ -1335,6 +818,7 @@ with tab6:
         if st.button("📊 Generate 30-Day Report", type="primary", use_container_width=True):
             st.markdown(f"#### 📋 {report_type} - Last 30 Days")
             
+            # Report header
             st.markdown(f"""
             <div class="report-card">
                 <h2>ZIM SMART CREDIT APP</h2>
@@ -1345,6 +829,23 @@ with tab6:
             </div>
             """, unsafe_allow_html=True)
             
+            # Key insights
+            st.markdown("#### 💡 Key Insights")
+            
+            insights = []
+            if stats['approval_rate'] > 70:
+                insights.append("✅ **High Approval Rate**: Most applicants are creditworthy")
+            if stats['average_score'] > 4:
+                insights.append("✅ **Strong Average Score**: Applicants show good financial behavior")
+            if stats['high_risk_rate'] < 20:
+                insights.append("✅ **Low High-Risk Rate**: Minimal high-risk applications")
+            
+            if insights:
+                for insight in insights:
+                    st.success(insight)
+            else:
+                st.info("No significant insights identified")
+            
             # Download options
             st.markdown("---")
             st.markdown("#### 💾 Download Report")
@@ -1352,6 +853,7 @@ with tab6:
             col1, col2, col3 = st.columns(3)
             
             with col1:
+                # Text report
                 report_text = f"""
                 30-DAY ASSESSMENT REPORT - ZIM SMART CREDIT APP
                 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -1364,7 +866,18 @@ with tab6:
                 - Approval Rate: {stats['approval_rate']:.1f}%
                 - High Risk Rate: {stats['high_risk_rate']:.1f}%
                 - Low Risk Rate: {stats['low_risk_rate']:.1f}%
+                
+                RISK DISTRIBUTION:
                 """
+                
+                for risk, count in stats.get('risk_distribution', {}).items():
+                    report_text += f"- {risk}: {count} assessments\n"
+                
+                report_text += f"\nDAILY TRENDS (Last 7 Days):\n"
+                if stats.get('daily_counts'):
+                    for date, count in list(stats['daily_counts'].items())[-7:]:
+                        avg_score = stats['daily_scores'].get(date, 0)
+                        report_text += f"- {date}: {count} assessments, Avg Score: {avg_score:.1f}\n"
                 
                 st.download_button(
                     label="📄 Download Text Report",
@@ -1375,6 +888,7 @@ with tab6:
                 )
             
             with col2:
+                # CSV report
                 csv_data = {
                     'report_type': ['30-Day Assessment Report'],
                     'period': ['Last 30 Days'],
@@ -1385,6 +899,14 @@ with tab6:
                     'low_risk_rate': [stats['low_risk_rate']],
                     'generated_date': [datetime.now().strftime('%Y-%m-%d')]
                 }
+                
+                # Add daily data
+                if stats.get('daily_counts'):
+                    dates = list(stats['daily_counts'].keys())[-7:]
+                    for i, date in enumerate(dates):
+                        csv_data[f'day_{i+1}_date'] = [date]
+                        csv_data[f'day_{i+1}_assessments'] = [stats['daily_counts'].get(date, 0)]
+                        csv_data[f'day_{i+1}_avg_score'] = [stats['daily_scores'].get(date, 0)]
                 
                 csv_df = pd.DataFrame(csv_data)
                 csv_content = csv_df.to_csv(index=False)
@@ -1398,6 +920,7 @@ with tab6:
                 )
             
             with col3:
+                # JSON report
                 json_report = {
                     'timestamp': datetime.now().isoformat(),
                     'report_type': f'30-Day {report_type}',
@@ -1411,6 +934,11 @@ with tab6:
                         'low_risk_rate': stats['low_risk_rate']
                     },
                     'risk_distribution': stats.get('risk_distribution', {}),
+                    'daily_trends': {
+                        'dates': list(stats.get('daily_counts', {}).keys())[-7:],
+                        'counts': list(stats.get('daily_counts', {}).values())[-7:],
+                        'scores': list(stats.get('daily_scores', {}).values())[-7:]
+                    } if stats.get('daily_counts') else None,
                     'model_performance': st.session_state.model_metrics if st.session_state.model_trained else None
                 }
                 
@@ -1423,250 +951,3 @@ with tab6:
                     mime="application/json",
                     use_container_width=True
                 )
-
-# NEW BACKEND TESTING TAB
-with tab7:
-    st.markdown("### 🧪 Backend Testing Documentation")
-    
-    st.markdown("""
-    <div class="card">
-        <h3>🔧 Comprehensive Backend Testing Framework</h3>
-        <p>This section documents the backend testing methodology for the Zim Smart Credit App.
-        All tests are implemented and can be run directly from the application.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Testing Documentation
-    st.markdown("#### 📋 Testing Methodology")
-    
-    with st.expander("🔍 Test 1: Data Loading and Validation"):
-        st.markdown("""
-        **Objective**: Ensure data is loaded correctly and meets quality standards
-        
-        **Test Procedures**:
-        1. Load dataset from GitHub URL
-        2. Validate required columns exist
-        3. Check data types for numeric columns
-        4. Identify missing values
-        5. Detect duplicate records
-        6. Analyze target variable distribution
-        
-        **Validation Criteria**:
-        - All required columns present
-        - Numeric columns have correct data types
-        - No missing values in critical fields
-        - No duplicate records
-        - Target variable has sufficient class distribution
-        
-        **Implementation**: `BackendTesting.test_data_loading()`
-        """)
-    
-    with st.expander("🤖 Test 2: Model Training and Validation"):
-        st.markdown("""
-        **Objective**: Validate machine learning model training process
-        
-        **Test Procedures**:
-        1. Preprocess data (encoding, scaling)
-        2. Split data into train/test sets
-        3. Train Random Forest model
-        4. Measure training time
-        5. Calculate performance metrics
-        6. Validate feature importance
-        7. Perform cross-validation
-        
-        **Validation Criteria**:
-        - Model trains without errors
-        - Training completes within acceptable time
-        - Accuracy > 70% (minimum threshold)
-        - Feature importance calculated correctly
-        - Cross-validation shows consistent performance
-        
-        **Implementation**: `BackendTesting.test_model_training()`
-        """)
-    
-    with st.expander("🎯 Test 3: Assessment Calculation Logic"):
-        st.markdown("""
-        **Objective**: Verify credit assessment scoring logic
-        
-        **Test Procedures**:
-        1. Test age factor calculation
-        2. Test transaction activity scoring
-        3. Test repayment history scoring
-        4. Validate total score calculation
-        5. Test risk level classification
-        6. Verify edge cases
-        
-        **Validation Criteria**:
-        - Scores calculated correctly for all test cases
-        - Risk levels assigned appropriately
-        - Edge cases handled gracefully
-        - Calculation logic matches business rules
-        
-        **Implementation**: `BackendTesting.test_assessment_calculation()`
-        """)
-    
-    with st.expander("💾 Test 4: Data Storage and Retrieval"):
-        st.markdown("""
-        **Objective**: Ensure assessment data is stored correctly
-        
-        **Test Procedures**:
-        1. Test JSON serialization of assessment data
-        2. Validate data structure
-        3. Check required fields
-        4. Verify timestamp format
-        5. Test data type consistency
-        
-        **Validation Criteria**:
-        - Assessment data can be serialized to JSON
-        - All required fields present
-        - Timestamps in valid ISO format
-        - Data types consistent with expectations
-        
-        **Implementation**: `BackendTesting.test_data_storage()`
-        """)
-    
-    with st.expander("📄 Test 5: Report Generation"):
-        st.markdown("""
-        **Objective**: Validate report generation functionality
-        
-        **Test Procedures**:
-        1. Test text report generation
-        2. Test CSV report generation
-        3. Test JSON report generation
-        4. Validate report content
-        5. Test formatting and structure
-        
-        **Validation Criteria**:
-        - Reports generate without errors
-        - All formats supported (text, CSV, JSON)
-        - Report content is accurate
-        - Formatting meets requirements
-        
-        **Implementation**: `BackendTesting.test_report_generation()`
-        """)
-    
-    with st.expander("⚡ Test 6: Performance Testing"):
-        st.markdown("""
-        **Objective**: Ensure application meets performance requirements
-        
-        **Test Procedures**:
-        1. Test assessment calculation performance
-        2. Measure data processing speed
-        3. Test with large datasets
-        4. Monitor memory usage patterns
-        5. Validate response times
-        
-        **Validation Criteria**:
-        - Assessment calculations complete in < 5 seconds for 1000 records
-        - Data processing completes in < 2 seconds for 10,000 records
-        - Memory usage remains within limits
-        - No memory leaks detected
-        
-        **Implementation**: `BackendTesting.test_performance()`
-        """)
-    
-    with st.expander("⚠️ Test 7: Error Handling and Edge Cases"):
-        st.markdown("""
-        **Objective**: Validate robust error handling
-        
-        **Test Procedures**:
-        1. Test invalid input handling
-        2. Test missing data scenarios
-        3. Test boundary conditions
-        4. Test exception handling
-        5. Validate error messages
-        
-        **Validation Criteria**:
-        - Invalid inputs handled gracefully
-        - Missing data doesn't crash application
-        - Boundary conditions handled correctly
-        - Exceptions are caught and logged
-        - Error messages are informative
-        
-        **Implementation**: `BackendTesting.test_error_handling()`
-        """)
-    
-    # Run Tests Button
-    st.markdown("---")
-    st.markdown("#### 🚀 Run Comprehensive Tests")
-    
-    if st.button("▶️ Execute All Backend Tests", type="primary", use_container_width=True):
-        with st.spinner("Running comprehensive backend tests..."):
-            test_results = BackendTesting.run_all_tests()
-            
-            # Display summary
-            st.markdown(f"### 📊 Test Results Summary")
-            st.markdown(f"**Total Tests:** {test_results['total']}")
-            st.markdown(f"**✅ Passed:** {test_results['passed']}")
-            st.markdown(f"**❌ Failed:** {test_results['failed']}")
-            
-            # Calculate pass percentage
-            pass_percentage = (test_results['passed'] / test_results['total']) * 100
-            st.progress(pass_percentage / 100)
-            
-            # Display detailed results
-            st.markdown("#### 📋 Detailed Test Results")
-            
-            for test in test_results['details']:
-                if test['status'] == 'PASS':
-                    st.markdown(f"""
-                    <div class="test-pass">
-                        <strong>✅ {test['test_name']}</strong><br>
-                        <small>{test['message']}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="test-fail">
-                        <strong>❌ {test['test_name']}</strong><br>
-                        <small>{test['message']}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                # Show test details in expander
-                with st.expander(f"View test details for {test['test_name']}"):
-                    for detail in test['details']:
-                        if detail.startswith("✓"):
-                            st.success(detail)
-                        elif detail.startswith("✗"):
-                            st.error(detail)
-                        else:
-                            st.info(detail)
-            
-            # Overall assessment
-            st.markdown("---")
-            if test_results['failed'] == 0:
-                st.success("🎉 **ALL TESTS PASSED!** The backend is functioning correctly.")
-            else:
-                st.warning(f"⚠️ **{test_results['failed']} TEST(S) FAILED.** Please review the failed tests above.")
-                
-                # Recommendations for failed tests
-                st.markdown("#### 🔧 Recommendations for Failed Tests:")
-                for test in test_results['details']:
-                    if test['status'] == 'FAIL':
-                        st.error(f"**{test['test_name']}**: {test['message']}")
-    
-    # Testing Best Practices
-    st.markdown("---")
-    st.markdown("#### 📚 Testing Best Practices")
-    
-    st.markdown("""
-    **Continuous Testing Strategy:**
-    1. **Automated Testing**: All backend tests are automated and can be run on-demand
-    2. **Comprehensive Coverage**: Tests cover data, models, calculations, storage, and reports
-    3. **Performance Monitoring**: Regular performance testing ensures scalability
-    4. **Error Handling**: Robust error handling tests ensure application stability
-    5. **Documentation**: All tests are well-documented for maintenance
-    
-    **Testing Frequency:**
-    - Run all tests before deployment
-    - Run performance tests weekly
-    - Run error handling tests monthly
-    - Run comprehensive tests after major changes
-    
-    **Quality Metrics:**
-    - Test coverage > 90%
-    - All critical tests must pass
-    - Performance within acceptable limits
-    - No critical security vulnerabilities
-    """)
