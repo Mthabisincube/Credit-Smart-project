@@ -10,6 +10,11 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import json
 import uuid
+import shap
+import matplotlib.pyplot as plt
+from fpdf import FPDF
+import base64
+import os
 
 # Page configuration
 st.set_page_config(
@@ -154,6 +159,13 @@ if 'model' not in st.session_state:
     st.session_state.target_encoder = None
     st.session_state.model_metrics = {}
     st.session_state.model_trained = False
+    
+# For Explainable AI (SHAP)
+if 'explainer' not in st.session_state:
+    st.session_state.explainer = None
+    st.session_state.shap_values = None
+    st.session_state.X_sample = None
+    st.session_state.X_columns = None
 
 if 'assessment_results' not in st.session_state:
     st.session_state.assessment_results = {
@@ -370,6 +382,63 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NumpyEncoder, self).default(obj)
 
+# ================= NEW FEATURES =================
+def generate_pdf_report(assessment_data, recommendations):
+    # This prevents an issue when running on non-latin-1 environments
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt="Zim Smart Credit App - Assessment Report", ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    pdf.ln(10)
+    
+    pdf.cell(200, 10, txt=f"Assessment ID: {assessment_data.get('assessment_id', 'N/A')}", ln=True)
+    pdf.cell(200, 10, txt=f"Date: {assessment_data.get('date', 'N/A')}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="Applicant Details", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 8, txt=f"Location: {assessment_data.get('location')}", ln=True)
+    pdf.cell(200, 8, txt=f"Gender: {assessment_data.get('gender')}", ln=True)
+    pdf.cell(200, 8, txt=f"Age: {assessment_data.get('age')}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="Financial Behavior", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 8, txt=f"Mobile Money Txns: {assessment_data.get('mobile_money_txns')}", ln=True)
+    pdf.cell(200, 8, txt=f"Airtime Spend (ZWL): {assessment_data.get('airtime_spend')}", ln=True)
+    pdf.cell(200, 8, txt=f"Utility Payments (ZWL): {assessment_data.get('utility_payments')}", ln=True)
+    pdf.cell(200, 8, txt=f"Repayment History: {assessment_data.get('repayment_history')}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="Assessment Results", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 8, txt=f"Score: {assessment_data.get('score')}/{assessment_data.get('max_score')}", ln=True)
+    pdf.cell(200, 8, txt=f"Risk Level: {assessment_data.get('risk_level')}", ln=True)
+    
+    if assessment_data.get('predicted_class'):
+        pdf.cell(200, 8, txt=f"AI Prediction: {assessment_data.get('predicted_class')} (Confidence: {assessment_data.get('confidence')}%)", ln=True)
+    
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="Recommendations", ln=True)
+    pdf.set_font("Arial", size=12)
+    for rec in recommendations.split('\n'):
+        # Ensure we don't encounter latin-1 encoding errors replacing fancy ticks
+        clean_rec = rec.replace("✓", "- [OK]").replace("✗", "- [NO]").replace("⚠", "- [WARN]")
+        pdf.cell(200, 8, txt=clean_rec, ln=True)
+        
+    return pdf.output(dest='S').encode('latin-1', errors='replace')
+
+def get_pdf_download_link(pdf_bytes, filename):
+    b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+    href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="success-box" style="text-decoration: none; display: block; text-align: center; font-weight: bold;">📄 Download Full PDF Report</a>'
+    return href
+# ================================================
+
 def train_model():
     with st.spinner("🤖 Training Random Forest model..."):
         try:
@@ -390,7 +459,7 @@ def train_model():
             )
             
             model = RandomForestClassifier(
-                n_estimators=200,
+                n_estimators=100,
                 max_depth=20,
                 min_samples_split=5,
                 min_samples_leaf=2,
@@ -431,6 +500,19 @@ def train_model():
                 'feature_importance': {k: float(v) for k, v in dict(zip(X.columns, model.feature_importances_)).items()}
             }
             
+            # --- SHAP EXPLAINER INITIALIZATION ---
+            st.session_state.X_columns = X.columns.tolist()
+            try:
+                # TreeExplainer is fast for Random Forest
+                explainer = shap.TreeExplainer(model)
+                X_sample = X_test.sample(n=min(100, len(X_test)), random_state=42)
+                shap_values = explainer.shap_values(X_sample)
+                st.session_state.explainer = explainer
+                st.session_state.shap_values = shap_values
+                st.session_state.X_sample = X_sample
+            except Exception as e:
+                st.warning(f"Could not initialize SHAP explainer: {e}")
+            
             return True
             
         except Exception as e:
@@ -468,6 +550,16 @@ with st.sidebar:
     
     Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", 
                                          sorted(df['Loan_Repayment_History'].unique()))
+                                         
+    current_inputs = {
+        'Location': Location,
+        'Gender': gender,
+        'Age': Age,
+        'Mobile_Money_Txns': Mobile_Money_Txns,
+        'Airtime_Spend_ZWL': Airtime_Spend_ZWL,
+        'Utility_Payments_ZWL': Utility_Payments_ZWL,
+        'Loan_Repayment_History': Loan_Repayment_History
+    }
     
     st.markdown("---")
     if st.button("🚀 Train Model", type="primary", use_container_width=True):
@@ -475,8 +567,18 @@ with st.sidebar:
             st.success("✅ Model trained successfully!")
             st.rerun()
 
-# Main tabs - Changed tab6 name from "📋 30-Day Reports" to "📋 Monthly Reports"
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Dashboard", "🔍 Analysis", "🎯 Assessment", "🤖 AI Model", "📈 Model Accuracy", "📋 Monthly Reports"])
+# Main tabs 
+# Added new tabs for the newly requested features
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    "📊 Dashboard", 
+    "🔍 Analysis", 
+    "🎯 Assessment", 
+    "🤖 Explainable AI", 
+    "🔄 Credit Simulator",
+    "👥 Peer Comparison",
+    "📈 Accuracy", 
+    "📋 Monthly Reports"
+])
 
 with tab1:
     st.markdown("### 📈 Dataset Overview")
@@ -548,127 +650,171 @@ with tab3:
     # Assessment calculation
     score = 0
     max_score = 6
+    if 30 <= Age <= 50: score += 2
+    elif 25 <= Age < 30 or 50 < Age <= 60: score += 1
     
-    col1, col2, col3 = st.columns(3)
+    mobile_median = df['Mobile_Money_Txns'].median()
+    if Mobile_Money_Txns > mobile_median: score += 1
     
-    with col1:
-        if 30 <= Age <= 50:
-            score += 2
-            st.success("✅ Optimal Age")
-        elif 25 <= Age < 30 or 50 < Age <= 60:
-            score += 1
-            st.warning("⚠️ Moderate Age")
-        else:
-            st.error("❌ Higher Risk Age")
+    repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
+    score += repayment_scores[Loan_Repayment_History]
     
-    with col2:
-        mobile_median = df['Mobile_Money_Txns'].median()
-        if Mobile_Money_Txns > mobile_median:
-            score += 1
-            st.success("✅ Above Average Transactions")
-        else:
-            st.warning("⚠️ Below Average Transactions")
-    
-    with col3:
-        repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-        score += repayment_scores[Loan_Repayment_History]
-        st.info(f"Repayment: {Loan_Repayment_History}")
-    
-    # Save assessment when user completes it
-    if st.button("💾 Save Assessment", type="primary", use_container_width=True):
-        assessment_data = {
-            'location': Location,
-            'gender': gender,
-            'age': Age,
-            'mobile_money_txns': Mobile_Money_Txns,
-            'airtime_spend': Airtime_Spend_ZWL,
-            'utility_payments': Utility_Payments_ZWL,
-            'repayment_history': Loan_Repayment_History,
-            'score': score,
-            'max_score': max_score,
-            'risk_level': get_risk_level(score),
-            'predicted_class': None,
-            'confidence': None
-        }
-        
-        assessment_id = save_assessment(assessment_data)
-        
-        # Update session state
-        st.session_state.assessment_results = {
-            'score': score,
-            'max_score': max_score,
-            'predicted_class': None,
-            'confidence': None,
-            'risk_level': get_risk_level(score),
-            'assessment_id': assessment_id,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        st.success(f"✅ Assessment saved! ID: {assessment_id}")
-    
-    # Display results
     percentage = (score / max_score) * 100
+    risk_level = get_risk_level(score)
+    recs = get_recommendations(score, st.session_state.assessment_results.get('predicted_class'))
     
     col1, col2 = st.columns([1, 2])
-    
     with col1:
         st.metric("📈 Score", f"{score}/{max_score}")
         st.metric("📊 Percentage", f"{percentage:.1f}%")
         st.progress(percentage / 100)
-    
     with col2:
-        if score >= 5:
-            st.success("### ✅ EXCELLENT CREDITWORTHINESS")
-            st.write("Strong candidate for credit approval with favorable terms")
-        elif score >= 3:
-            st.warning("### ⚠️ MODERATE RISK PROFILE")
-            st.write("Standard verification process with moderate credit limits")
-        else:
-            st.error("### ❌ HIGHER RISK PROFILE")
-            st.write("Enhanced verification and possible collateral required")
+        if score >= 5: st.success("### ✅ EXCELLENT CREDITWORTHINESS")
+        elif score >= 3: st.warning("### ⚠️ MODERATE RISK PROFILE")
+        else: st.error("### ❌ HIGHER RISK PROFILE")
+        st.write(f"**Risk Level:** {risk_level}")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Save Assessment", type="primary", use_container_width=True):
+            assessment_data = {
+                'location': Location, 'gender': gender, 'age': Age,
+                'mobile_money_txns': Mobile_Money_Txns, 'airtime_spend': Airtime_Spend_ZWL,
+                'utility_payments': Utility_Payments_ZWL, 'repayment_history': Loan_Repayment_History,
+                'score': score, 'max_score': max_score, 'risk_level': risk_level,
+                'predicted_class': None, 'confidence': None
+            }
+            assessment_id = save_assessment(assessment_data)
+            st.session_state.assessment_results.update({
+                'score': score, 'risk_level': risk_level, 'assessment_id': assessment_id, 
+                'timestamp': datetime.now().isoformat()
+            })
+            st.success(f"✅ Assessment saved! ID: {assessment_id}")
+            st.rerun()
+
+    with col2:
+        if st.session_state.assessment_results.get('assessment_id'):
+            st.markdown("#### Option: PDF Export")
+            try:
+                # Add PDF Generation Button Link
+                pdf_bytes = generate_pdf_report(st.session_state.assessment_results, recs)
+                filename = f"credit_report_{st.session_state.assessment_results['assessment_id']}.pdf"
+                st.markdown(get_pdf_download_link(pdf_bytes, filename), unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Failed to generate PDF. Make sure you installed fpdf. Error: {e}")
 
 with tab4:
-    st.markdown("### 🤖 AI Model Prediction")
-    
-    if not st.session_state.model_trained:
-        st.warning("⚠️ Model not trained yet. Please train the model first.")
+    st.markdown("### 🤖 Explainable AI (SHAP)")
+    if not st.session_state.model_trained or st.session_state.explainer is None:
+        st.warning("⚠️ Model not trained or SHAP explainer not initialized yet.")
     else:
-        st.success("✅ Model is ready for predictions")
+        st.info("Understand why the AI makes certain predictions by looking at Feature Importance.")
         
-        if st.button("🔮 Predict & Save", type="primary", use_container_width=True):
-            # Simulate AI prediction
-            if score >= 5:
-                predicted_class = "Excellent"
-                confidence = 95.5
-            elif score >= 3:
-                predicted_class = "Good"
-                confidence = 88.3
-            else:
-                predicted_class = "Fair"
-                confidence = 82.1
-            
-            # Update latest assessment with AI prediction
-            if st.session_state.assessments_history:
-                latest_assessment = st.session_state.assessments_history[-1].copy()
-                latest_assessment['predicted_class'] = predicted_class
-                latest_assessment['confidence'] = confidence
-                
-                # Update in history
-                st.session_state.assessments_history[-1] = latest_assessment
-            
-            # Update session state
-            st.session_state.assessment_results['predicted_class'] = predicted_class
-            st.session_state.assessment_results['confidence'] = confidence
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("🤖 AI Prediction", predicted_class)
-            with col2:
-                st.metric("📊 Confidence", f"{confidence:.1f}%")
-            
-            st.success("✅ Prediction saved to assessment history!")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Summary plot over the sample
+        shap.summary_plot(
+            st.session_state.shap_values, 
+            st.session_state.X_sample, 
+            plot_type="bar", 
+            show=False
+        )
+        st.pyplot(fig)
+        
+        st.markdown("""
+        **How to read this chart:**
+        - Features on the top have the highest impact on the model's decision-making across all classes.
+        - Different colors denote the impact on different credit classes (e.g. Excellent vs. Poor).
+        - Use this transparency to justify model decisions to auditors or customers.
+        """)
 
 with tab5:
+    st.markdown("### 🔄 What-If Credit Simulator")
+    st.markdown("Explore how changing your financial behavior impacts your credit standing immediately.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### Scenario Adjustments")
+        sim_mobile = st.slider("Simulate Mobile Txns", 0.0, float(df['Mobile_Money_Txns'].max()), float(Mobile_Money_Txns), key="sim_mob")
+        sim_airtime = st.slider("Simulate Airtime Spend", 0.0, float(df['Airtime_Spend_ZWL'].max()), float(Airtime_Spend_ZWL), key="sim_air")
+        sim_utility = st.slider("Simulate Utility Payments", 0.0, float(df['Utility_Payments_ZWL'].max()), float(Utility_Payments_ZWL), key="sim_uti")
+        sim_repay = st.selectbox("Simulate Repayment History", sorted(df['Loan_Repayment_History'].unique()), index=sorted(df['Loan_Repayment_History'].unique()).index(Loan_Repayment_History), key="sim_rep")
+        
+    with col2:
+        st.markdown("#### Estimated Outcomes")
+        # recalculate simulated score
+        sim_score = 0
+        if 30 <= Age <= 50: sim_score += 2
+        elif 25 <= Age < 30 or 50 < Age <= 60: sim_score += 1
+        
+        if sim_mobile > mobile_median: sim_score += 1
+        sim_score += repayment_scores[sim_repay]
+        
+        sim_pct = (sim_score / max_score) * 100
+        
+        # Show delta
+        delta = sim_score - score
+        st.metric("Simulated Credit Score", f"{sim_score}/{max_score}", delta=f"{delta} points", delta_color="normal")
+        st.progress(sim_pct / 100)
+        
+        if sim_score >= 5: st.success("✅ Moves you to Excellent standing!")
+        elif sim_score >= 3: st.warning("⚠️ Moves you to Moderate standing.")
+        else: st.error("❌ Drops you to High Risk standing.")
+
+with tab6:
+    st.markdown("### 👥 Peer Comparison Analytics")
+    st.markdown("Compare your financial profile to the median behavior of others in your Location.")
+    
+    # Filter peers by location
+    peers = df[df['Location'] == Location]
+    if len(peers) > 0:
+        peer_mobile = peers['Mobile_Money_Txns'].median()
+        peer_airtime = peers['Airtime_Spend_ZWL'].median()
+        peer_utility = peers['Utility_Payments_ZWL'].median()
+        
+        # We need to scale them for a radar chart
+        def scale_val(val, max_val):
+            return (val / max_val) * 100 if max_val > 0 else 0
+            
+        max_mob = df['Mobile_Money_Txns'].max()
+        max_air = df['Airtime_Spend_ZWL'].max()
+        max_util = df['Utility_Payments_ZWL'].max()
+        
+        categories = ['Mobile Transactions', 'Airtime Spend', 'Utility Payments']
+        
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatterpolar(
+              r=[scale_val(Mobile_Money_Txns, max_mob), scale_val(Airtime_Spend_ZWL, max_air), scale_val(Utility_Payments_ZWL, max_util)],
+              theta=categories,
+              fill='toself',
+              name='Your Profile',
+              line_color='blue'
+        ))
+        
+        fig.add_trace(go.Scatterpolar(
+              r=[scale_val(peer_mobile, max_mob), scale_val(peer_airtime, max_air), scale_val(peer_utility, max_util)],
+              theta=categories,
+              fill='toself',
+              name=f'Peers in {Location}',
+              line_color='green'
+        ))
+
+        fig.update_layout(
+          polar=dict(
+            radialaxis=dict(
+              visible=True,
+              range=[0, 100]
+            )),
+          showlegend=True
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        st.info(f"You spend **{'more' if Airtime_Spend_ZWL > peer_airtime else 'less'}** on airtime and make **{'more' if Mobile_Money_Txns > peer_mobile else 'fewer'}** mobile transactions than your peers in {Location}.")
+    else:
+        st.warning("Not enough data to calculate peer median for this location.")
+
+with tab7:
     st.markdown("### 📈 Model Accuracy")
     
     if not st.session_state.model_trained:
@@ -719,8 +865,7 @@ with tab5:
         })
         st.dataframe(cv_df, use_container_width=True, hide_index=True)
 
-# UPDATED: MONTHLY REPORTS TAB (was 30-Day Reports)
-with tab6:
+with tab8:
     st.markdown("### 📋 Monthly Assessment Reports")
     
     st.markdown("""
@@ -793,193 +938,11 @@ with tab6:
             else:
                 st.info("No score trend data available")
         
-        # Risk distribution
-        st.markdown("#### 🎯 Risk Distribution")
-        
-        risk_chart = generate_risk_distribution_chart(stats)
-        if risk_chart:
-            st.plotly_chart(risk_chart, use_container_width=True)
-        
         # Detailed statistics
         st.markdown("#### 📋 Detailed Statistics")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("##### 📊 Assessment Metrics")
-            metrics_data = {
-                'Metric': ['Total Assessments', 'Average Score', 'Median Score', 
-                          'Approval Rate', 'High Risk Rate', 'Low Risk Rate'],
-                'Value': [
-                    f"{stats['total_assessments']}",
-                    f"{stats['average_score']:.2f}",
-                    f"{stats['median_score']:.2f}",
-                    f"{stats['approval_rate']:.1f}%",
-                    f"{stats['high_risk_rate']:.1f}%",
-                    f"{stats['low_risk_rate']:.1f}%"
-                ]
-            }
-            metrics_df = pd.DataFrame(metrics_data)
-            st.dataframe(metrics_df, use_container_width=True, hide_index=True)
-        
-        with col2:
-            st.markdown("##### 📈 Daily Performance")
-            if stats['daily_counts']:
-                daily_data = []
-                for date, count in list(stats['daily_counts'].items())[-7:]:  # Last 7 days
-                    avg_score = stats['daily_scores'].get(date, 0)
-                    daily_data.append({
-                        'Date': date,
-                        'Assessments': count,
-                        'Avg Score': f"{avg_score:.1f}"
-                    })
-                
-                if daily_data:
-                    daily_df = pd.DataFrame(daily_data)
-                    st.dataframe(daily_df, use_container_width=True, hide_index=True)
-        
-        # Report generation
-        st.markdown("---")
-        st.markdown("#### 📄 Generate Monthly Report")
-        
-        report_type = st.selectbox(
-            "Select report type:",
-            ["Executive Summary", "Detailed Analytics", "Trend Analysis", "Full Report"]
-        )
-        
-        if st.button("📊 Generate Monthly Report", type="primary", use_container_width=True):
-            st.markdown(f"#### 📋 {report_type} - Last Month")
-            
-            # Report header
-            st.markdown(f"""
-            <div class="report-card">
-                <h2>ZIM SMART CREDIT APP</h2>
-                <h3>Monthly Assessment Report - {report_type}</h3>
-                <p><strong>Report Period:</strong> Last Month (30 Days)</p>
-                <p><strong>Total Assessments:</strong> {stats['total_assessments']}</p>
-                <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Key insights
-            st.markdown("#### 💡 Key Insights")
-            
-            insights = []
-            if stats['approval_rate'] > 70:
-                insights.append("✅ **High Approval Rate**: Most applicants are creditworthy")
-            if stats['average_score'] > 4:
-                insights.append("✅ **Strong Average Score**: Applicants show good financial behavior")
-            if stats['high_risk_rate'] < 20:
-                insights.append("✅ **Low High-Risk Rate**: Minimal high-risk applications")
-            
-            if insights:
-                for insight in insights:
-                    st.success(insight)
-            else:
-                st.info("No significant insights identified")
-            
-            # Download options
-            st.markdown("---")
-            st.markdown("#### 💾 Download Report")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                # Text report
-                report_text = f"""
-                MONTHLY ASSESSMENT REPORT - ZIM SMART CREDIT APP
-                Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                Report Period: Last Month (30 Days)
-                
-                SUMMARY STATISTICS:
-                - Total Assessments: {stats['total_assessments']}
-                - Average Score: {stats['average_score']:.2f}/6
-                - Median Score: {stats['median_score']:.2f}/6
-                - Approval Rate: {stats['approval_rate']:.1f}%
-                - High Risk Rate: {stats['high_risk_rate']:.1f}%
-                - Low Risk Rate: {stats['low_risk_rate']:.1f}%
-                
-                RISK DISTRIBUTION:
-                """
-                
-                for risk, count in stats.get('risk_distribution', {}).items():
-                    report_text += f"- {risk}: {count} assessments\n"
-                
-                report_text += f"\nDAILY TRENDS (Last 7 Days):\n"
-                if stats.get('daily_counts'):
-                    for date, count in list(stats['daily_counts'].items())[-7:]:
-                        avg_score = stats['daily_scores'].get(date, 0)
-                        report_text += f"- {date}: {count} assessments, Avg Score: {avg_score:.1f}\n"
-                
-                st.download_button(
-                    label="📄 Download Text Report",
-                    data=report_text,
-                    file_name=f"monthly_report_{datetime.now().strftime('%Y%m%d')}.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
-            
-            with col2:
-                # CSV report
-                csv_data = {
-                    'report_type': ['Monthly Assessment Report'],
-                    'period': ['Last Month (30 Days)'],
-                    'total_assessments': [stats['total_assessments']],
-                    'average_score': [stats['average_score']],
-                    'approval_rate': [stats['approval_rate']],
-                    'high_risk_rate': [stats['high_risk_rate']],
-                    'low_risk_rate': [stats['low_risk_rate']],
-                    'generated_date': [datetime.now().strftime('%Y-%m-%d')]
-                }
-                
-                # Add daily data
-                if stats.get('daily_counts'):
-                    dates = list(stats['daily_counts'].keys())[-7:]
-                    for i, date in enumerate(dates):
-                        csv_data[f'day_{i+1}_date'] = [date]
-                        csv_data[f'day_{i+1}_assessments'] = [stats['daily_counts'].get(date, 0)]
-                        csv_data[f'day_{i+1}_avg_score'] = [stats['daily_scores'].get(date, 0)]
-                
-                csv_df = pd.DataFrame(csv_data)
-                csv_content = csv_df.to_csv(index=False)
-                
-                st.download_button(
-                    label="📊 Download CSV Report",
-                    data=csv_content,
-                    file_name=f"monthly_report_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            
-            with col3:
-                # JSON report
-                json_report = {
-                    'timestamp': datetime.now().isoformat(),
-                    'report_type': f'Monthly {report_type}',
-                    'report_period': 'Last Month (30 Days)',
-                    'summary': {
-                        'total_assessments': stats['total_assessments'],
-                        'average_score': stats['average_score'],
-                        'median_score': stats['median_score'],
-                        'approval_rate': stats['approval_rate'],
-                        'high_risk_rate': stats['high_risk_rate'],
-                        'low_risk_rate': stats['low_risk_rate']
-                    },
-                    'risk_distribution': stats.get('risk_distribution', {}),
-                    'daily_trends': {
-                        'dates': list(stats.get('daily_counts', {}).keys())[-7:],
-                        'counts': list(stats.get('daily_counts', {}).values())[-7:],
-                        'scores': list(stats.get('daily_scores', {}).values())[-7:]
-                    } if stats.get('daily_counts') else None,
-                    'model_performance': st.session_state.model_metrics if st.session_state.model_trained else None
-                }
-                
-                json_str = json.dumps(json_report, indent=2, cls=NumpyEncoder)
-                
-                st.download_button(
-                    label="🔤 Download JSON Report",
-                    data=json_str,
-                    file_name=f"monthly_report_{datetime.now().strftime('%Y%m%d')}.json",
-                    mime="application/json",
-                    use_container_width=True
-                )
+        metrics_data = {
+            'Metric': ['Total Assessments', 'Average Score', 'Median Score', 'Approval Rate'],
+            'Value': [f"{stats['total_assessments']}", f"{stats['average_score']:.2f}",
+                     f"{stats['median_score']:.2f}", f"{stats['approval_rate']:.1f}%"]
+        }
+        st.dataframe(pd.DataFrame(metrics_data), use_container_width=True, hide_index=True)
