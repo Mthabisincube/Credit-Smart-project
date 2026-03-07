@@ -4,21 +4,19 @@ import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
-import json
 import uuid
 import shap
 import matplotlib.pyplot as plt
 from fpdf import FPDF
 import base64
-import os
 
-# Page configuration
+# Page config
 st.set_page_config(
-    page_title="Zim Smart Credit App",
+    page_title="Zim Smart Credit",
     page_icon="💳",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -27,184 +25,43 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
-    /* Import modern premium font */
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
-    
-    html, body, [class*="css"]  {
-        font-family: 'Outfit', sans-serif !important;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    .stApp { background: #f5f7fa; }
+    .main-header { font-size: 2.5rem; font-weight: 700; color: #1E3A8A; margin-bottom: 0; }
+    .sub-header { font-size: 1rem; color: #4B5563; margin-top: 0; }
+    .score-card {
+        background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        text-align: center; border: 1px solid #E5E7EB;
     }
-
-    .stApp {
-        background-image: linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), 
-                          url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1911&q=80');
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        background-repeat: no-repeat;
-    }
-    
-    /* Hide Streamlit elements for clean app feel */
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Fade-in animation for initial load */
-    .element-container {
-        animation: fadeIn 0.8s ease-in-out;
-    }
-    
-    @keyframes fadeIn {
-        0% { opacity: 0; transform: translateY(10px); }
-        100% { opacity: 1; transform: translateY(0); }
-    }
-    
-    .main-header {
-        font-size: 3.5rem;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 1.5rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0px 4px 10px rgba(0,0,0,0.05);
-        padding: 1rem;
-        letter-spacing: -1px;
-    }
-    
-    /* Glassmorphism base for cards */
-    .card, .report-card {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        padding: 2rem;
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        border-left: 6px solid #1f77b4;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    }
-    
-    .card:hover, .report-card:hover {
-        box-shadow: 0 14px 40px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
-        background: rgba(255, 255, 255, 0.85);
-    }
-    
-    .metric-card, .monthly-report-card, .accuracy-card, .trend-card {
-        padding: 2rem;
-        border-radius: 20px;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        margin-bottom: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-    }
-
-    .metric-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .accuracy-card { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
-    .trend-card { background: linear-gradient(135deg, #007bff 0%, #17a2b8 100%); }
-    .monthly-report-card { background: linear-gradient(135deg, rgba(135, 206, 235, 0.95) 0%, rgba(70, 130, 180, 0.95) 100%); }
-    
-    .metric-card:hover, .accuracy-card:hover, .trend-card:hover, .monthly-report-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-    }
-    
-    .success-box, .warning-box, .danger-box {
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin: 1.5rem 0;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-        transition: all 0.3s ease;
-    }
-    
-    .success-box:hover, .warning-box:hover, .danger-box:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 28px rgba(0,0,0,0.1);
-    }
-    
-    .success-box {
-        background: linear-gradient(135deg, rgba(212, 237, 218, 0.95) 0%, rgba(195, 230, 203, 0.95) 100%);
-        border: 1px solid rgba(40, 167, 69, 0.3);
-        color: #155724;
-    }
-    
-    .warning-box {
-        background: linear-gradient(135deg, rgba(255, 243, 205, 0.95) 0%, rgba(255, 234, 167, 0.95) 100%);
-        border: 1px solid rgba(255, 193, 7, 0.3);
-        color: #856404;
-    }
-    
-    .danger-box {
-        background: linear-gradient(135deg, rgba(248, 215, 218, 0.95) 0%, rgba(245, 198, 203, 0.95) 100%);
-        border: 1px solid rgba(220, 53, 69, 0.3);
-        color: #721c24;
-    }
-    
-    /* Button enhancements */
-    .stButton > button {
-        border-radius: 12px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    }
-    
-    /* Input field stylings */
-    .stSelectbox > div > div, .stSlider > div {
-        background-color: rgba(255, 255, 255, 0.6) !important;
-        border-radius: 10px !important;
-    }
+    .metric-label { font-size: 0.9rem; color: #6B7280; }
+    .metric-value { font-size: 2.5rem; font-weight: 700; color: #1E3A8A; }
+    .risk-badge { padding: 0.25rem 1rem; border-radius: 50px; font-weight: 600; display: inline-block; }
+    .risk-low { background: #D1FAE5; color: #065F46; }
+    .risk-medium { background: #FEF3C7; color: #92400E; }
+    .risk-high { background: #FEE2E2; color: #991B1B; }
+    .stButton>button { background: #1E3A8A; color: white; border-radius: 12px; font-weight: 600; border: none; padding: 0.5rem 2rem; }
+    .stButton>button:hover { background: #2563EB; }
 </style>
 """, unsafe_allow_html=True)
 
-# Header Section
-st.markdown('<h1 class="main-header">🏦 Zim Smart Credit App</h1>', unsafe_allow_html=True)
-st.markdown("### 💳 Revolutionizing Credit Scoring with Alternative Data in Zimbabwe")
-st.markdown("---")
-
-# Initialize session state for storing assessments
+# Initialize session state
 if 'assessments_history' not in st.session_state:
     st.session_state.assessments_history = []
-
 if 'model' not in st.session_state:
     st.session_state.model = None
     st.session_state.label_encoders = {}
     st.session_state.target_encoder = None
     st.session_state.model_metrics = {}
     st.session_state.model_trained = False
-    
-# For Explainable AI (SHAP)
-if 'explainer' not in st.session_state:
     st.session_state.explainer = None
-    st.session_state.shap_values = None
-    st.session_state.X_sample = None
     st.session_state.X_columns = None
+    st.session_state.X_train_sample = None  # for SHAP background
 
-if 'assessment_results' not in st.session_state:
-    st.session_state.assessment_results = {
-        'score': 0,
-        'max_score': 6,
-        'predicted_class': None,
-        'confidence': None,
-        'risk_level': 'Medium',
-        'assessment_id': None,
-        'timestamp': None
-    }
-
-# Load data
+# Load data and add synthetic Income Source
 @st.cache_data
 def load_data():
     df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
-    # Add synthetic Income Source column
     np.random.seed(42)
     income_sources = ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other']
     df['Income_Source'] = np.random.choice(income_sources, size=len(df), p=[0.4, 0.25, 0.15, 0.1, 0.1])
@@ -212,477 +69,184 @@ def load_data():
 
 df = load_data()
 
-# Ensure model is trained automatically on startup
+# Train model on startup
 if not st.session_state.model_trained:
-    with st.spinner("🤖 Initializing AI Systems..."):
+    with st.spinner("🚀 Initializing AI credit model..."):
+        X = df.drop("Credit_Score", axis=1)  # includes Income_Source
+        y = df["Credit_Score"]
+
+        # Encode categorical features
+        label_encoders = {}
+        for col in X.select_dtypes(include=['object']).columns:
+            le = LabelEncoder()
+            X[col] = le.fit_transform(X[col])
+            label_encoders[col] = le
+
+        target_encoder = LabelEncoder()
+        y_encoded = target_encoder.fit_transform(y)
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+
+        model = RandomForestClassifier(
+            n_estimators=100, max_depth=20, min_samples_split=5,
+            min_samples_leaf=2, random_state=42, class_weight='balanced', n_jobs=-1
+        )
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred) * 100
+        precision = precision_score(y_test, y_pred, average='weighted', zero_division=0) * 100
+        recall = recall_score(y_test, y_pred, average='weighted', zero_division=0) * 100
+        f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0) * 100
+
+        kf = KFold(n_splits=5, shuffle=True, random_state=42)
+        cv_scores = cross_val_score(model, X, y_encoded, cv=kf, scoring='accuracy') * 100
+
+        st.session_state.model = model
+        st.session_state.label_encoders = label_encoders
+        st.session_state.target_encoder = target_encoder
+        st.session_state.model_trained = True
+        st.session_state.model_metrics = {
+            'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1_score': f1,
+            'cv_mean': cv_scores.mean(), 'cv_scores': cv_scores.tolist(),
+            'feature_importance': dict(zip(X.columns, model.feature_importances_))
+        }
+        st.session_state.X_columns = X.columns.tolist()
+        st.session_state.X_train_sample = X_train.sample(min(100, len(X_train)), random_state=42)
+
+        # SHAP explainer
         try:
-            X = df.drop(["Credit_Score", "Income_Source"], axis=1)  # drop income source from features
-            y = df["Credit_Score"]
-            
-            label_encoders = {}
-            for column in X.select_dtypes(include=['object']).columns:
-                le = LabelEncoder()
-                X[column] = le.fit_transform(X[column])
-                label_encoders[column] = le
-            
-            target_encoder = LabelEncoder()
-            y_encoded = target_encoder.fit_transform(y)
-            
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y_encoded, test_size=0.2, random_state=42
-            )
-            
-            model = RandomForestClassifier(
-                n_estimators=100,
-                max_depth=20,
-                min_samples_split=5,
-                min_samples_leaf=2,
-                random_state=42,
-                class_weight='balanced',
-                n_jobs=-1
-            )
-            model.fit(X_train, y_train)
-            
-            y_pred = model.predict(X_test)
-            
-            base_accuracy = accuracy_score(y_test, y_pred) * 100
-            accuracy = max(base_accuracy, 91.5)
-            
-            precision = precision_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            recall = recall_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            
-            kf = KFold(n_splits=5, shuffle=True, random_state=42)
-            cv_scores = cross_val_score(model, X, y_encoded, cv=kf, scoring='accuracy')
-            cv_scores_percent = [max(score * 100, 90) for score in cv_scores]
-            cv_mean = float(np.mean(cv_scores_percent))
-            
-            st.session_state.model = model
-            st.session_state.label_encoders = label_encoders
-            st.session_state.target_encoder = target_encoder
-            st.session_state.model_trained = True
-            
-            st.session_state.model_metrics = {
-                'accuracy': float(accuracy),
-                'precision': float(max(precision, 88)),
-                'recall': float(max(recall, 87)),
-                'f1_score': float(max(f1, 89)),
-                'cv_mean': cv_mean,
-                'cv_scores': [float(score) for score in cv_scores_percent],
-                'test_size': int(len(X_test)),
-                'train_size': int(len(X_train)),
-                'feature_importance': {k: float(v) for k, v in dict(zip(X.columns, model.feature_importances_)).items()}
-            }
-            
-            st.session_state.X_columns = X.columns.tolist()
-            try:
-                explainer = shap.TreeExplainer(model)
-                X_sample = X_test.sample(n=min(50, len(X_test)), random_state=42)
-                shap_values = explainer.shap_values(X_sample)
-                st.session_state.explainer = explainer
-                st.session_state.shap_values = shap_values
-                st.session_state.X_sample = X_sample
-            except Exception as e:
-                st.warning(f"⚠️ SHAP initialization skipped: {str(e)[:50]}")
-                
+            explainer = shap.TreeExplainer(model)
+            st.session_state.explainer = explainer
         except Exception as e:
-            st.error(f"Failed to initialize model: {e}")
+            st.warning("SHAP explainer not available – using feature importance only.")
 
 # Helper functions
-def get_risk_level(score):
-    if score >= 5:
-        return "Low"
-    elif score >= 3:
-        return "Medium"
+def get_risk_level(score_class):
+    # score_class: Poor, Fair, Good, Excellent
+    if score_class in ['Excellent', 'Good']:
+        return 'Low Risk'
+    elif score_class == 'Fair':
+        return 'Medium Risk'
     else:
-        return "High"
+        return 'High Risk'
 
-def get_recommendations(score, ai_prediction=None):
-    recommendations = []
-    
-    if score >= 5:
-        recommendations.append("✓ Strong candidate for credit approval")
-        recommendations.append("✓ Eligible for higher credit limits (up to ZWL 50,000)")
-        recommendations.append("✓ Favorable interest rates (12-15% p.a.)")
-    elif score >= 3:
-        recommendations.append("✓ Standard credit verification required")
-        recommendations.append("✓ Moderate credit limits (ZWL 10,000-25,000)")
-        recommendations.append("✓ Standard interest rates (18-22% p.a.)")
+def get_recommendations(score_class, confidence):
+    if score_class in ['Excellent', 'Good']:
+        return "✅ Auto-approve up to ZWL 50,000 with favourable rates."
+    elif score_class == 'Fair':
+        return "⚠️ Manual review required. Offer moderate limit (ZWL 10,000–25,000)."
     else:
-        recommendations.append("✗ Enhanced verification required")
-        recommendations.append("✗ Collateral might be necessary")
-        recommendations.append("✗ Lower credit limits (up to ZWL 5,000)")
-    
-    if ai_prediction and ai_prediction in ['Good', 'Excellent']:
-        recommendations.append("✓ AI model confirms creditworthiness")
-    elif ai_prediction and ai_prediction in ['Poor', 'Fair']:
-        recommendations.append("⚠ AI model suggests careful review")
-    
-    return "\n".join(recommendations)
+        return "❌ Enhanced due diligence needed. Consider collateral or guarantor."
 
-def save_assessment(assessment_data):
-    """Save assessment to history"""
-    assessment_data['assessment_id'] = str(uuid.uuid4())[:8]
-    assessment_data['timestamp'] = datetime.now().isoformat()
-    assessment_data['date'] = datetime.now().strftime('%Y-%m-%d')
-    
-    st.session_state.assessments_history.append(assessment_data.copy())
-    
-    # Keep only last 30 days of assessments (one month)
-    cutoff_date = datetime.now() - timedelta(days=30)
+def save_assessment(data):
+    data['assessment_id'] = str(uuid.uuid4())[:8]
+    data['timestamp'] = datetime.now().isoformat()
+    data['date'] = datetime.now().strftime('%Y-%m-%d')
+    st.session_state.assessments_history.append(data.copy())
+    # Keep last 30 days only
+    cutoff = datetime.now() - timedelta(days=30)
     st.session_state.assessments_history = [
-        a for a in st.session_state.assessments_history 
-        if datetime.fromisoformat(a['timestamp'].replace('Z', '+00:00')) > cutoff_date
+        a for a in st.session_state.assessments_history
+        if datetime.fromisoformat(a['timestamp']) > cutoff
     ]
-    
-    return assessment_data['assessment_id']
 
-def get_monthly_assessment_stats():
-    """Calculate statistics from last month of assessments"""
-    if not st.session_state.assessments_history:
-        return None
-    
-    # Convert to DataFrame for easier analysis
-    assessments_df = pd.DataFrame(st.session_state.assessments_history)
-    
-    if len(assessments_df) == 0:
-        return None
-    
-    # Convert timestamp to datetime
-    assessments_df['datetime'] = pd.to_datetime(assessments_df['timestamp'])
-    
-    # Get last month (30 days)
-    cutoff_date = datetime.now() - timedelta(days=30)
-    monthly_assessments = assessments_df[assessments_df['datetime'] >= cutoff_date]
-    
-    if len(monthly_assessments) == 0:
-        return None
-    
-    # Calculate statistics
-    stats = {
-        'total_assessments': int(len(monthly_assessments)),
-        'average_score': float(monthly_assessments['score'].mean()),
-        'median_score': float(monthly_assessments['score'].median()),
-        'approval_rate': float((monthly_assessments['score'] >= 3).mean() * 100),
-        'high_risk_rate': float((monthly_assessments['score'] < 3).mean() * 100),
-        'low_risk_rate': float((monthly_assessments['score'] >= 5).mean() * 100),
-        'daily_counts': monthly_assessments.groupby('date').size().to_dict(),
-        'daily_scores': monthly_assessments.groupby('date')['score'].mean().to_dict(),
-        'risk_distribution': monthly_assessments['risk_level'].value_counts().to_dict(),
-        'ai_confidence_avg': float(monthly_assessments['confidence'].mean() if 'confidence' in monthly_assessments.columns and monthly_assessments['confidence'].notna().any() else 0),
-        'latest_assessment': monthly_assessments.iloc[-1].to_dict() if len(monthly_assessments) > 0 else None
-    }
-    
-    return stats
-
-def generate_monthly_trend_chart(stats):
-    """Generate monthly trend chart from actual assessment data"""
-    if not stats or 'daily_counts' not in stats or not stats['daily_counts']:
-        return None
-    
-    dates = list(stats['daily_counts'].keys())
-    counts = list(stats['daily_counts'].values())
-    
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        x=dates,
-        y=counts,
-        mode='lines+markers',
-        name='Daily Assessments',
-        line=dict(color='#1f77b4', width=3),
-        marker=dict(size=8)
-    ))
-    
-    fig.update_layout(
-        title='Monthly Assessment Volume Trend',
-        xaxis_title='Date',
-        yaxis_title='Number of Assessments',
-        hovermode='x unified',
-        height=400
-    )
-    
-    return fig
-
-def generate_score_trend_chart(stats):
-    """Generate monthly score trend chart"""
-    if not stats or 'daily_scores' not in stats or not stats['daily_scores']:
-        return None
-    
-    dates = list(stats['daily_scores'].keys())
-    scores = list(stats['daily_scores'].values())
-    
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatter(
-        x=dates,
-        y=scores,
-        mode='lines+markers',
-        name='Average Daily Score',
-        line=dict(color='#28a745', width=3),
-        marker=dict(size=8)
-    ))
-    
-    # Add target line (score of 3)
-    fig.add_hline(
-        y=3,
-        line_dash="dash",
-        line_color="red",
-        annotation_text="Approval Threshold (Score = 3)"
-    )
-    
-    fig.update_layout(
-        title='Monthly Average Score Trend',
-        xaxis_title='Date',
-        yaxis_title='Average Score',
-        yaxis=dict(range=[0, 6]),
-        hovermode='x unified',
-        height=400
-    )
-    
-    return fig
-
-def generate_risk_distribution_chart(stats):
-    """Generate risk distribution chart"""
-    if not stats or 'risk_distribution' not in stats or not stats['risk_distribution']:
-        return None
-    
-    risks = list(stats['risk_distribution'].keys())
-    counts = list(stats['risk_distribution'].values())
-    
-    colors = ['#28a745', '#ffc107', '#dc3545']  # Green, Yellow, Red
-    
-    fig = go.Figure(data=[
-        go.Pie(
-            labels=risks,
-            values=counts,
-            hole=.3,
-            marker=dict(colors=colors[:len(risks)])
-        )
-    ])
-    
-    fig.update_layout(
-        title='Monthly Risk Level Distribution',
-        height=400
-    )
-    
-    return fig
-
-# Custom JSON encoder
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, datetime):
-            return obj.isoformat()
-        elif isinstance(obj, pd.Timestamp):
-            return obj.isoformat()
-        elif hasattr(obj, 'tolist'):
-            return obj.tolist()
-        return super(NumpyEncoder, self).default(obj)
-
-# ================= PDF REPORT GENERATION =================
-def generate_pdf_report(assessment_data, recommendations):
-    # This prevents an issue when running on non-latin-1 environments
+def generate_pdf_report(assessment, recs):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Zim Smart Credit App - Assessment Report", ln=True, align='C')
+    pdf.cell(200, 10, "Zim Smart Credit Report", ln=True, align='C')
     pdf.set_font("Arial", size=12)
     pdf.ln(10)
-    
-    pdf.cell(200, 10, txt=f"Assessment ID: {assessment_data.get('assessment_id', 'N/A')}", ln=True)
-    pdf.cell(200, 10, txt=f"Date: {assessment_data.get('date', 'N/A')}", ln=True)
-    pdf.ln(5)
-    
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, txt="Applicant Details", ln=True)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 8, txt=f"Location: {assessment_data.get('location')}", ln=True)
-    pdf.cell(200, 8, txt=f"Gender: {assessment_data.get('gender')}", ln=True)
-    pdf.cell(200, 8, txt=f"Age: {assessment_data.get('age')}", ln=True)
-    pdf.cell(200, 8, txt=f"Income Source: {assessment_data.get('income_source', 'N/A')}", ln=True)
-    pdf.ln(5)
-    
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, txt="Financial Behavior", ln=True)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 8, txt=f"Mobile Money Txns: {assessment_data.get('mobile_money_txns')}", ln=True)
-    pdf.cell(200, 8, txt=f"Airtime Spend (ZWL): {assessment_data.get('airtime_spend')}", ln=True)
-    pdf.cell(200, 8, txt=f"Utility Payments (ZWL): {assessment_data.get('utility_payments')}", ln=True)
-    pdf.cell(200, 8, txt=f"Repayment History: {assessment_data.get('repayment_history')}", ln=True)
-    pdf.ln(5)
-    
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, txt="Assessment Results", ln=True)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 8, txt=f"Score: {assessment_data.get('score')}/{assessment_data.get('max_score')}", ln=True)
-    pdf.cell(200, 8, txt=f"Risk Level: {assessment_data.get('risk_level')}", ln=True)
-    
-    if assessment_data.get('predicted_class'):
-        pdf.cell(200, 8, txt=f"AI Prediction: {assessment_data.get('predicted_class')} (Confidence: {assessment_data.get('confidence')}%)", ln=True)
-    
+    pdf.cell(200, 10, f"ID: {assessment['assessment_id']}", ln=True)
+    pdf.cell(200, 10, f"Date: {assessment['date']}", ln=True)
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, txt="Recommendations", ln=True)
+    pdf.cell(200, 10, "Details", ln=True)
     pdf.set_font("Arial", size=12)
-    for rec in recommendations.split('\n'):
-        # Ensure we don't encounter latin-1 encoding errors replacing fancy ticks
-        clean_rec = rec.replace("✓", "- [OK]").replace("✗", "- [NO]").replace("⚠", "- [WARN]")
-        pdf.cell(200, 8, txt=clean_rec, ln=True)
-        
+    for k, v in assessment.items():
+        if k not in ['assessment_id', 'timestamp', 'date', 'max_score', 'predicted_class', 'confidence']:
+            pdf.cell(200, 8, f"{k.replace('_',' ').title()}: {v}", ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, "Result", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 8, f"Credit Score: {assessment['predicted_class']}", ln=True)
+    pdf.cell(200, 8, f"Confidence: {assessment['confidence']:.1f}%", ln=True)
+    pdf.cell(200, 8, f"Risk Level: {assessment['risk_level']}", ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, "Recommendations", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 8, recs)
     return pdf.output(dest='S').encode('latin-1', errors='replace')
 
-def get_pdf_download_link(pdf_bytes, filename):
-    b64 = base64.b64encode(pdf_bytes).decode('utf-8')
-    href = f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="success-box" style="text-decoration: none; display: block; text-align: center; font-weight: bold;">📄 Download Full PDF Report</a>'
-    return href
-# ================================================
+def get_pdf_link(pdf_bytes, filename):
+    b64 = base64.b64encode(pdf_bytes).decode()
+    return f'<a href="data:application/pdf;base64,{b64}" download="{filename}" style="text-decoration:none;background:#1E3A8A;color:white;padding:0.5rem 1rem;border-radius:12px;">📄 Download PDF Report</a>'
 
-def train_model():
-    with st.spinner("🤖 Training Random Forest model..."):
-        try:
-            X = df.drop(["Credit_Score", "Income_Source"], axis=1)
-            y = df["Credit_Score"]
-            
-            label_encoders = {}
-            for column in X.select_dtypes(include=['object']).columns:
-                le = LabelEncoder()
-                X[column] = le.fit_transform(X[column])
-                label_encoders[column] = le
-            
-            target_encoder = LabelEncoder()
-            y_encoded = target_encoder.fit_transform(y)
-            
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y_encoded, test_size=0.2, random_state=42
-            )
-            
-            model = RandomForestClassifier(
-                n_estimators=100,
-                max_depth=20,
-                min_samples_split=5,
-                min_samples_leaf=2,
-                random_state=42,
-                class_weight='balanced',
-                n_jobs=-1
-            )
-            model.fit(X_train, y_train)
-            
-            y_pred = model.predict(X_test)
-            
-            base_accuracy = accuracy_score(y_test, y_pred) * 100
-            accuracy = max(base_accuracy, 91.5)
-            
-            precision = precision_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            recall = recall_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0) * 100
-            
-            kf = KFold(n_splits=5, shuffle=True, random_state=42)
-            cv_scores = cross_val_score(model, X, y_encoded, cv=kf, scoring='accuracy')
-            cv_scores_percent = [max(score * 100, 90) for score in cv_scores]
-            cv_mean = float(np.mean(cv_scores_percent))
-            
-            st.session_state.model = model
-            st.session_state.label_encoders = label_encoders
-            st.session_state.target_encoder = target_encoder
-            st.session_state.model_trained = True
-            
-            st.session_state.model_metrics = {
-                'accuracy': float(accuracy),
-                'precision': float(max(precision, 88)),
-                'recall': float(max(recall, 87)),
-                'f1_score': float(max(f1, 89)),
-                'cv_mean': cv_mean,
-                'cv_scores': [float(score) for score in cv_scores_percent],
-                'test_size': int(len(X_test)),
-                'train_size': int(len(X_train)),
-                'feature_importance': {k: float(v) for k, v in dict(zip(X.columns, model.feature_importances_)).items()}
-            }
-            
-            # --- ENHANCED SHAP EXPLAINER INITIALIZATION WITH FALLBACKS ---
-            st.session_state.X_columns = X.columns.tolist()
-            
-            try:
-                # Try TreeExplainer first (fastest for Random Forest)
-                explainer = shap.TreeExplainer(model)
-                X_sample = X_test.sample(n=min(50, len(X_test)), random_state=42)
-                shap_values = explainer.shap_values(X_sample)
-                
-                st.session_state.explainer = explainer
-                st.session_state.shap_values = shap_values
-                st.session_state.X_sample = X_sample
-                st.success("✅ SHAP TreeExplainer initialized successfully")
-                
-            except Exception as e:
-                st.warning(f"⚠️ TreeExplainer failed, trying KernelExplainer: {str(e)[:40]}")
-                
-                try:
-                    # Fallback to KernelExplainer
-                    background = X_train.sample(n=min(100, len(X_train)), random_state=42)
-                    explainer = shap.KernelExplainer(
-                        model.predict,
-                        background
-                    )
-                    X_sample = X_test.sample(n=min(30, len(X_test)), random_state=42)
-                    shap_values = explainer.shap_values(X_sample)
-                    
-                    st.session_state.explainer = explainer
-                    st.session_state.shap_values = shap_values
-                    st.session_state.X_sample = X_sample
-                    st.info("ℹ️ Using KernelExplainer (slower but works)")
-                    
-                except Exception as e2:
-                    st.warning(f"⚠️ SHAP initialization failed. Using feature importance: {str(e2)[:40]}")
-                    # Feature importance will be used as fallback in the UI
-            
-            return True
-            
-        except Exception as e:
-            st.error(f"❌ Error training model: {str(e)}")
-            return False
-
-# Sidebar
+# -------------------------------------------------------------------
+# Sidebar – Input Form
+# -------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("### 🔮 Credit Assessment")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        Location = st.selectbox("📍 Location", sorted(df['Location'].unique()))
-    with col2:
-        gender = st.selectbox("👤 Gender", sorted(df['Gender'].unique()))
-    
+    st.image("https://img.icons8.com/fluency/96/credit-card.png", width=80)
+    st.markdown("## Applicant Details")
+    st.markdown("---")
+
+    Location = st.selectbox("📍 Location", sorted(df['Location'].unique()))
+    gender = st.selectbox("👤 Gender", sorted(df['Gender'].unique()))
     Age = st.slider("🎂 Age", int(df['Age'].min()), int(df['Age'].max()), int(df['Age'].mean()))
-    
+
     st.markdown("### 💰 Financial Behavior")
-    
     Mobile_Money_Txns = st.slider("📱 Mobile Money Transactions", 
-                                 float(df['Mobile_Money_Txns'].min()), 
-                                 float(df['Mobile_Money_Txns'].max()), 
-                                 float(df['Mobile_Money_Txns'].mean()))
-    
+                                  float(df['Mobile_Money_Txns'].min()), 
+                                  float(df['Mobile_Money_Txns'].max()), 
+                                  float(df['Mobile_Money_Txns'].mean()))
     Airtime_Spend_ZWL = st.slider("📞 Airtime Spend (ZWL)", 
-                                 float(df['Airtime_Spend_ZWL'].min()), 
-                                 float(df['Airtime_Spend_ZWL'].max()), 
-                                 float(df['Airtime_Spend_ZWL'].mean()))
-    
+                                  float(df['Airtime_Spend_ZWL'].min()), 
+                                  float(df['Airtime_Spend_ZWL'].max()), 
+                                  float(df['Airtime_Spend_ZWL'].mean()))
     Utility_Payments_ZWL = st.slider("💡 Utility Payments (ZWL)", 
-                                    float(df['Utility_Payments_ZWL'].min()), 
-                                    float(df['Utility_Payments_ZWL'].max()), 
-                                    float(df['Utility_Payments_ZWL'].mean()))
-    
+                                     float(df['Utility_Payments_ZWL'].min()), 
+                                     float(df['Utility_Payments_ZWL'].max()), 
+                                     float(df['Utility_Payments_ZWL'].mean()))
     Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", 
-                                         sorted(df['Loan_Repayment_History'].unique()))
-    
-    # New: Income Source
+                                          sorted(df['Loan_Repayment_History'].unique()))
     Income_Source = st.selectbox("💰 Source of Income", 
                                  ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other'])
-    
-    current_inputs = {
+
+    assess_button = st.button("🚀 Get Credit Score", type="primary", use_container_width=True)
+
+# -------------------------------------------------------------------
+# Main Area
+# -------------------------------------------------------------------
+st.markdown('<p class="main-header">Zim Smart Credit</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Alternative data credit scoring for financial inclusion</p>', unsafe_allow_html=True)
+
+# Placeholders for results (updated after button click)
+score_placeholder = st.empty()
+explain_placeholder = st.empty()
+rec_placeholder = st.empty()
+
+# Default state – show instructions
+if not assess_button:
+    with score_placeholder.container():
+        st.info("👈 Fill in the applicant's details in the sidebar and click **Get Credit Score** to see the AI-powered assessment.")
+    with explain_placeholder:
+        st.markdown("### How it works")
+        st.markdown("""
+        Our model uses alternative data to predict creditworthiness:
+        - **Mobile money transactions** – frequency and volume indicate financial activity.
+        - **Airtime & utility payments** – regular payments suggest reliability.
+        - **Repayment history** – past behaviour is the strongest predictor.
+        - **Income source** – stability of income affects risk.
+        - **Demographics** – location and age provide context.
+        """)
+
+# Process assessment when button clicked
+if assess_button:
+    # Prepare input for model
+    input_dict = {
         'Location': Location,
         'Gender': gender,
         'Age': Age,
@@ -692,461 +256,193 @@ with st.sidebar:
         'Loan_Repayment_History': Loan_Repayment_History,
         'Income_Source': Income_Source
     }
+    input_df = pd.DataFrame([input_dict])
 
-# Main tabs (Simulator removed, replaced with Income Source)
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "📊 Dashboard", 
-    "🔍 Analysis", 
-    "🎯 Assessment", 
-    "🤖 Explainable AI", 
-    "💰 Income Source",        # new tab
-    "👥 Peer Comparison",
-    "📈 Accuracy", 
-    "📋 Monthly Reports"
-])
+    # Encode categoricals
+    for col, le in st.session_state.label_encoders.items():
+        if col in input_df.columns:
+            input_df[col] = le.transform(input_df[col])
 
-with tab1:
-    st.markdown("### 📈 Dataset Overview")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("📊 Total Records", f"{len(df):,}")
-    with col2:
-        st.metric("🔧 Features", len(df.columns) - 2)  # exclude target and income_source
-    with col3:
-        st.metric("🎯 Credit Classes", df['Credit_Score'].nunique())
-    with col4:
-        st.metric("📈 Assessments Stored", len(st.session_state.assessments_history))
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.expander("📋 Raw Data Preview"):
-            st.dataframe(df.head(), use_container_width=True)
-    
-    with col2:
-        with st.expander("📊 Recent Assessments"):
-            if st.session_state.assessments_history:
-                recent_df = pd.DataFrame(st.session_state.assessments_history[-5:])
-                if 'timestamp' in recent_df.columns:
-                    recent_df['time'] = pd.to_datetime(recent_df['timestamp']).dt.strftime('%H:%M')
-                    st.dataframe(recent_df[['date', 'time', 'score', 'risk_level']], use_container_width=True)
-            else:
-                st.info("No assessments yet")
+    # Predict
+    pred_encoded = st.session_state.model.predict(input_df)[0]
+    pred_class = st.session_state.target_encoder.inverse_transform([pred_encoded])[0]
+    proba = st.session_state.model.predict_proba(input_df)[0]
+    confidence = np.max(proba) * 100
+    risk_level = get_risk_level(pred_class)
+    recommendations = get_recommendations(pred_class, confidence)
 
-with tab2:
-    st.markdown("### 🔍 Data Analysis")
-    
-    analysis_tab1, analysis_tab2 = st.tabs(["📊 Distributions", "📈 Statistics"])
-    
-    with analysis_tab1:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### Credit Score Distribution")
-            score_counts = df['Credit_Score'].value_counts().sort_index()
-            st.bar_chart(score_counts)
-            
-            dist_df = score_counts.reset_index()
-            dist_df.columns = ['Credit Score', 'Count']
-            st.dataframe(dist_df, use_container_width=True, hide_index=True)
-        
-        with col2:
-            st.markdown("#### Location Distribution")
-            location_counts = df['Location'].value_counts()
-            st.bar_chart(location_counts)
-            
-            loc_df = location_counts.reset_index()
-            loc_df.columns = ['Location', 'Count']
-            st.dataframe(loc_df, use_container_width=True, hide_index=True)
-
-with tab3:
-    st.markdown("### 🎯 Credit Assessment")
-    
-    # Input summary
-    input_data = {
-        "Feature": ["Location", "Gender", "Age", "Mobile Transactions", 
-                   "Airtime Spend", "Utility Payments", "Repayment History", "Income Source"],
-        "Value": [Location, gender, f"{Age} years", f"{Mobile_Money_Txns:.1f}", 
-                 f"{Airtime_Spend_ZWL:.1f} ZWL", f"{Utility_Payments_ZWL:.1f} ZWL", Loan_Repayment_History, Income_Source]
+    # Save assessment
+    assessment_data = {
+        **input_dict,
+        'score': pred_class,
+        'confidence': confidence,
+        'risk_level': risk_level,
+        'max_score': None  # not used
     }
-    input_df = pd.DataFrame(input_data)
-    st.dataframe(input_df, use_container_width=True, hide_index=True)
-    
-    # Assessment calculation
-    score = 0
-    max_score = 6
-    if 30 <= Age <= 50: score += 2
-    elif 25 <= Age < 30 or 50 < Age <= 60: score += 1
-    
-    mobile_median = df['Mobile_Money_Txns'].median()
-    if Mobile_Money_Txns > mobile_median: score += 1
-    
-    repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-    score += repayment_scores[Loan_Repayment_History]
-    
-    percentage = (score / max_score) * 100
-    risk_level = get_risk_level(score)
-    recs = get_recommendations(score, st.session_state.assessment_results.get('predicted_class'))
-    
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.metric("📈 Score", f"{score}/{max_score}")
-        st.metric("📊 Percentage", f"{percentage:.1f}%")
-        st.progress(percentage / 100)
-    with col2:
-        if score >= 5: st.success("### ✅ EXCELLENT CREDITWORTHINESS")
-        elif score >= 3: st.warning("### ⚠️ MODERATE RISK PROFILE")
-        else: st.error("### ❌ HIGHER RISK PROFILE")
-        st.write(f"**Risk Level:** {risk_level}")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("💾 Save Assessment", type="primary", use_container_width=True):
-            assessment_data = {
-                'location': Location, 'gender': gender, 'age': Age,
-                'mobile_money_txns': Mobile_Money_Txns, 'airtime_spend': Airtime_Spend_ZWL,
-                'utility_payments': Utility_Payments_ZWL, 'repayment_history': Loan_Repayment_History,
-                'income_source': Income_Source,   # new field
-                'score': score, 'max_score': max_score, 'risk_level': risk_level,
-                'predicted_class': None, 'confidence': None
-            }
-            assessment_id = save_assessment(assessment_data)
-            st.session_state.assessment_results.update({
-                'score': score, 'risk_level': risk_level, 'assessment_id': assessment_id, 
-                'timestamp': datetime.now().isoformat()
-            })
-            st.success(f"✅ Assessment saved! ID: {assessment_id}")
-            st.rerun()
+    save_assessment(assessment_data)
+    st.session_state.last_assessment = assessment_data
 
-    with col2:
-        if st.session_state.assessment_results.get('assessment_id'):
-            st.markdown("#### Option: PDF Export")
+    # Display score gauge
+    with score_placeholder.container():
+        col1, col2, col3 = st.columns([1,2,1])
+        with col2:
+            # Map class to numeric for gauge (Poor=1, Fair=2, Good=3, Excellent=4)
+            class_to_num = {'Poor': 1, 'Fair': 2, 'Good': 3, 'Excellent': 4}
+            num_score = class_to_num[pred_class]
+            fig = go.Figure(go.Indicator(
+                mode = "gauge+number+delta",
+                value = num_score,
+                number = {'suffix': f" - {pred_class}", 'font': {'size': 40}},
+                delta = {'reference': 2.5},
+                gauge = {
+                    'axis': {'range': [1, 4], 'tickvals': [1,2,3,4], 'ticktext': ['Poor','Fair','Good','Excellent']},
+                    'bar': {'color': "#1E3A8A"},
+                    'steps': [
+                        {'range': [1, 2], 'color': "#FEE2E2"},
+                        {'range': [2, 3], 'color': "#FEF3C7"},
+                        {'range': [3, 4], 'color': "#D1FAE5"}
+                    ],
+                    'threshold': {
+                        'line': {'color': "red", 'width': 4},
+                        'thickness': 0.75,
+                        'value': num_score
+                    }
+                }
+            ))
+            fig.update_layout(height=300, margin=dict(l=10, r=10, t=30, b=10))
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Risk badge
+            badge_class = f"risk-badge risk-{risk_level.split()[0].lower()}"
+            st.markdown(f"<div style='text-align:center'><span class='{badge_class}'>{risk_level}</span></div>", unsafe_allow_html=True)
+
+    # Explainable AI (SHAP waterfall for this prediction)
+    with explain_placeholder.container():
+        st.markdown("### 🔍 Why this score?")
+        if st.session_state.explainer is not None:
             try:
-                # Add PDF Generation Button Link
-                pdf_bytes = generate_pdf_report(st.session_state.assessment_results, recs)
-                filename = f"credit_report_{st.session_state.assessment_results['assessment_id']}.pdf"
-                st.markdown(get_pdf_download_link(pdf_bytes, filename), unsafe_allow_html=True)
-            except Exception as e:
-                st.error(f"Failed to generate PDF. Make sure you installed fpdf. Error: {e}")
+                # Get SHAP values for this instance
+                explainer = st.session_state.explainer
+                # Ensure input_df has same columns as training
+                X_input = input_df[st.session_state.X_columns]
+                shap_values = explainer.shap_values(X_input)
 
-# ======== ENHANCED EXPLAINABLE AI TAB WITH FULL ERROR HANDLING ========
-with tab4:
-    st.markdown("### 🤖 Explainable AI (SHAP)")
-    
-    if not st.session_state.model_trained:
-        st.warning("⚠️ Model not trained yet.")
-        st.info("The model will initialize automatically on first load.")
-    
-    elif st.session_state.explainer is None:
-        st.warning("⚠️ SHAP explainer not available. Showing feature importance instead.")
-        
-        st.markdown("#### 📊 Feature Importance (Alternative Analysis)")
-        feature_importance = st.session_state.model_metrics.get('feature_importance', {})
-        
-        if feature_importance:
-            importance_df = pd.DataFrame(
-                list(feature_importance.items()),
-                columns=['Feature', 'Importance']
-            ).sort_values('Importance', ascending=False)
-            
-            fig, ax = plt.subplots(figsize=(10, 6))
-            ax.barh(importance_df['Feature'], importance_df['Importance'])
-            ax.set_xlabel('Importance Score')
-            ax.set_title('Feature Importance in Credit Score Prediction')
-            ax.invert_yaxis()
-            st.pyplot(fig)
-            
-            st.markdown("""
-            **Understanding Feature Importance:**
-            - Features at the top have the highest impact on credit decisions
-            - Use this to understand which factors matter most
-            - Higher importance = stronger influence on predictions
-            """)
-        else:
-            st.info("No feature importance data available")
-    
-    else:
-        # SHAP analysis is available
-        st.info("🎯 Understanding why the AI makes certain predictions")
-        
-        try:
-            # Handle different SHAP output formats
-            if isinstance(st.session_state.shap_values, list):
-                # Multi-class: use first class
-                shap_vals = st.session_state.shap_values[0]
-            else:
-                shap_vals = st.session_state.shap_values
-            
-            fig, ax = plt.subplots(figsize=(12, 6))
-            
-            # Summary plot
-            shap.summary_plot(
-                shap_vals,
-                st.session_state.X_sample,
-                plot_type="bar",
-                show=False,
-                max_display=10
-            )
-            st.pyplot(fig)
-            
-            st.markdown("""
-            **How to read this chart:**
-            - Each bar represents a feature's average impact on predictions
-            - Longer bars = more important features for credit decisions
-            - **Red tones** = features pushing score higher (approval)
-            - **Blue tones** = features pushing score lower (rejection)
-            """)
-            
-            # Feature dependence analysis
-            st.markdown("#### 🔍 Top Feature Analysis")
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                top_feature_idx = np.argsort(np.abs(shap_vals).mean(0))[-1]
-                top_feature_name = st.session_state.X_columns[top_feature_idx]
-                
-                st.subheader(f"Most Impactful: {top_feature_name}")
-                
-                fig, ax = plt.subplots(figsize=(10, 6))
-                shap.dependence_plot(
-                    top_feature_idx,
-                    shap_vals,
-                    st.session_state.X_sample,
+                # For multi-class, we need the SHAP values for the predicted class
+                class_index = pred_encoded  # numeric class
+                if isinstance(shap_values, list):
+                    shap_vals = shap_values[class_index][0]  # first (only) instance
+                else:
+                    shap_vals = shap_values[0]
+
+                # Waterfall plot
+                fig, ax = plt.subplots(figsize=(10, 4))
+                shap.waterfall_plot(
+                    shap.Explanation(values=shap_vals,
+                                      base_values=explainer.expected_value[class_index] if isinstance(explainer.expected_value, list) else explainer.expected_value,
+                                      data=X_input.iloc[0].values,
+                                      feature_names=st.session_state.X_columns),
                     show=False
                 )
                 st.pyplot(fig)
-            
-            with col2:
-                st.write("")
-                st.write("")
-                st.markdown("""
-                **What this plot shows:**
-                
-                - **X-axis**: Actual feature value
-                - **Y-axis**: SHAP value (impact on prediction)
-                - **Each dot**: One prediction
-                - **Patterns**: Show how feature affects outcomes
-                
-                **Interpretation:**
-                - Upward slope = higher values increase score
-                - Downward slope = higher values decrease score
-                """)
-            
-            st.success("✅ SHAP visualizations loaded successfully!")
-            
-        except Exception as e:
-            st.warning(f"Could not generate SHAP visualizations: {str(e)[:60]}")
-            st.info("Displaying model feature importance instead:")
-            
-            feature_importance = st.session_state.model_metrics.get('feature_importance', {})
-            if feature_importance:
-                importance_df = pd.DataFrame(
-                    list(feature_importance.items()),
-                    columns=['Feature', 'Importance']
-                ).sort_values('Importance', ascending=False)
-                
-                fig, ax = plt.subplots(figsize=(10, 6))
-                ax.barh(importance_df['Feature'], importance_df['Importance'])
-                ax.set_xlabel('Importance Score')
-                ax.invert_yaxis()
-                st.pyplot(fig)
+                plt.close()
+                st.caption("The plot shows how each feature pushed the score from the base value (average prediction) to the final prediction.")
+            except Exception as e:
+                st.warning(f"SHAP explanation unavailable: {e}")
+                # Fallback to feature importance table
+                st.markdown("**Top contributing factors:**")
+                importances = st.session_state.model_metrics['feature_importance']
+                top_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
+                for feat, imp in top_features:
+                    st.markdown(f"- **{feat}**: {imp:.3f}")
+        else:
+            st.info("Feature importance (global) shown because SHAP not available.")
+            importances = st.session_state.model_metrics['feature_importance']
+            top_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
+            for feat, imp in top_features:
+                st.markdown(f"- **{feat}**: {imp:.3f}")
 
-# ======== NEW INCOME SOURCE TAB ========
-with tab5:
-    st.markdown("### 💰 Income Source Insights")
-    
-    # Display current applicant's income source
-    st.info(f"**Current applicant's source of income:** {Income_Source}")
-    
-    # Distribution of income sources in the dataset
-    st.markdown("#### Income Source Distribution (All Applicants)")
-    income_counts = df['Income_Source'].value_counts()
-    
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        fig = px.bar(
-            x=income_counts.index,
-            y=income_counts.values,
-            labels={'x': 'Income Source', 'y': 'Count'},
-            color=income_counts.index,
-            color_discrete_sequence=px.colors.qualitative.Set2
-        )
-        fig.update_layout(showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.dataframe(income_counts.reset_index().rename(columns={'index': 'Source', 'Income_Source': 'Count'}),
-                     use_container_width=True, hide_index=True)
-    
-    # Average credit score by income source
-    st.markdown("#### Average Credit Score by Income Source")
-    # Map credit score to numeric
-    score_map = {'Poor': 1, 'Fair': 2, 'Good': 3, 'Excellent': 4}
-    df['Credit_Score_Numeric'] = df['Credit_Score'].map(score_map)
-    avg_score = df.groupby('Income_Source')['Credit_Score_Numeric'].mean().sort_values()
-    
-    fig2 = px.bar(
-        x=avg_score.values,
-        y=avg_score.index,
-        orientation='h',
-        labels={'x': 'Average Credit Score (1=Poor → 4=Excellent)', 'y': ''},
-        color=avg_score.values,
-        color_continuous_scale='Viridis'
-    )
-    fig2.update_layout(showlegend=False, height=300)
-    st.plotly_chart(fig2, use_container_width=True)
-    
-    # Recent assessments by income source (if any)
+    # Recommendations and PDF
+    with rec_placeholder.container():
+        col1, col2 = st.columns([3,1])
+        with col1:
+            st.info(recommendations)
+        with col2:
+            pdf_bytes = generate_pdf_report(assessment_data, recommendations)
+            filename = f"credit_report_{assessment_data['assessment_id']}.pdf"
+            st.markdown(get_pdf_link(pdf_bytes, filename), unsafe_allow_html=True)
+
+# -------------------------------------------------------------------
+# Tabs for Portfolio and Model Info
+# -------------------------------------------------------------------
+tab1, tab2 = st.tabs(["📊 Portfolio Overview", "🤖 Model Information"])
+
+with tab1:
+    st.markdown("### Portfolio Snapshot (Last 30 Days)")
     if st.session_state.assessments_history:
-        st.markdown("#### Recent Assessments by Income Source")
-        recent_df = pd.DataFrame(st.session_state.assessments_history[-50:])  # last 50
-        if 'income_source' in recent_df.columns:
-            source_counts = recent_df['income_source'].value_counts()
-            st.bar_chart(source_counts)
+        hist_df = pd.DataFrame(st.session_state.assessments_history)
+        hist_df['datetime'] = pd.to_datetime(hist_df['timestamp'])
 
-with tab6:
-    st.markdown("### 👥 Peer Comparison Analytics")
-    st.markdown("Compare your financial profile to the median behavior of others in your Location.")
-    
-    # Filter peers by location
-    peers = df[df['Location'] == Location]
-    if len(peers) > 0:
-        peer_mobile = peers['Mobile_Money_Txns'].median()
-        peer_airtime = peers['Airtime_Spend_ZWL'].median()
-        peer_utility = peers['Utility_Payments_ZWL'].median()
-        
-        # We need to scale them for a radar chart
-        def scale_val(val, max_val):
-            return (val / max_val) * 100 if max_val > 0 else 0
-            
-        max_mob = df['Mobile_Money_Txns'].max()
-        max_air = df['Airtime_Spend_ZWL'].max()
-        max_util = df['Utility_Payments_ZWL'].max()
-        
-        categories = ['Mobile Transactions', 'Airtime Spend', 'Utility Payments']
-        
-        fig = go.Figure()
+        # Key metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Assessments", len(hist_df))
+        with col2:
+            good_rate = (hist_df['score'].isin(['Good','Excellent']).mean() * 100)
+            st.metric("Good/Excellent %", f"{good_rate:.1f}%")
+        with col3:
+            fair_rate = (hist_df['score'] == 'Fair').mean() * 100
+            st.metric("Fair %", f"{fair_rate:.1f}%")
+        with col4:
+            poor_rate = (hist_df['score'] == 'Poor').mean() * 100
+            st.metric("Poor %", f"{poor_rate:.1f}%")
 
-        fig.add_trace(go.Scatterpolar(
-              r=[scale_val(Mobile_Money_Txns, max_mob), scale_val(Airtime_Spend_ZWL, max_air), scale_val(Utility_Payments_ZWL, max_util)],
-              theta=categories,
-              fill='toself',
-              name='Your Profile',
-              line_color='blue'
-        ))
-        
-        fig.add_trace(go.Scatterpolar(
-              r=[scale_val(peer_mobile, max_mob), scale_val(peer_airtime, max_air), scale_val(peer_utility, max_util)],
-              theta=categories,
-              fill='toself',
-              name=f'Peers in {Location}',
-              line_color='green'
-        ))
+        # Distribution plots
+        col1, col2 = st.columns(2)
+        with col1:
+            score_counts = hist_df['score'].value_counts().reindex(['Poor','Fair','Good','Excellent'], fill_value=0)
+            fig = px.bar(x=score_counts.index, y=score_counts.values, color=score_counts.index,
+                         color_discrete_map={'Poor':'#FEE2E2','Fair':'#FEF3C7','Good':'#D1FAE5','Excellent':'#A7F3D0'})
+            fig.update_layout(title="Credit Score Distribution", xaxis_title="Score", yaxis_title="Count", showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            if 'Income_Source' in hist_df.columns:
+                inc_counts = hist_df['Income_Source'].value_counts()
+                fig = px.pie(values=inc_counts.values, names=inc_counts.index, title="Income Source Breakdown")
+                st.plotly_chart(fig, use_container_width=True)
 
-        fig.update_layout(
-          polar=dict(
-            radialaxis=dict(
-              visible=True,
-              range=[0, 100]
-            )),
-          showlegend=True
-        )
-        
+        # Daily trend
+        daily = hist_df.groupby(hist_df['datetime'].dt.date).size().reset_index(name='count')
+        fig = px.line(daily, x='datetime', y='count', title="Daily Assessment Volume")
         st.plotly_chart(fig, use_container_width=True)
-        st.info(f"You spend **{'more' if Airtime_Spend_ZWL > peer_airtime else 'less'}** on airtime and make **{'more' if Mobile_Money_Txns > peer_mobile else 'fewer'}** mobile transactions than your peers in {Location}.")
     else:
-        st.warning("Not enough data to calculate peer median for this location.")
+        st.info("No assessments yet. Use the assessment tool to build your portfolio.")
 
-with tab7:
-    st.markdown("### 📈 Model Accuracy")
-    
-    if not st.session_state.model_trained:
-        st.warning("⚠️ Model not trained yet. Please train the model first.")
-    else:
+with tab2:
+    st.markdown("### Model Performance & Interpretability")
+    if st.session_state.model_trained:
         metrics = st.session_state.model_metrics
-        
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("🎯 Accuracy", f"{metrics['accuracy']:.1f}%")
+            st.metric("Accuracy", f"{metrics['accuracy']:.1f}%")
         with col2:
-            st.metric("📊 Precision", f"{metrics['precision']:.1f}%")
+            st.metric("Precision", f"{metrics['precision']:.1f}%")
         with col3:
-            st.metric("🔄 Recall", f"{metrics['recall']:.1f}%")
+            st.metric("Recall", f"{metrics['recall']:.1f}%")
         with col4:
-            st.metric("📈 F1 Score", f"{metrics['f1_score']:.1f}%")
-        
-        st.markdown("#### Cross-Validation Performance")
-        cv_df = pd.DataFrame({
-            'Fold': [f'Fold {i+1}' for i in range(len(metrics['cv_scores']))],
-            'Accuracy (%)': metrics['cv_scores']
-        })
-        st.dataframe(cv_df, use_container_width=True, hide_index=True)
-        
-        st.markdown(f"**Mean CV Accuracy:** {metrics['cv_mean']:.1f}%")
-        
-        st.markdown("#### Feature Importance")
-        importance_df = pd.DataFrame(
-            list(metrics['feature_importance'].items()),
-            columns=['Feature', 'Importance']
-        ).sort_values('Importance', ascending=False)
-        
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.barh(importance_df['Feature'], importance_df['Importance'])
-        ax.set_xlabel('Importance Score')
-        ax.invert_yaxis()
-        st.pyplot(fig)
-        
-        st.markdown("#### Model Details")
-        st.write(f"**Training samples:** {metrics['train_size']}")
-        st.write(f"**Test samples:** {metrics['test_size']}")
+            st.metric("F1 Score", f"{metrics['f1_score']:.1f}%")
 
-with tab8:
-    st.markdown("### 📋 Monthly Reports")
-    st.markdown("Statistical summary of assessments in the last 30 days")
-    
-    stats = get_monthly_assessment_stats()
-    
-    if stats:
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("📊 Total Assessments", stats['total_assessments'])
-        with col2:
-            st.metric("📈 Avg Score", f"{stats['average_score']:.2f}")
-        with col3:
-            st.metric("✅ Approval Rate", f"{stats['approval_rate']:.1f}%")
-        with col4:
-            st.metric("⚠️ High Risk", f"{stats['high_risk_rate']:.1f}%")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            trend_chart = generate_monthly_trend_chart(stats)
-            if trend_chart:
-                st.plotly_chart(trend_chart, use_container_width=True)
-        
-        with col2:
-            score_chart = generate_score_trend_chart(stats)
-            if score_chart:
-                st.plotly_chart(score_chart, use_container_width=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            risk_chart = generate_risk_distribution_chart(stats)
-            if risk_chart:
-                st.plotly_chart(risk_chart, use_container_width=True)
-        
-        with col2:
-            st.markdown("#### Key Insights")
-            st.markdown(f"""
-            - **Most active day:** {max(stats['daily_counts'], key=stats['daily_counts'].get)}
-            - **Peak average score:** {max(stats['daily_scores'].values()):.2f}
-            - **Low risk proportion:** {stats['low_risk_rate']:.1f}%
-            - **Average AI confidence:** {stats['ai_confidence_avg']:.1f}%
-            """)
-        
-        if stats.get('latest_assessment'):
-            st.markdown("#### Latest Assessment")
-            latest = stats['latest_assessment']
-            st.info(f"**ID:** {latest.get('assessment_id', 'N/A')} | **Score:** {latest.get('score', 'N/A')} | **Risk:** {latest.get('risk_level', 'N/A')}")
+        st.markdown("#### Cross-Validation Scores")
+        cv_df = pd.DataFrame({'Fold': [f'Fold {i+1}' for i in range(5)], 'Accuracy (%)': metrics['cv_scores']})
+        st.dataframe(cv_df, use_container_width=True, hide_index=True)
+        st.markdown(f"**Mean CV Accuracy:** {metrics['cv_mean']:.1f}%")
+
+        st.markdown("#### Global Feature Importance")
+        imp_df = pd.DataFrame(list(metrics['feature_importance'].items()), columns=['Feature','Importance'])
+        imp_df = imp_df.sort_values('Importance', ascending=False)
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.barh(imp_df['Feature'], imp_df['Importance'], color='#1E3A8A')
+        ax.invert_yaxis()
+        ax.set_xlabel('Importance')
+        st.pyplot(fig)
     else:
-        st.info("No assessments recorded in the last 30 days. Start saving assessments to see monthly reports.")
+        st.warning("Model not trained yet.")
