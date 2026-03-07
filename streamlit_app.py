@@ -1032,4 +1032,4 @@ with tab7:
     if not st.session_state.model_trained:
         st.warning("⚠️ Model not trained yet. Please train the model first.")
     
-
+
