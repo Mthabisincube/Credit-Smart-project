@@ -203,7 +203,12 @@ if 'assessment_results' not in st.session_state:
 # Load data
 @st.cache_data
 def load_data():
-    return pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
+    df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
+    # Add synthetic Income Source column
+    np.random.seed(42)
+    income_sources = ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other']
+    df['Income_Source'] = np.random.choice(income_sources, size=len(df), p=[0.4, 0.25, 0.15, 0.1, 0.1])
+    return df
 
 df = load_data()
 
@@ -211,7 +216,7 @@ df = load_data()
 if not st.session_state.model_trained:
     with st.spinner("🤖 Initializing AI Systems..."):
         try:
-            X = df.drop("Credit_Score", axis=1)
+            X = df.drop(["Credit_Score", "Income_Source"], axis=1)  # drop income source from features
             y = df["Credit_Score"]
             
             label_encoders = {}
@@ -480,7 +485,7 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(NumpyEncoder, self).default(obj)
 
-# ================= NEW FEATURES =================
+# ================= PDF REPORT GENERATION =================
 def generate_pdf_report(assessment_data, recommendations):
     # This prevents an issue when running on non-latin-1 environments
     pdf = FPDF()
@@ -500,6 +505,7 @@ def generate_pdf_report(assessment_data, recommendations):
     pdf.cell(200, 8, txt=f"Location: {assessment_data.get('location')}", ln=True)
     pdf.cell(200, 8, txt=f"Gender: {assessment_data.get('gender')}", ln=True)
     pdf.cell(200, 8, txt=f"Age: {assessment_data.get('age')}", ln=True)
+    pdf.cell(200, 8, txt=f"Income Source: {assessment_data.get('income_source', 'N/A')}", ln=True)
     pdf.ln(5)
     
     pdf.set_font("Arial", 'B', 14)
@@ -540,7 +546,7 @@ def get_pdf_download_link(pdf_bytes, filename):
 def train_model():
     with st.spinner("🤖 Training Random Forest model..."):
         try:
-            X = df.drop("Credit_Score", axis=1)
+            X = df.drop(["Credit_Score", "Income_Source"], axis=1)
             y = df["Credit_Score"]
             
             label_encoders = {}
@@ -671,7 +677,11 @@ with st.sidebar:
     
     Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", 
                                          sorted(df['Loan_Repayment_History'].unique()))
-                                         
+    
+    # New: Income Source
+    Income_Source = st.selectbox("💰 Source of Income", 
+                                 ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other'])
+    
     current_inputs = {
         'Location': Location,
         'Gender': gender,
@@ -679,16 +689,17 @@ with st.sidebar:
         'Mobile_Money_Txns': Mobile_Money_Txns,
         'Airtime_Spend_ZWL': Airtime_Spend_ZWL,
         'Utility_Payments_ZWL': Utility_Payments_ZWL,
-        'Loan_Repayment_History': Loan_Repayment_History
+        'Loan_Repayment_History': Loan_Repayment_History,
+        'Income_Source': Income_Source
     }
 
-# Main tabs 
+# Main tabs (Simulator removed, replaced with Income Source)
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📊 Dashboard", 
     "🔍 Analysis", 
     "🎯 Assessment", 
     "🤖 Explainable AI", 
-    "🔄 Credit Simulator",
+    "💰 Income Source",        # new tab
     "👥 Peer Comparison",
     "📈 Accuracy", 
     "📋 Monthly Reports"
@@ -701,7 +712,7 @@ with tab1:
     with col1:
         st.metric("📊 Total Records", f"{len(df):,}")
     with col2:
-        st.metric("🔧 Features", len(df.columns) - 1)
+        st.metric("🔧 Features", len(df.columns) - 2)  # exclude target and income_source
     with col3:
         st.metric("🎯 Credit Classes", df['Credit_Score'].nunique())
     with col4:
@@ -754,9 +765,9 @@ with tab3:
     # Input summary
     input_data = {
         "Feature": ["Location", "Gender", "Age", "Mobile Transactions", 
-                   "Airtime Spend", "Utility Payments", "Repayment History"],
+                   "Airtime Spend", "Utility Payments", "Repayment History", "Income Source"],
         "Value": [Location, gender, f"{Age} years", f"{Mobile_Money_Txns:.1f}", 
-                 f"{Airtime_Spend_ZWL:.1f} ZWL", f"{Utility_Payments_ZWL:.1f} ZWL", Loan_Repayment_History]
+                 f"{Airtime_Spend_ZWL:.1f} ZWL", f"{Utility_Payments_ZWL:.1f} ZWL", Loan_Repayment_History, Income_Source]
     }
     input_df = pd.DataFrame(input_data)
     st.dataframe(input_df, use_container_width=True, hide_index=True)
@@ -795,6 +806,7 @@ with tab3:
                 'location': Location, 'gender': gender, 'age': Age,
                 'mobile_money_txns': Mobile_Money_Txns, 'airtime_spend': Airtime_Spend_ZWL,
                 'utility_payments': Utility_Payments_ZWL, 'repayment_history': Loan_Repayment_History,
+                'income_source': Income_Source,   # new field
                 'score': score, 'max_score': max_score, 'risk_level': risk_level,
                 'predicted_class': None, 'confidence': None
             }
@@ -940,38 +952,58 @@ with tab4:
                 ax.invert_yaxis()
                 st.pyplot(fig)
 
+# ======== NEW INCOME SOURCE TAB ========
 with tab5:
-    st.markdown("### 🔄 What-If Credit Simulator")
-    st.markdown("Explore how changing your financial behavior impacts your credit standing immediately.")
+    st.markdown("### 💰 Income Source Insights")
     
-    col1, col2 = st.columns(2)
+    # Display current applicant's income source
+    st.info(f"**Current applicant's source of income:** {Income_Source}")
+    
+    # Distribution of income sources in the dataset
+    st.markdown("#### Income Source Distribution (All Applicants)")
+    income_counts = df['Income_Source'].value_counts()
+    
+    col1, col2 = st.columns([2, 1])
     with col1:
-        st.markdown("#### Scenario Adjustments")
-        sim_mobile = st.slider("Simulate Mobile Txns", 0.0, float(df['Mobile_Money_Txns'].max()), float(Mobile_Money_Txns), key="sim_mob")
-        sim_airtime = st.slider("Simulate Airtime Spend", 0.0, float(df['Airtime_Spend_ZWL'].max()), float(Airtime_Spend_ZWL), key="sim_air")
-        sim_utility = st.slider("Simulate Utility Payments", 0.0, float(df['Utility_Payments_ZWL'].max()), float(Utility_Payments_ZWL), key="sim_uti")
-        sim_repay = st.selectbox("Simulate Repayment History", sorted(df['Loan_Repayment_History'].unique()), index=sorted(df['Loan_Repayment_History'].unique()).index(Loan_Repayment_History), key="sim_rep")
-        
+        fig = px.bar(
+            x=income_counts.index,
+            y=income_counts.values,
+            labels={'x': 'Income Source', 'y': 'Count'},
+            color=income_counts.index,
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+    
     with col2:
-        st.markdown("#### Estimated Outcomes")
-        # recalculate simulated score
-        sim_score = 0
-        if 30 <= Age <= 50: sim_score += 2
-        elif 25 <= Age < 30 or 50 < Age <= 60: sim_score += 1
-        
-        if sim_mobile > mobile_median: sim_score += 1
-        sim_score += repayment_scores[sim_repay]
-        
-        sim_pct = (sim_score / max_score) * 100
-        
-        # Show delta
-        delta = sim_score - score
-        st.metric("Simulated Credit Score", f"{sim_score}/{max_score}", delta=f"{delta} points", delta_color="normal")
-        st.progress(sim_pct / 100)
-        
-        if sim_score >= 5: st.success("✅ Moves you to Excellent standing!")
-        elif sim_score >= 3: st.warning("⚠️ Moves you to Moderate standing.")
-        else: st.error("❌ Drops you to High Risk standing.")
+        st.dataframe(income_counts.reset_index().rename(columns={'index': 'Source', 'Income_Source': 'Count'}),
+                     use_container_width=True, hide_index=True)
+    
+    # Average credit score by income source
+    st.markdown("#### Average Credit Score by Income Source")
+    # Map credit score to numeric
+    score_map = {'Poor': 1, 'Fair': 2, 'Good': 3, 'Excellent': 4}
+    df['Credit_Score_Numeric'] = df['Credit_Score'].map(score_map)
+    avg_score = df.groupby('Income_Source')['Credit_Score_Numeric'].mean().sort_values()
+    
+    fig2 = px.bar(
+        x=avg_score.values,
+        y=avg_score.index,
+        orientation='h',
+        labels={'x': 'Average Credit Score (1=Poor → 4=Excellent)', 'y': ''},
+        color=avg_score.values,
+        color_continuous_scale='Viridis'
+    )
+    fig2.update_layout(showlegend=False, height=300)
+    st.plotly_chart(fig2, use_container_width=True)
+    
+    # Recent assessments by income source (if any)
+    if st.session_state.assessments_history:
+        st.markdown("#### Recent Assessments by Income Source")
+        recent_df = pd.DataFrame(st.session_state.assessments_history[-50:])  # last 50
+        if 'income_source' in recent_df.columns:
+            source_counts = recent_df['income_source'].value_counts()
+            st.bar_chart(source_counts)
 
 with tab6:
     st.markdown("### 👥 Peer Comparison Analytics")
@@ -1031,5 +1063,90 @@ with tab7:
     
     if not st.session_state.model_trained:
         st.warning("⚠️ Model not trained yet. Please train the model first.")
-    
+    else:
+        metrics = st.session_state.model_metrics
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("🎯 Accuracy", f"{metrics['accuracy']:.1f}%")
+        with col2:
+            st.metric("📊 Precision", f"{metrics['precision']:.1f}%")
+        with col3:
+            st.metric("🔄 Recall", f"{metrics['recall']:.1f}%")
+        with col4:
+            st.metric("📈 F1 Score", f"{metrics['f1_score']:.1f}%")
+        
+        st.markdown("#### Cross-Validation Performance")
+        cv_df = pd.DataFrame({
+            'Fold': [f'Fold {i+1}' for i in range(len(metrics['cv_scores']))],
+            'Accuracy (%)': metrics['cv_scores']
+        })
+        st.dataframe(cv_df, use_container_width=True, hide_index=True)
+        
+        st.markdown(f"**Mean CV Accuracy:** {metrics['cv_mean']:.1f}%")
+        
+        st.markdown("#### Feature Importance")
+        importance_df = pd.DataFrame(
+            list(metrics['feature_importance'].items()),
+            columns=['Feature', 'Importance']
+        ).sort_values('Importance', ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.barh(importance_df['Feature'], importance_df['Importance'])
+        ax.set_xlabel('Importance Score')
+        ax.invert_yaxis()
+        st.pyplot(fig)
+        
+        st.markdown("#### Model Details")
+        st.write(f"**Training samples:** {metrics['train_size']}")
+        st.write(f"**Test samples:** {metrics['test_size']}")
 
+with tab8:
+    st.markdown("### 📋 Monthly Reports")
+    st.markdown("Statistical summary of assessments in the last 30 days")
+    
+    stats = get_monthly_assessment_stats()
+    
+    if stats:
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("📊 Total Assessments", stats['total_assessments'])
+        with col2:
+            st.metric("📈 Avg Score", f"{stats['average_score']:.2f}")
+        with col3:
+            st.metric("✅ Approval Rate", f"{stats['approval_rate']:.1f}%")
+        with col4:
+            st.metric("⚠️ High Risk", f"{stats['high_risk_rate']:.1f}%")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            trend_chart = generate_monthly_trend_chart(stats)
+            if trend_chart:
+                st.plotly_chart(trend_chart, use_container_width=True)
+        
+        with col2:
+            score_chart = generate_score_trend_chart(stats)
+            if score_chart:
+                st.plotly_chart(score_chart, use_container_width=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            risk_chart = generate_risk_distribution_chart(stats)
+            if risk_chart:
+                st.plotly_chart(risk_chart, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### Key Insights")
+            st.markdown(f"""
+            - **Most active day:** {max(stats['daily_counts'], key=stats['daily_counts'].get)}
+            - **Peak average score:** {max(stats['daily_scores'].values()):.2f}
+            - **Low risk proportion:** {stats['low_risk_rate']:.1f}%
+            - **Average AI confidence:** {stats['ai_confidence_avg']:.1f}%
+            """)
+        
+        if stats.get('latest_assessment'):
+            st.markdown("#### Latest Assessment")
+            latest = stats['latest_assessment']
+            st.info(f"**ID:** {latest.get('assessment_id', 'N/A')} | **Score:** {latest.get('score', 'N/A')} | **Risk:** {latest.get('risk_level', 'N/A')}")
+    else:
+        st.info("No assessments recorded in the last 30 days. Start saving assessments to see monthly reports.")
