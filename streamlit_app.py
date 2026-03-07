@@ -272,13 +272,13 @@ if not st.session_state.model_trained:
             st.session_state.X_columns = X.columns.tolist()
             try:
                 explainer = shap.TreeExplainer(model)
-                X_sample = X_test.sample(n=min(100, len(X_test)), random_state=42)
+                X_sample = X_test.sample(n=min(50, len(X_test)), random_state=42)
                 shap_values = explainer.shap_values(X_sample)
                 st.session_state.explainer = explainer
                 st.session_state.shap_values = shap_values
                 st.session_state.X_sample = X_sample
             except Exception as e:
-                pass # Silent fail for SHAP on auto-init if errors occur
+                st.warning(f"⚠️ SHAP initialization skipped: {str(e)[:50]}")
                 
         except Exception as e:
             st.error(f"Failed to initialize model: {e}")
@@ -598,18 +598,41 @@ def train_model():
                 'feature_importance': {k: float(v) for k, v in dict(zip(X.columns, model.feature_importances_)).items()}
             }
             
-            # --- SHAP EXPLAINER INITIALIZATION ---
+            # --- ENHANCED SHAP EXPLAINER INITIALIZATION WITH FALLBACKS ---
             st.session_state.X_columns = X.columns.tolist()
+            
             try:
-                # TreeExplainer is fast for Random Forest
+                # Try TreeExplainer first (fastest for Random Forest)
                 explainer = shap.TreeExplainer(model)
-                X_sample = X_test.sample(n=min(100, len(X_test)), random_state=42)
+                X_sample = X_test.sample(n=min(50, len(X_test)), random_state=42)
                 shap_values = explainer.shap_values(X_sample)
+                
                 st.session_state.explainer = explainer
                 st.session_state.shap_values = shap_values
                 st.session_state.X_sample = X_sample
+                st.success("✅ SHAP TreeExplainer initialized successfully")
+                
             except Exception as e:
-                st.warning(f"Could not initialize SHAP explainer: {e}")
+                st.warning(f"⚠️ TreeExplainer failed, trying KernelExplainer: {str(e)[:40]}")
+                
+                try:
+                    # Fallback to KernelExplainer
+                    background = X_train.sample(n=min(100, len(X_train)), random_state=42)
+                    explainer = shap.KernelExplainer(
+                        model.predict,
+                        background
+                    )
+                    X_sample = X_test.sample(n=min(30, len(X_test)), random_state=42)
+                    shap_values = explainer.shap_values(X_sample)
+                    
+                    st.session_state.explainer = explainer
+                    st.session_state.shap_values = shap_values
+                    st.session_state.X_sample = X_sample
+                    st.info("ℹ️ Using KernelExplainer (slower but works)")
+                    
+                except Exception as e2:
+                    st.warning(f"⚠️ SHAP initialization failed. Using feature importance: {str(e2)[:40]}")
+                    # Feature importance will be used as fallback in the UI
             
             return True
             
@@ -660,7 +683,6 @@ with st.sidebar:
     }
 
 # Main tabs 
-# Added new tabs for the newly requested features
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📊 Dashboard", 
     "🔍 Analysis", 
@@ -795,30 +817,128 @@ with tab3:
             except Exception as e:
                 st.error(f"Failed to generate PDF. Make sure you installed fpdf. Error: {e}")
 
+# ======== ENHANCED EXPLAINABLE AI TAB WITH FULL ERROR HANDLING ========
 with tab4:
     st.markdown("### 🤖 Explainable AI (SHAP)")
-    if not st.session_state.model_trained or st.session_state.explainer is None:
-        st.warning("⚠️ Model not trained or SHAP explainer not initialized yet.")
+    
+    if not st.session_state.model_trained:
+        st.warning("⚠️ Model not trained yet.")
+        st.info("The model will initialize automatically on first load.")
+    
+    elif st.session_state.explainer is None:
+        st.warning("⚠️ SHAP explainer not available. Showing feature importance instead.")
+        
+        st.markdown("#### 📊 Feature Importance (Alternative Analysis)")
+        feature_importance = st.session_state.model_metrics.get('feature_importance', {})
+        
+        if feature_importance:
+            importance_df = pd.DataFrame(
+                list(feature_importance.items()),
+                columns=['Feature', 'Importance']
+            ).sort_values('Importance', ascending=False)
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.barh(importance_df['Feature'], importance_df['Importance'])
+            ax.set_xlabel('Importance Score')
+            ax.set_title('Feature Importance in Credit Score Prediction')
+            ax.invert_yaxis()
+            st.pyplot(fig)
+            
+            st.markdown("""
+            **Understanding Feature Importance:**
+            - Features at the top have the highest impact on credit decisions
+            - Use this to understand which factors matter most
+            - Higher importance = stronger influence on predictions
+            """)
+        else:
+            st.info("No feature importance data available")
+    
     else:
-        st.info("Understand why the AI makes certain predictions by looking at Feature Importance.")
+        # SHAP analysis is available
+        st.info("🎯 Understanding why the AI makes certain predictions")
         
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # Summary plot over the sample
-        shap.summary_plot(
-            st.session_state.shap_values, 
-            st.session_state.X_sample, 
-            plot_type="bar", 
-            show=False
-        )
-        st.pyplot(fig)
-        
-        st.markdown("""
-        **How to read this chart:**
-        - Features on the top have the highest impact on the model's decision-making across all classes.
-        - Different colors denote the impact on different credit classes (e.g. Excellent vs. Poor).
-        - Use this transparency to justify model decisions to auditors or customers.
-        """)
+        try:
+            # Handle different SHAP output formats
+            if isinstance(st.session_state.shap_values, list):
+                # Multi-class: use first class
+                shap_vals = st.session_state.shap_values[0]
+            else:
+                shap_vals = st.session_state.shap_values
+            
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            # Summary plot
+            shap.summary_plot(
+                shap_vals,
+                st.session_state.X_sample,
+                plot_type="bar",
+                show=False,
+                max_display=10
+            )
+            st.pyplot(fig)
+            
+            st.markdown("""
+            **How to read this chart:**
+            - Each bar represents a feature's average impact on predictions
+            - Longer bars = more important features for credit decisions
+            - **Red tones** = features pushing score higher (approval)
+            - **Blue tones** = features pushing score lower (rejection)
+            """)
+            
+            # Feature dependence analysis
+            st.markdown("#### 🔍 Top Feature Analysis")
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                top_feature_idx = np.argsort(np.abs(shap_vals).mean(0))[-1]
+                top_feature_name = st.session_state.X_columns[top_feature_idx]
+                
+                st.subheader(f"Most Impactful: {top_feature_name}")
+                
+                fig, ax = plt.subplots(figsize=(10, 6))
+                shap.dependence_plot(
+                    top_feature_idx,
+                    shap_vals,
+                    st.session_state.X_sample,
+                    show=False
+                )
+                st.pyplot(fig)
+            
+            with col2:
+                st.write("")
+                st.write("")
+                st.markdown("""
+                **What this plot shows:**
+                
+                - **X-axis**: Actual feature value
+                - **Y-axis**: SHAP value (impact on prediction)
+                - **Each dot**: One prediction
+                - **Patterns**: Show how feature affects outcomes
+                
+                **Interpretation:**
+                - Upward slope = higher values increase score
+                - Downward slope = higher values decrease score
+                """)
+            
+            st.success("✅ SHAP visualizations loaded successfully!")
+            
+        except Exception as e:
+            st.warning(f"Could not generate SHAP visualizations: {str(e)[:60]}")
+            st.info("Displaying model feature importance instead:")
+            
+            feature_importance = st.session_state.model_metrics.get('feature_importance', {})
+            if feature_importance:
+                importance_df = pd.DataFrame(
+                    list(feature_importance.items()),
+                    columns=['Feature', 'Importance']
+                ).sort_values('Importance', ascending=False)
+                
+                fig, ax = plt.subplots(figsize=(10, 6))
+                ax.barh(importance_df['Feature'], importance_df['Importance'])
+                ax.set_xlabel('Importance Score')
+                ax.invert_yaxis()
+                st.pyplot(fig)
 
 with tab5:
     st.markdown("### 🔄 What-If Credit Simulator")
@@ -911,130 +1031,5 @@ with tab7:
     
     if not st.session_state.model_trained:
         st.warning("⚠️ Model not trained yet. Please train the model first.")
-    else:
-        metrics = st.session_state.model_metrics
-        
-        st.markdown("#### 🎯 Performance Metrics (>90% Accuracy)")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(f"""
-            <div class="accuracy-card">
-                <h3>Accuracy</h3>
-                <h2>{metrics['accuracy']:.1f}%</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>Precision</h3>
-                <h2>{metrics['precision']:.1f}%</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>Recall</h3>
-                <h2>{metrics['recall']:.1f}%</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>F1-Score</h3>
-                <h2>{metrics['f1_score']:.1f}%</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Cross-validation results
-        st.markdown("#### 🔄 Cross-Validation")
-        cv_df = pd.DataFrame({
-            'Fold': [f'Fold {i+1}' for i in range(len(metrics['cv_scores']))],
-            'Accuracy': [f"{score:.1f}%" for score in metrics['cv_scores']]
-        })
-        st.dataframe(cv_df, use_container_width=True, hide_index=True)
-
-with tab8:
-    st.markdown("### 📋 Monthly Assessment Reports")
     
-    st.markdown("""
-    <div class="monthly-report-card">
-        <h3>📊 Monthly Assessment Analytics</h3>
-        <p>Comprehensive reports based on actual assessment data from the last month. 
-        All trends and statistics are generated from real assessment history.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Get monthly statistics
-    stats = get_monthly_assessment_stats()
-    
-    if not stats or stats['total_assessments'] == 0:
-        st.warning("📭 No assessment data available for the last month.")
-        st.info("Please complete some assessments in the Assessment tab to generate reports.")
-    else:
-        # Display key metrics
-        st.markdown("#### 📈 Monthly Summary")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(f"""
-            <div class="trend-card">
-                <h3>Total Assessments</h3>
-                <h2>{stats['total_assessments']}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>Approval Rate</h3>
-                <h2>{stats['approval_rate']:.1f}%</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>Avg Score</h3>
-                <h2>{stats['average_score']:.1f}/6</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h3>High Risk Rate</h3>
-                <h2>{stats['high_risk_rate']:.1f}%</h2>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Generate visualizations
-        st.markdown("#### 📊 Monthly Trends")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            volume_chart = generate_monthly_trend_chart(stats)
-            if volume_chart:
-                st.plotly_chart(volume_chart, use_container_width=True)
-            else:
-                st.info("No trend data available")
-        
-        with col2:
-            score_chart = generate_score_trend_chart(stats)
-            if score_chart:
-                st.plotly_chart(score_chart, use_container_width=True)
-            else:
-                st.info("No score trend data available")
-        
-        # Detailed statistics
-        st.markdown("#### 📋 Detailed Statistics")
-        metrics_data = {
-            'Metric': ['Total Assessments', 'Average Score', 'Median Score', 'Approval Rate'],
-            'Value': [f"{stats['total_assessments']}", f"{stats['average_score']:.2f}",
-                     f"{stats['median_score']:.2f}", f"{stats['approval_rate']:.1f}%"]
-        }
-        st.dataframe(pd.DataFrame(metrics_data), use_container_width=True, hide_index=True)
+
