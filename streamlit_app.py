@@ -693,16 +693,18 @@ with st.sidebar:
         'Income_Source': Income_Source
     }
 
-# Main tabs (Simulator removed, replaced with Income Source)
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+# Main tabs
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "📊 Dashboard", 
     "🔍 Analysis", 
     "🎯 Assessment", 
     "🤖 Explainable AI", 
-    "💰 Income Source",        # new tab
+    "💰 Income Source",        
     "👥 Peer Comparison",
     "📈 Accuracy", 
-    "📋 Monthly Reports"
+    "📋 Monthly Reports",
+    "🧮 Loan Simulator",
+    "� Credit Trajectory Modeler"
 ])
 
 with tab1:
@@ -849,12 +851,14 @@ with tab4:
                 columns=['Feature', 'Importance']
             ).sort_values('Importance', ascending=False)
             
-            fig, ax = plt.subplots(figsize=(10, 6))
-            ax.barh(importance_df['Feature'], importance_df['Importance'])
-            ax.set_xlabel('Importance Score')
-            ax.set_title('Feature Importance in Credit Score Prediction')
-            ax.invert_yaxis()
-            st.pyplot(fig)
+            fig_imp, ax_imp = plt.subplots(figsize=(10, 6))
+            ax_imp.barh(importance_df['Feature'], importance_df['Importance'])
+            ax_imp.set_xlabel('Importance Score')
+            ax_imp.set_title('Feature Importance in Credit Score Prediction')
+            ax_imp.invert_yaxis()
+            plt.tight_layout()
+            st.pyplot(fig_imp)
+            plt.close(fig_imp)
             
             st.markdown("""
             **Understanding Feature Importance:**
@@ -877,9 +881,10 @@ with tab4:
             else:
                 shap_vals = st.session_state.shap_values
             
-            fig, ax = plt.subplots(figsize=(12, 6))
+            # Close any stale figures before SHAP creates its own
+            plt.close('all')
             
-            # Summary plot
+            # Summary plot — SHAP creates its own figure internally
             shap.summary_plot(
                 shap_vals,
                 st.session_state.X_sample,
@@ -887,7 +892,11 @@ with tab4:
                 show=False,
                 max_display=10
             )
-            st.pyplot(fig)
+            shap_summary_fig = plt.gcf()
+            shap_summary_fig.set_size_inches(12, 6)
+            plt.tight_layout()
+            st.pyplot(shap_summary_fig)
+            plt.close(shap_summary_fig)
             
             st.markdown("""
             **How to read this chart:**
@@ -908,14 +917,18 @@ with tab4:
                 
                 st.subheader(f"Most Impactful: {top_feature_name}")
                 
-                fig, ax = plt.subplots(figsize=(10, 6))
+                plt.close('all')
                 shap.dependence_plot(
                     top_feature_idx,
                     shap_vals,
                     st.session_state.X_sample,
                     show=False
                 )
-                st.pyplot(fig)
+                shap_dep_fig = plt.gcf()
+                shap_dep_fig.set_size_inches(10, 6)
+                plt.tight_layout()
+                st.pyplot(shap_dep_fig)
+                plt.close(shap_dep_fig)
             
             with col2:
                 st.write("")
@@ -938,6 +951,7 @@ with tab4:
         except Exception as e:
             st.warning(f"Could not generate SHAP visualizations: {str(e)[:60]}")
             st.info("Displaying model feature importance instead:")
+            plt.close('all')
             
             feature_importance = st.session_state.model_metrics.get('feature_importance', {})
             if feature_importance:
@@ -946,11 +960,13 @@ with tab4:
                     columns=['Feature', 'Importance']
                 ).sort_values('Importance', ascending=False)
                 
-                fig, ax = plt.subplots(figsize=(10, 6))
-                ax.barh(importance_df['Feature'], importance_df['Importance'])
-                ax.set_xlabel('Importance Score')
-                ax.invert_yaxis()
-                st.pyplot(fig)
+                fig_fb, ax_fb = plt.subplots(figsize=(10, 6))
+                ax_fb.barh(importance_df['Feature'], importance_df['Importance'])
+                ax_fb.set_xlabel('Importance Score')
+                ax_fb.invert_yaxis()
+                plt.tight_layout()
+                st.pyplot(fig_fb)
+                plt.close(fig_fb)
 
 # ======== NEW INCOME SOURCE TAB ========
 with tab5:
@@ -1150,3 +1166,188 @@ with tab8:
             st.info(f"**ID:** {latest.get('assessment_id', 'N/A')} | **Score:** {latest.get('score', 'N/A')} | **Risk:** {latest.get('risk_level', 'N/A')}")
     else:
         st.info("No assessments recorded in the last 30 days. Start saving assessments to see monthly reports.")
+
+with tab9:
+    st.markdown("### 🧮 Loan Repayment Simulator")
+    st.markdown("Plan your potential loan repayments based on your assessment results.")
+    
+    if st.session_state.assessment_results.get('score') == 0 and not st.session_state.assessments_history:
+        st.info("👈 Please complete an assessment in the **Assessment** tab first to check your eligibility.")
+    else:
+        score = st.session_state.assessment_results.get('score', 0)
+        risk_level = st.session_state.assessment_results.get('risk_level', 'High')
+        
+        if risk_level == "Low":
+            max_loan = 50000
+            interest_rate = 0.12  # 12% p.a.
+            st.success("✨ Excellent! You qualify for our best rates and highest limits.")
+        elif risk_level == "Medium":
+            max_loan = 25000
+            interest_rate = 0.18  # 18% p.a.
+            st.warning("📊 Good! You qualify for standard loans.")
+        else:
+            max_loan = 5000
+            interest_rate = 0.25  # 25% p.a.
+            st.error("⚠️ Higher risk profile. Initial limits are restricted.")
+            
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**Maximum Eligible Amount:** ZWL {max_loan:,}")
+            st.markdown(f"**Applicable Interest Rate:** {interest_rate*100:.1f}% p.a.")
+            
+            loan_amount = st.slider("Requested Loan Amount (ZWL)", 
+                                  min_value=1000, 
+                                  max_value=max_loan, 
+                                  value=min(10000, max_loan),
+                                  step=1000)
+            
+            loan_term_months = st.selectbox("Loan Term (Months)", [3, 6, 9, 12, 18, 24])
+            
+        with col2:
+            monthly_interest_rate = interest_rate / 12
+            if monthly_interest_rate > 0:
+                monthly_payment = loan_amount * (monthly_interest_rate * (1 + monthly_interest_rate)**loan_term_months) / ((1 + monthly_interest_rate)**loan_term_months - 1)
+            else:
+                monthly_payment = loan_amount / loan_term_months
+                
+            total_repayment = monthly_payment * loan_term_months
+            total_interest = total_repayment - loan_amount
+            
+            st.markdown("#### Repayment Summary")
+            st.metric("Monthly Payment", f"ZWL {monthly_payment:,.2f}")
+            st.metric("Total Interest", f"ZWL {total_interest:,.2f}")
+            st.metric("Total Repayment", f"ZWL {total_repayment:,.2f}")
+            
+        st.markdown("#### Balance Projection")
+        months = np.arange(0, loan_term_months + 1)
+        balances = [loan_amount * ((1 + monthly_interest_rate)**loan_term_months - (1 + monthly_interest_rate)**m) / ((1 + monthly_interest_rate)**loan_term_months - 1) for m in months]
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=months, y=balances, fill='tozeroy', mode='lines', line_color='#1f77b4', name="Balance"))
+        fig.update_layout(
+            xaxis_title="Month",
+            yaxis_title="Outstanding Balance (ZWL)",
+            height=350,
+            margin=dict(l=0, r=0, t=10, b=0)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+with tab10:
+    st.markdown("### � Credit Trajectory Modeler")
+    st.markdown("Model projected credit score trajectories by simulating changes in an applicant's financial behavior. Use this to build data-driven improvement roadmaps for clients.")
+    
+    st.markdown("---")
+    st.markdown("#### Current Applicant Profile")
+    cur_col1, cur_col2, cur_col3, cur_col4 = st.columns(4)
+    with cur_col1:
+        st.metric("📱 Mobile Txns", f"{Mobile_Money_Txns:.0f}")
+    with cur_col2:
+        st.metric("📞 Airtime (ZWL)", f"{Airtime_Spend_ZWL:.0f}")
+    with cur_col3:
+        st.metric("💡 Utility (ZWL)", f"{Utility_Payments_ZWL:.0f}")
+    with cur_col4:
+        st.metric("📊 Repayment", Loan_Repayment_History)
+    
+    st.markdown("---")
+    st.markdown("#### 🎛️ Simulate Improvements")
+    
+    sim_col1, sim_col2 = st.columns(2)
+    with sim_col1:
+        sim_mobile = st.slider("Projected Mobile Money Txns",
+                              float(df['Mobile_Money_Txns'].min()),
+                              float(df['Mobile_Money_Txns'].max()),
+                              float(Mobile_Money_Txns),
+                              key="sim_mobile")
+        sim_airtime = st.slider("Projected Airtime Spend (ZWL)",
+                              float(df['Airtime_Spend_ZWL'].min()),
+                              float(df['Airtime_Spend_ZWL'].max()),
+                              float(Airtime_Spend_ZWL),
+                              key="sim_airtime")
+    with sim_col2:
+        sim_utility = st.slider("Projected Utility Payments (ZWL)",
+                              float(df['Utility_Payments_ZWL'].min()),
+                              float(df['Utility_Payments_ZWL'].max()),
+                              float(Utility_Payments_ZWL),
+                              key="sim_utility")
+        repayment_options = ['Poor', 'Fair', 'Good', 'Excellent']
+        current_idx = repayment_options.index(Loan_Repayment_History)
+        sim_repayment = st.selectbox("Projected Repayment History",
+                                    repayment_options,
+                                    index=current_idx,
+                                    key="sim_repayment")
+    
+    # Calculate current score
+    current_score = 0
+    if 30 <= Age <= 50: current_score += 2
+    elif 25 <= Age < 30 or 50 < Age <= 60: current_score += 1
+    mobile_med = df['Mobile_Money_Txns'].median()
+    if Mobile_Money_Txns > mobile_med: current_score += 1
+    rep_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
+    current_score += rep_scores[Loan_Repayment_History]
+    
+    # Calculate projected score
+    projected_score = 0
+    if 30 <= Age <= 50: projected_score += 2
+    elif 25 <= Age < 30 or 50 < Age <= 60: projected_score += 1
+    if sim_mobile > mobile_med: projected_score += 1
+    projected_score += rep_scores[sim_repayment]
+    
+    score_delta = projected_score - current_score
+    
+    st.markdown("---")
+    st.markdown("#### 📊 Impact Analysis")
+    
+    res_col1, res_col2, res_col3 = st.columns(3)
+    with res_col1:
+        st.metric("Current Score", f"{current_score}/6", help="Based on sidebar inputs")
+    with res_col2:
+        delta_label = f"+{score_delta}" if score_delta > 0 else str(score_delta)
+        st.metric("Projected Score", f"{projected_score}/6", delta=delta_label if score_delta != 0 else None)
+    with res_col3:
+        proj_risk = get_risk_level(projected_score)
+        curr_risk = get_risk_level(current_score)
+        risk_color = "✅" if proj_risk == "Low" else ("⚠️" if proj_risk == "Medium" else "❌")
+        st.metric("Projected Risk", f"{risk_color} {proj_risk}")
+    
+    # Radar comparison chart
+    max_mob = df['Mobile_Money_Txns'].max()
+    max_air = df['Airtime_Spend_ZWL'].max()
+    max_util = df['Utility_Payments_ZWL'].max()
+    
+    def s(val, mx):
+        return (val / mx) * 100 if mx > 0 else 0
+    
+    radar_cats = ['Mobile Txns', 'Airtime Spend', 'Utility Payments', 'Repayment Score']
+    current_vals = [s(Mobile_Money_Txns, max_mob), s(Airtime_Spend_ZWL, max_air),
+                    s(Utility_Payments_ZWL, max_util), rep_scores[Loan_Repayment_History] / 3 * 100]
+    projected_vals = [s(sim_mobile, max_mob), s(sim_airtime, max_air),
+                      s(sim_utility, max_util), rep_scores[sim_repayment] / 3 * 100]
+    
+    radar_fig = go.Figure()
+    radar_fig.add_trace(go.Scatterpolar(r=current_vals + [current_vals[0]], theta=radar_cats + [radar_cats[0]],
+                                        fill='toself', name='Current', line_color='#dc3545', opacity=0.6))
+    radar_fig.add_trace(go.Scatterpolar(r=projected_vals + [projected_vals[0]], theta=radar_cats + [radar_cats[0]],
+                                        fill='toself', name='Projected', line_color='#28a745', opacity=0.6))
+    radar_fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+                            showlegend=True, height=400, margin=dict(t=30, b=30))
+    st.plotly_chart(radar_fig, use_container_width=True)
+    
+    # Actionable recommendations
+    st.markdown("#### 💡 Analyst Recommendations")
+    tips = []
+    if sim_mobile > Mobile_Money_Txns:
+        pct = ((sim_mobile - Mobile_Money_Txns) / max(Mobile_Money_Txns, 1)) * 100
+        tips.append(f"📱 Increasing mobile money transactions by **{pct:.0f}%** would demonstrate stronger digital financial activity.")
+    if rep_scores[sim_repayment] > rep_scores[Loan_Repayment_History]:
+        tips.append(f"📊 Improving repayment history from **{Loan_Repayment_History}** → **{sim_repayment}** is the single strongest score driver.")
+    if sim_utility > Utility_Payments_ZWL:
+        tips.append(f"💡 Consistent utility payments show financial discipline — projecting an increase to **ZWL {sim_utility:.0f}**.")
+    if sim_airtime > Airtime_Spend_ZWL:
+        tips.append(f"📞 Higher airtime spend (to **ZWL {sim_airtime:.0f}**) signals ongoing economic activity.")
+    
+    if score_delta > 0:
+        st.markdown(f'<div class="success-box"><b>Projected Improvement: +{score_delta} points</b><br>{"<br>".join(tips) if tips else "Profile already strong."}</div>', unsafe_allow_html=True)
+    elif score_delta == 0:
+        st.markdown('<div class="warning-box"><b>No Change Detected</b><br>Adjust the sliders above to simulate different financial behaviors and see the projected impact.</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="danger-box"><b>Warning: Score would decrease by {abs(score_delta)} points</b><br>The simulated changes would negatively impact the applicant\'s profile.</div>', unsafe_allow_html=True)
