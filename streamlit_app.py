@@ -678,9 +678,9 @@ with st.sidebar:
     Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", 
                                          sorted(df['Loan_Repayment_History'].unique()))
     
-    # New: Income Source
+    # Income Source (no Formal Employment)
     Income_Source = st.selectbox("💰 Source of Income", 
-                                 ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other'])
+                                 ['Informal Business', 'Farming', 'Remittances', 'Other'])
     
     current_inputs = {
         'Location': Location,
@@ -694,17 +694,14 @@ with st.sidebar:
     }
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊 Dashboard", 
     "🔍 Analysis", 
     "🎯 Assessment", 
-    "🤖 Explainable AI", 
-    "💰 Income Source",        
-    "👥 Peer Comparison",
     "📈 Accuracy", 
     "📋 Monthly Reports",
-    "🧮 Loan Simulator",
-    "� Credit Trajectory Modeler"
+    "📐 Credit Trajectory Modeler",
+    "🔬 Fund Origin Intelligence"
 ])
 
 with tab1:
@@ -831,250 +828,9 @@ with tab3:
             except Exception as e:
                 st.error(f"Failed to generate PDF. Make sure you installed fpdf. Error: {e}")
 
-# ======== ENHANCED EXPLAINABLE AI TAB WITH FULL ERROR HANDLING ========
+
+
 with tab4:
-    st.markdown("### 🤖 Explainable AI (SHAP)")
-    
-    if not st.session_state.model_trained:
-        st.warning("⚠️ Model not trained yet.")
-        st.info("The model will initialize automatically on first load.")
-    
-    elif st.session_state.explainer is None:
-        st.warning("⚠️ SHAP explainer not available. Showing feature importance instead.")
-        
-        st.markdown("#### 📊 Feature Importance (Alternative Analysis)")
-        feature_importance = st.session_state.model_metrics.get('feature_importance', {})
-        
-        if feature_importance:
-            importance_df = pd.DataFrame(
-                list(feature_importance.items()),
-                columns=['Feature', 'Importance']
-            ).sort_values('Importance', ascending=False)
-            
-            fig_imp, ax_imp = plt.subplots(figsize=(10, 6))
-            ax_imp.barh(importance_df['Feature'], importance_df['Importance'])
-            ax_imp.set_xlabel('Importance Score')
-            ax_imp.set_title('Feature Importance in Credit Score Prediction')
-            ax_imp.invert_yaxis()
-            plt.tight_layout()
-            st.pyplot(fig_imp)
-            plt.close(fig_imp)
-            
-            st.markdown("""
-            **Understanding Feature Importance:**
-            - Features at the top have the highest impact on credit decisions
-            - Use this to understand which factors matter most
-            - Higher importance = stronger influence on predictions
-            """)
-        else:
-            st.info("No feature importance data available")
-    
-    else:
-        # SHAP analysis is available
-        st.info("🎯 Understanding why the AI makes certain predictions")
-        
-        try:
-            # Handle different SHAP output formats
-            if isinstance(st.session_state.shap_values, list):
-                # Multi-class: use first class
-                shap_vals = st.session_state.shap_values[0]
-            else:
-                shap_vals = st.session_state.shap_values
-            
-            # Close any stale figures before SHAP creates its own
-            plt.close('all')
-            
-            # Summary plot — SHAP creates its own figure internally
-            shap.summary_plot(
-                shap_vals,
-                st.session_state.X_sample,
-                plot_type="bar",
-                show=False,
-                max_display=10
-            )
-            shap_summary_fig = plt.gcf()
-            shap_summary_fig.set_size_inches(12, 6)
-            plt.tight_layout()
-            st.pyplot(shap_summary_fig)
-            plt.close(shap_summary_fig)
-            
-            st.markdown("""
-            **How to read this chart:**
-            - Each bar represents a feature's average impact on predictions
-            - Longer bars = more important features for credit decisions
-            - **Red tones** = features pushing score higher (approval)
-            - **Blue tones** = features pushing score lower (rejection)
-            """)
-            
-            # Feature dependence analysis
-            st.markdown("#### 🔍 Top Feature Analysis")
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                top_feature_idx = np.argsort(np.abs(shap_vals).mean(0))[-1]
-                top_feature_name = st.session_state.X_columns[top_feature_idx]
-                
-                st.subheader(f"Most Impactful: {top_feature_name}")
-                
-                plt.close('all')
-                shap.dependence_plot(
-                    top_feature_idx,
-                    shap_vals,
-                    st.session_state.X_sample,
-                    show=False
-                )
-                shap_dep_fig = plt.gcf()
-                shap_dep_fig.set_size_inches(10, 6)
-                plt.tight_layout()
-                st.pyplot(shap_dep_fig)
-                plt.close(shap_dep_fig)
-            
-            with col2:
-                st.write("")
-                st.write("")
-                st.markdown("""
-                **What this plot shows:**
-                
-                - **X-axis**: Actual feature value
-                - **Y-axis**: SHAP value (impact on prediction)
-                - **Each dot**: One prediction
-                - **Patterns**: Show how feature affects outcomes
-                
-                **Interpretation:**
-                - Upward slope = higher values increase score
-                - Downward slope = higher values decrease score
-                """)
-            
-            st.success("✅ SHAP visualizations loaded successfully!")
-            
-        except Exception as e:
-            st.warning(f"Could not generate SHAP visualizations: {str(e)[:60]}")
-            st.info("Displaying model feature importance instead:")
-            plt.close('all')
-            
-            feature_importance = st.session_state.model_metrics.get('feature_importance', {})
-            if feature_importance:
-                importance_df = pd.DataFrame(
-                    list(feature_importance.items()),
-                    columns=['Feature', 'Importance']
-                ).sort_values('Importance', ascending=False)
-                
-                fig_fb, ax_fb = plt.subplots(figsize=(10, 6))
-                ax_fb.barh(importance_df['Feature'], importance_df['Importance'])
-                ax_fb.set_xlabel('Importance Score')
-                ax_fb.invert_yaxis()
-                plt.tight_layout()
-                st.pyplot(fig_fb)
-                plt.close(fig_fb)
-
-# ======== NEW INCOME SOURCE TAB ========
-with tab5:
-    st.markdown("### 💰 Income Source Insights")
-    
-    # Display current applicant's income source
-    st.info(f"**Current applicant's source of income:** {Income_Source}")
-    
-    # Distribution of income sources in the dataset
-    st.markdown("#### Income Source Distribution (All Applicants)")
-    income_counts = df['Income_Source'].value_counts()
-    
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        fig = px.bar(
-            x=income_counts.index,
-            y=income_counts.values,
-            labels={'x': 'Income Source', 'y': 'Count'},
-            color=income_counts.index,
-            color_discrete_sequence=px.colors.qualitative.Set2
-        )
-        fig.update_layout(showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.dataframe(income_counts.reset_index().rename(columns={'index': 'Source', 'Income_Source': 'Count'}),
-                     use_container_width=True, hide_index=True)
-    
-    # Average credit score by income source
-    st.markdown("#### Average Credit Score by Income Source")
-    # Map credit score to numeric
-    score_map = {'Poor': 1, 'Fair': 2, 'Good': 3, 'Excellent': 4}
-    df['Credit_Score_Numeric'] = df['Credit_Score'].map(score_map)
-    avg_score = df.groupby('Income_Source')['Credit_Score_Numeric'].mean().sort_values()
-    
-    fig2 = px.bar(
-        x=avg_score.values,
-        y=avg_score.index,
-        orientation='h',
-        labels={'x': 'Average Credit Score (1=Poor → 4=Excellent)', 'y': ''},
-        color=avg_score.values,
-        color_continuous_scale='Viridis'
-    )
-    fig2.update_layout(showlegend=False, height=300)
-    st.plotly_chart(fig2, use_container_width=True)
-    
-    # Recent assessments by income source (if any)
-    if st.session_state.assessments_history:
-        st.markdown("#### Recent Assessments by Income Source")
-        recent_df = pd.DataFrame(st.session_state.assessments_history[-50:])  # last 50
-        if 'income_source' in recent_df.columns:
-            source_counts = recent_df['income_source'].value_counts()
-            st.bar_chart(source_counts)
-
-with tab6:
-    st.markdown("### 👥 Peer Comparison Analytics")
-    st.markdown("Compare your financial profile to the median behavior of others in your Location.")
-    
-    # Filter peers by location
-    peers = df[df['Location'] == Location]
-    if len(peers) > 0:
-        peer_mobile = peers['Mobile_Money_Txns'].median()
-        peer_airtime = peers['Airtime_Spend_ZWL'].median()
-        peer_utility = peers['Utility_Payments_ZWL'].median()
-        
-        # We need to scale them for a radar chart
-        def scale_val(val, max_val):
-            return (val / max_val) * 100 if max_val > 0 else 0
-            
-        max_mob = df['Mobile_Money_Txns'].max()
-        max_air = df['Airtime_Spend_ZWL'].max()
-        max_util = df['Utility_Payments_ZWL'].max()
-        
-        categories = ['Mobile Transactions', 'Airtime Spend', 'Utility Payments']
-        
-        fig = go.Figure()
-
-        fig.add_trace(go.Scatterpolar(
-              r=[scale_val(Mobile_Money_Txns, max_mob), scale_val(Airtime_Spend_ZWL, max_air), scale_val(Utility_Payments_ZWL, max_util)],
-              theta=categories,
-              fill='toself',
-              name='Your Profile',
-              line_color='blue'
-        ))
-        
-        fig.add_trace(go.Scatterpolar(
-              r=[scale_val(peer_mobile, max_mob), scale_val(peer_airtime, max_air), scale_val(peer_utility, max_util)],
-              theta=categories,
-              fill='toself',
-              name=f'Peers in {Location}',
-              line_color='green'
-        ))
-
-        fig.update_layout(
-          polar=dict(
-            radialaxis=dict(
-              visible=True,
-              range=[0, 100]
-            )),
-          showlegend=True
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        st.info(f"You spend **{'more' if Airtime_Spend_ZWL > peer_airtime else 'less'}** on airtime and make **{'more' if Mobile_Money_Txns > peer_mobile else 'fewer'}** mobile transactions than your peers in {Location}.")
-    else:
-        st.warning("Not enough data to calculate peer median for this location.")
-
-with tab7:
     st.markdown("### 📈 Model Accuracy")
     
     if not st.session_state.model_trained:
@@ -1112,12 +868,13 @@ with tab7:
         ax.set_xlabel('Importance Score')
         ax.invert_yaxis()
         st.pyplot(fig)
+        plt.close(fig)
         
         st.markdown("#### Model Details")
         st.write(f"**Training samples:** {metrics['train_size']}")
         st.write(f"**Test samples:** {metrics['test_size']}")
 
-with tab8:
+with tab5:
     st.markdown("### 📋 Monthly Reports")
     st.markdown("Statistical summary of assessments in the last 30 days")
     
@@ -1167,73 +924,8 @@ with tab8:
     else:
         st.info("No assessments recorded in the last 30 days. Start saving assessments to see monthly reports.")
 
-with tab9:
-    st.markdown("### 🧮 Loan Repayment Simulator")
-    st.markdown("Plan your potential loan repayments based on your assessment results.")
-    
-    if st.session_state.assessment_results.get('score') == 0 and not st.session_state.assessments_history:
-        st.info("👈 Please complete an assessment in the **Assessment** tab first to check your eligibility.")
-    else:
-        score = st.session_state.assessment_results.get('score', 0)
-        risk_level = st.session_state.assessment_results.get('risk_level', 'High')
-        
-        if risk_level == "Low":
-            max_loan = 50000
-            interest_rate = 0.12  # 12% p.a.
-            st.success("✨ Excellent! You qualify for our best rates and highest limits.")
-        elif risk_level == "Medium":
-            max_loan = 25000
-            interest_rate = 0.18  # 18% p.a.
-            st.warning("📊 Good! You qualify for standard loans.")
-        else:
-            max_loan = 5000
-            interest_rate = 0.25  # 25% p.a.
-            st.error("⚠️ Higher risk profile. Initial limits are restricted.")
-            
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown(f"**Maximum Eligible Amount:** ZWL {max_loan:,}")
-            st.markdown(f"**Applicable Interest Rate:** {interest_rate*100:.1f}% p.a.")
-            
-            loan_amount = st.slider("Requested Loan Amount (ZWL)", 
-                                  min_value=1000, 
-                                  max_value=max_loan, 
-                                  value=min(10000, max_loan),
-                                  step=1000)
-            
-            loan_term_months = st.selectbox("Loan Term (Months)", [3, 6, 9, 12, 18, 24])
-            
-        with col2:
-            monthly_interest_rate = interest_rate / 12
-            if monthly_interest_rate > 0:
-                monthly_payment = loan_amount * (monthly_interest_rate * (1 + monthly_interest_rate)**loan_term_months) / ((1 + monthly_interest_rate)**loan_term_months - 1)
-            else:
-                monthly_payment = loan_amount / loan_term_months
-                
-            total_repayment = monthly_payment * loan_term_months
-            total_interest = total_repayment - loan_amount
-            
-            st.markdown("#### Repayment Summary")
-            st.metric("Monthly Payment", f"ZWL {monthly_payment:,.2f}")
-            st.metric("Total Interest", f"ZWL {total_interest:,.2f}")
-            st.metric("Total Repayment", f"ZWL {total_repayment:,.2f}")
-            
-        st.markdown("#### Balance Projection")
-        months = np.arange(0, loan_term_months + 1)
-        balances = [loan_amount * ((1 + monthly_interest_rate)**loan_term_months - (1 + monthly_interest_rate)**m) / ((1 + monthly_interest_rate)**loan_term_months - 1) for m in months]
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=months, y=balances, fill='tozeroy', mode='lines', line_color='#1f77b4', name="Balance"))
-        fig.update_layout(
-            xaxis_title="Month",
-            yaxis_title="Outstanding Balance (ZWL)",
-            height=350,
-            margin=dict(l=0, r=0, t=10, b=0)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-with tab10:
-    st.markdown("### � Credit Trajectory Modeler")
+with tab6:
+    st.markdown("### 📐 Credit Trajectory Modeler")
     st.markdown("Model projected credit score trajectories by simulating changes in an applicant's financial behavior. Use this to build data-driven improvement roadmaps for clients.")
     
     st.markdown("---")
@@ -1305,7 +997,6 @@ with tab10:
         st.metric("Projected Score", f"{projected_score}/6", delta=delta_label if score_delta != 0 else None)
     with res_col3:
         proj_risk = get_risk_level(projected_score)
-        curr_risk = get_risk_level(current_score)
         risk_color = "✅" if proj_risk == "Low" else ("⚠️" if proj_risk == "Medium" else "❌")
         st.metric("Projected Risk", f"{risk_color} {proj_risk}")
     
@@ -1351,3 +1042,178 @@ with tab10:
         st.markdown('<div class="warning-box"><b>No Change Detected</b><br>Adjust the sliders above to simulate different financial behaviors and see the projected impact.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="danger-box"><b>Warning: Score would decrease by {abs(score_delta)} points</b><br>The simulated changes would negatively impact the applicant\'s profile.</div>', unsafe_allow_html=True)
+
+# ======== FUND ORIGIN INTELLIGENCE ========
+with tab7:
+    st.markdown("### 🔬 Fund Origin Intelligence")
+    st.markdown("AI-powered behavioral analysis to verify and determine the likely source of an applicant's funds. Cross-references financial patterns against known income profiles.")
+    
+    st.markdown("---")
+    
+    # Define behavioral signature profiles for each income source
+    # These represent typical financial behavior patterns per income type
+    income_profiles = {
+        'Informal Business': {
+            'mobile_txns_range': (df['Mobile_Money_Txns'].quantile(0.55), df['Mobile_Money_Txns'].max()),
+            'airtime_range': (df['Airtime_Spend_ZWL'].quantile(0.4), df['Airtime_Spend_ZWL'].max()),
+            'utility_range': (df['Utility_Payments_ZWL'].quantile(0.3), df['Utility_Payments_ZWL'].quantile(0.75)),
+            'description': 'High mobile money activity, moderate-to-high airtime (business calls), moderate utility bills',
+            'icon': '🏪',
+            'color': '#ff6b35'
+        },
+        'Farming': {
+            'mobile_txns_range': (df['Mobile_Money_Txns'].min(), df['Mobile_Money_Txns'].quantile(0.45)),
+            'airtime_range': (df['Airtime_Spend_ZWL'].min(), df['Airtime_Spend_ZWL'].quantile(0.4)),
+            'utility_range': (df['Utility_Payments_ZWL'].min(), df['Utility_Payments_ZWL'].quantile(0.35)),
+            'description': 'Lower digital footprint, seasonal transaction spikes, lower utility costs',
+            'icon': '🌾',
+            'color': '#2d6a4f'
+        },
+        'Remittances': {
+            'mobile_txns_range': (df['Mobile_Money_Txns'].quantile(0.35), df['Mobile_Money_Txns'].quantile(0.7)),
+            'airtime_range': (df['Airtime_Spend_ZWL'].quantile(0.45), df['Airtime_Spend_ZWL'].max()),
+            'utility_range': (df['Utility_Payments_ZWL'].quantile(0.4), df['Utility_Payments_ZWL'].quantile(0.85)),
+            'description': 'Moderate mobile money (receiving), high airtime (international calls), steady utility payments',
+            'icon': '💸',
+            'color': '#1d3557'
+        },
+        'Other': {
+            'mobile_txns_range': (df['Mobile_Money_Txns'].quantile(0.2), df['Mobile_Money_Txns'].quantile(0.6)),
+            'airtime_range': (df['Airtime_Spend_ZWL'].quantile(0.2), df['Airtime_Spend_ZWL'].quantile(0.6)),
+            'utility_range': (df['Utility_Payments_ZWL'].quantile(0.2), df['Utility_Payments_ZWL'].quantile(0.6)),
+            'description': 'Mixed patterns, no dominant behavioral signature',
+            'icon': '📋',
+            'color': '#6c757d'
+        }
+    }
+    
+    # Calculate match scores for each income profile
+    def calculate_profile_match(mobile, airtime, utility, profile):
+        """Calculate how well applicant behavior matches an income profile (0-100%)"""
+        scores = []
+        
+        mob_lo, mob_hi = profile['mobile_txns_range']
+        mob_range = mob_hi - mob_lo if mob_hi != mob_lo else 1
+        if mob_lo <= mobile <= mob_hi:
+            # How centered is the value within the range
+            center = (mob_lo + mob_hi) / 2
+            dist = abs(mobile - center) / (mob_range / 2)
+            scores.append(max(0, 1 - dist * 0.5) * 100)
+        else:
+            # Penalize being outside the range
+            if mobile < mob_lo:
+                scores.append(max(0, (1 - (mob_lo - mobile) / max(mob_range, 1)) * 60))
+            else:
+                scores.append(max(0, (1 - (mobile - mob_hi) / max(mob_range, 1)) * 60))
+        
+        air_lo, air_hi = profile['airtime_range']
+        air_range = air_hi - air_lo if air_hi != air_lo else 1
+        if air_lo <= airtime <= air_hi:
+            center = (air_lo + air_hi) / 2
+            dist = abs(airtime - center) / (air_range / 2)
+            scores.append(max(0, 1 - dist * 0.5) * 100)
+        else:
+            if airtime < air_lo:
+                scores.append(max(0, (1 - (air_lo - airtime) / max(air_range, 1)) * 60))
+            else:
+                scores.append(max(0, (1 - (airtime - air_hi) / max(air_range, 1)) * 60))
+        
+        util_lo, util_hi = profile['utility_range']
+        util_range = util_hi - util_lo if util_hi != util_lo else 1
+        if util_lo <= utility <= util_hi:
+            center = (util_lo + util_hi) / 2
+            dist = abs(utility - center) / (util_range / 2)
+            scores.append(max(0, 1 - dist * 0.5) * 100)
+        else:
+            if utility < util_lo:
+                scores.append(max(0, (1 - (util_lo - utility) / max(util_range, 1)) * 60))
+            else:
+                scores.append(max(0, (1 - (utility - util_hi) / max(util_range, 1)) * 60))
+        
+        return np.mean(scores)
+    
+    # Run analysis
+    match_results = {}
+    for source, profile in income_profiles.items():
+        match_results[source] = calculate_profile_match(
+            Mobile_Money_Txns, Airtime_Spend_ZWL, Utility_Payments_ZWL, profile
+        )
+    
+    # Determine best match
+    best_match = max(match_results, key=match_results.get)
+    best_score = match_results[best_match]
+    claimed_score = match_results.get(Income_Source, 0)
+    
+    # Verification verdict
+    st.markdown("#### 🎯 Verification Verdict")
+    
+    v_col1, v_col2, v_col3 = st.columns(3)
+    with v_col1:
+        st.metric("Claimed Source", f"{Income_Source}")
+    with v_col2:
+        st.metric("AI-Detected Source", f"{income_profiles[best_match]['icon']} {best_match}")
+    with v_col3:
+        st.metric("Claim Confidence", f"{claimed_score:.0f}%")
+    
+    # Match / mismatch verdict
+    if best_match == Income_Source:
+        st.markdown(f'<div class="success-box"><b>✅ VERIFIED — Income source claim is consistent with behavioral patterns</b><br>The applicant\'s financial behavior ({claimed_score:.0f}% match) strongly aligns with the typical profile for <b>{Income_Source}</b>. No further verification recommended.</div>', unsafe_allow_html=True)
+    elif claimed_score >= 55:
+        st.markdown(f'<div class="warning-box"><b>⚠️ PLAUSIBLE — Partial alignment detected</b><br>Claimed source <b>{Income_Source}</b> shows {claimed_score:.0f}% alignment — within acceptable range, but behavioral patterns also match <b>{best_match}</b> ({best_score:.0f}%). Consider requesting supporting documentation.</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="danger-box"><b>❌ FLAGGED — Behavioral mismatch detected</b><br>Claimed source <b>{Income_Source}</b> has only {claimed_score:.0f}% alignment. The applicant\'s financial behavior is most consistent with <b>{best_match}</b> ({best_score:.0f}%). <b>Manual verification strongly recommended.</b></div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("#### 📊 Behavioral Profile Matching")
+    
+    # Bar chart of all match scores
+    sources = list(match_results.keys())
+    scores_list = list(match_results.values())
+    colors = ['#28a745' if src == best_match else ('#ffc107' if src == Income_Source else '#6c757d') for src in sources]
+    
+    fig_match = go.Figure()
+    fig_match.add_trace(go.Bar(
+        x=sources,
+        y=scores_list,
+        marker_color=colors,
+        text=[f"{s:.0f}%" for s in scores_list],
+        textposition='outside'
+    ))
+    fig_match.update_layout(
+        yaxis_title='Match Confidence (%)',
+        yaxis=dict(range=[0, 110]),
+        height=350,
+        margin=dict(t=20, b=20),
+        showlegend=False
+    )
+    # Add annotation for claimed source
+    for i, src in enumerate(sources):
+        if src == Income_Source:
+            fig_match.add_annotation(x=src, y=scores_list[i] + 8, text="⬆ CLAIMED", showarrow=False, font=dict(color='#ffc107', size=11, family='Outfit'))
+        if src == best_match and src != Income_Source:
+            fig_match.add_annotation(x=src, y=scores_list[i] + 8, text="⬆ DETECTED", showarrow=False, font=dict(color='#28a745', size=11, family='Outfit'))
+    
+    st.plotly_chart(fig_match, use_container_width=True)
+    
+    # Detailed profile breakdown
+    st.markdown("#### 🔍 Behavioral Signature Breakdown")
+    for source, profile in income_profiles.items():
+        match_pct = match_results[source]
+        label = "⭐ Best Match" if source == best_match else ("📌 Claimed" if source == Income_Source else "")
+        with st.expander(f"{profile['icon']} {source} — {match_pct:.0f}% match {label}"):
+            st.markdown(f"**Typical Pattern:** {profile['description']}")
+            mob_lo, mob_hi = profile['mobile_txns_range']
+            air_lo, air_hi = profile['airtime_range']
+            util_lo, util_hi = profile['utility_range']
+            
+            detail_data = {
+                'Metric': ['Mobile Money Txns', 'Airtime Spend (ZWL)', 'Utility Payments (ZWL)'],
+                'Applicant Value': [f"{Mobile_Money_Txns:.0f}", f"{Airtime_Spend_ZWL:.0f}", f"{Utility_Payments_ZWL:.0f}"],
+                'Expected Range': [f"{mob_lo:.0f} - {mob_hi:.0f}", f"{air_lo:.0f} - {air_hi:.0f}", f"{util_lo:.0f} - {util_hi:.0f}"],
+                'In Range': [
+                    '✅' if mob_lo <= Mobile_Money_Txns <= mob_hi else '❌',
+                    '✅' if air_lo <= Airtime_Spend_ZWL <= air_hi else '❌',
+                    '✅' if util_lo <= Utility_Payments_ZWL <= util_hi else '❌'
+                ]
+            }
+            st.dataframe(pd.DataFrame(detail_data), use_container_width=True, hide_index=True)
