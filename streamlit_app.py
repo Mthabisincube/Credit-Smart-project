@@ -20,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ================= CUSTOM CSS =================
+# ================= CUSTOM CSS WITH CLEAR COLORS =================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -30,7 +30,7 @@ st.markdown("""
     }
     
     .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
         background-attachment: fixed;
     }
     
@@ -40,7 +40,7 @@ st.markdown("""
     
     .main-header {
         font-size: 3rem;
-        background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF6347 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
@@ -50,7 +50,7 @@ st.markdown("""
     
     .sub-header {
         text-align: center;
-        color: #e0e0e0;
+        color: #FFD700;
         font-size: 1.1rem;
         margin-bottom: 2rem;
     }
@@ -61,31 +61,31 @@ st.markdown("""
     }
     
     .metric-card {
-        background: rgba(255,255,255,0.95);
+        background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
         border-radius: 20px;
         padding: 1.5rem;
         margin: 0.5rem 0;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         transition: all 0.3s ease;
         animation: fadeInUp 0.6s ease-out;
-        border-left: 4px solid;
+        border-left: 5px solid;
     }
     
     .metric-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.3);
     }
     
     .metric-value {
         font-size: 2rem;
         font-weight: 800;
-        color: #1e3c72;
+        color: #1a1a2e;
     }
     
     .metric-label {
         font-size: 0.85rem;
-        color: #666;
-        font-weight: 500;
+        color: #555;
+        font-weight: 600;
     }
     
     .stat-card {
@@ -93,58 +93,59 @@ st.markdown("""
         border-radius: 16px;
         padding: 1rem;
         text-align: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         transition: all 0.3s ease;
     }
     
     .stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     }
     
     .section-header {
         font-size: 1.3rem;
         font-weight: 700;
-        color: white;
+        color: #FFD700;
         margin: 1.5rem 0 1rem 0;
         padding-left: 0.5rem;
-        border-left: 4px solid #f59e0b;
+        border-left: 4px solid #FFA500;
     }
     
     .glass-panel {
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.15);
         backdrop-filter: blur(12px);
         border-radius: 20px;
         padding: 1.5rem;
-        border: 1px solid rgba(255,255,255,0.3);
+        border: 1px solid rgba(255,255,255,0.2);
     }
     
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-        border-right: 1px solid rgba(255,255,255,0.1);
+        border-right: 1px solid rgba(255,215,0,0.2);
     }
     
     [data-testid="stSidebar"] label {
-        color: #e0e0e0 !important;
+        color: #FFD700 !important;
+        font-weight: 500;
     }
     
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        color: #1a1a2e;
         border: none;
         border-radius: 10px;
-        font-weight: 600;
+        font-weight: 700;
         transition: all 0.3s ease;
     }
     
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 5px 15px rgba(255,215,0,0.3);
     }
     
     .stTabs [data-baseweb="tab-list"] {
         gap: 0.5rem;
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.15);
         border-radius: 12px;
         padding: 0.5rem;
     }
@@ -157,8 +158,9 @@ st.markdown("""
     }
     
     .stTabs [aria-selected="true"] {
-        background: white;
-        color: #667eea !important;
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        color: #1a1a2e !important;
+        font-weight: 700;
     }
     
     .badge {
@@ -169,9 +171,9 @@ st.markdown("""
         font-weight: 600;
     }
     
-    .badge-success { background: #d1fae5; color: #065f46; }
-    .badge-warning { background: #fed7aa; color: #92400e; }
-    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .badge-success { background: #00FF00; color: #006400; }
+    .badge-warning { background: #FFA500; color: #8B4513; }
+    .badge-danger { background: #FF4444; color: #8B0000; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -208,18 +210,48 @@ def load_data():
 
 df = load_data()
 
+# Create Zimbabwe provinces mapping for choropleth
+zimbabwe_provinces = {
+    'Harare': 'Harare',
+    'Bulawayo': 'Bulawayo',
+    'Manicaland': 'Manicaland',
+    'Mashonaland Central': 'Mashonaland Central',
+    'Mashonaland East': 'Mashonaland East',
+    'Mashonaland West': 'Mashonaland West',
+    'Masvingo': 'Masvingo',
+    'Matabeleland North': 'Matabeleland North',
+    'Matabeleland South': 'Matabeleland South',
+    'Midlands': 'Midlands'
+}
+
+# Map locations to provinces
+location_to_province = {
+    'Harare': 'Harare',
+    'Bulawayo': 'Bulawayo',
+    'Mutare': 'Manicaland',
+    'Marondera': 'Mashonaland East',
+    'Chinhoyi': 'Mashonaland West',
+    'Bindura': 'Mashonaland Central',
+    'Masvingo': 'Masvingo',
+    'Gweru': 'Midlands',
+    'Kwekwe': 'Midlands',
+    'Hwange': 'Matabeleland North',
+    'Victoria Falls': 'Matabeleland North',
+    'Gwanda': 'Matabeleland South'
+}
+
+df['Province'] = df['Location'].map(location_to_province).fillna('Other')
+
 # Train model function
 def train_model():
     """Train the Random Forest model"""
     try:
-        # Prepare features and target
         feature_cols = ['Location', 'Gender', 'Age', 'Mobile_Money_Txns', 
                        'Airtime_Spend_ZWL', 'Utility_Payments_ZWL', 'Loan_Repayment_History']
         
         X = df[feature_cols].copy()
         y = df['Credit_Score'].copy()
         
-        # Encode categorical features
         label_encoders = {}
         categorical_cols = ['Location', 'Gender', 'Loan_Repayment_History']
         
@@ -228,14 +260,11 @@ def train_model():
             X[col] = le.fit_transform(X[col].astype(str))
             label_encoders[col] = le
         
-        # Encode target
         target_encoder = LabelEncoder()
         y_encoded = target_encoder.fit_transform(y)
         
-        # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
         
-        # Train model
         model = RandomForestClassifier(
             n_estimators=100,
             max_depth=15,
@@ -246,18 +275,15 @@ def train_model():
         )
         model.fit(X_train, y_train)
         
-        # Evaluate
         y_pred = model.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred) * 100
         precision = precision_score(y_test, y_pred, average='weighted') * 100
         recall = recall_score(y_test, y_pred, average='weighted') * 100
         f1 = f1_score(y_test, y_pred, average='weighted') * 100
         
-        # Cross validation
         cv_scores = cross_val_score(model, X, y_encoded, cv=5, scoring='accuracy')
         cv_mean = cv_scores.mean() * 100
         
-        # Store in session state
         st.session_state.model = model
         st.session_state.label_encoders = label_encoders
         st.session_state.target_encoder = target_encoder
@@ -265,12 +291,8 @@ def train_model():
         st.session_state.feature_columns = feature_cols
         
         st.session_state.model_metrics = {
-            'accuracy': accuracy,
-            'precision': precision,
-            'recall': recall,
-            'f1_score': f1,
-            'cv_mean': cv_mean,
-            'cv_scores': cv_scores * 100,
+            'accuracy': accuracy, 'precision': precision, 'recall': recall,
+            'f1_score': f1, 'cv_mean': cv_mean, 'cv_scores': cv_scores * 100,
             'feature_importance': dict(zip(feature_cols, model.feature_importances_))
         }
         
@@ -287,43 +309,30 @@ if not st.session_state.model_trained:
 
 # Helper functions
 def get_risk_level(score):
-    if score >= 5: 
-        return "Low"
-    elif score >= 3: 
-        return "Medium"
-    else: 
-        return "High"
+    if score >= 5: return "Low"
+    elif score >= 3: return "Medium"
+    else: return "High"
 
 def predict_credit(input_data):
-    """Make prediction using trained model"""
     if not st.session_state.model_trained:
         return "Unknown", 0
     
     try:
-        # Create feature array in correct order
         feature_cols = st.session_state.feature_columns
         X_input = pd.DataFrame([[
-            input_data['Location'],
-            input_data['Gender'],
-            input_data['Age'],
-            input_data['Mobile_Money_Txns'],
-            input_data['Airtime_Spend_ZWL'],
-            input_data['Utility_Payments_ZWL'],
-            input_data['Loan_Repayment_History']
+            input_data['Location'], input_data['Gender'], input_data['Age'],
+            input_data['Mobile_Money_Txns'], input_data['Airtime_Spend_ZWL'],
+            input_data['Utility_Payments_ZWL'], input_data['Loan_Repayment_History']
         ]], columns=feature_cols)
         
-        # Encode categorical features
         for col in ['Location', 'Gender', 'Loan_Repayment_History']:
             if col in st.session_state.label_encoders:
                 le = st.session_state.label_encoders[col]
                 X_input[col] = le.transform(X_input[col].astype(str))
         
-        # Predict
         prediction = st.session_state.model.predict(X_input)[0]
         proba = st.session_state.model.predict_proba(X_input)[0]
         confidence = max(proba) * 100
-        
-        # Decode prediction
         predicted_class = st.session_state.target_encoder.inverse_transform([prediction])[0]
         
         return predicted_class, confidence
@@ -335,7 +344,6 @@ def save_assessment(assessment_data):
     assessment_data['timestamp'] = datetime.now().isoformat()
     assessment_data['date'] = datetime.now().strftime('%Y-%m-%d')
     st.session_state.assessments_history.append(assessment_data.copy())
-    # Keep only last 30 days
     cutoff = datetime.now() - timedelta(days=30)
     st.session_state.assessments_history = [
         a for a in st.session_state.assessments_history 
@@ -370,9 +378,9 @@ with st.sidebar:
     
     st.markdown("### 💰 Financial Behavior")
     
-    Mobile_Money_Txns = st.slider("📱 Mobile Money Transactions", 0.0, 300.0, 75.0)
-    Airtime_Spend_ZWL = st.slider("📞 Airtime Spend (ZWL)", 0.0, 300.0, 50.0)
-    Utility_Payments_ZWL = st.slider("💡 Utility Payments (ZWL)", 0.0, 300.0, 80.0)
+    Mobile_Money_Txns = st.slider("📱 Mobile Money Transactions", 0.0, 300.0, 75.0, help="Number of mobile money transactions per month")
+    Airtime_Spend_ZWL = st.slider("📞 Airtime Spend (ZWL)", 0.0, 300.0, 50.0, help="Monthly airtime expenditure")
+    Utility_Payments_ZWL = st.slider("💡 Utility Payments (ZWL)", 0.0, 300.0, 80.0, help="Monthly utility bill payments")
     Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", ['Poor', 'Fair', 'Good', 'Excellent'])
     Income_Source = st.selectbox("💰 Source of Income", ['Informal Business', 'Farming', 'Remittances', 'Other'])
 
@@ -418,43 +426,43 @@ with tab1:
     with col3:
         if st.session_state.model_trained:
             st.markdown('<span class="badge badge-success">✅ AI Model Active</span>', unsafe_allow_html=True)
-            st.caption(f"Accuracy: {st.session_state.model_metrics['accuracy']:.1f}%")
+            st.caption(f"🎯 Accuracy: {st.session_state.model_metrics['accuracy']:.1f}%")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # KPI Cards
+    # KPI Cards with clear colors
     st.markdown("### 📊 Key Performance Indicators")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #3b82f6;">
+        <div class="metric-card" style="border-left-color: #3498db;">
             <div class="metric-value">{len(df):,}</div>
-            <div class="metric-label">Total Records</div>
+            <div class="metric-label">📊 Total Records</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #8b5cf6;">
+        <div class="metric-card" style="border-left-color: #9b59b6;">
             <div class="metric-value">{df['Credit_Score'].nunique()}</div>
-            <div class="metric-label">Credit Classes</div>
+            <div class="metric-label">🎯 Credit Classes</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #10b981;">
+        <div class="metric-card" style="border-left-color: #2ecc71;">
             <div class="metric-value">{len(st.session_state.assessments_history)}</div>
-            <div class="metric-label">Assessments (30d)</div>
+            <div class="metric-label">📈 Assessments (30d)</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
         approval_rate = (df['Credit_Score'] >= 3).mean() * 100
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #f59e0b;">
+        <div class="metric-card" style="border-left-color: #e67e22;">
             <div class="metric-value">{approval_rate:.0f}%</div>
-            <div class="metric-label">Approval Rate</div>
+            <div class="metric-label">✅ Approval Rate</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -468,32 +476,32 @@ with tab1:
         with col1:
             st.markdown(f"""
             <div class="stat-card">
-                <div style="font-size: 2rem; font-weight: 800; color: #3b82f6;">{metrics['accuracy']:.1f}%</div>
-                <div style="color: #666;">Accuracy</div>
+                <div style="font-size: 2rem; font-weight: 800; color: #3498db;">{metrics['accuracy']:.1f}%</div>
+                <div style="color: #555;">Accuracy</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
             <div class="stat-card">
-                <div style="font-size: 2rem; font-weight: 800; color: #8b5cf6;">{metrics['precision']:.1f}%</div>
-                <div style="color: #666;">Precision</div>
+                <div style="font-size: 2rem; font-weight: 800; color: #9b59b6;">{metrics['precision']:.1f}%</div>
+                <div style="color: #555;">Precision</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
             st.markdown(f"""
             <div class="stat-card">
-                <div style="font-size: 2rem; font-weight: 800; color: #10b981;">{metrics['recall']:.1f}%</div>
-                <div style="color: #666;">Recall</div>
+                <div style="font-size: 2rem; font-weight: 800; color: #2ecc71;">{metrics['recall']:.1f}%</div>
+                <div style="color: #555;">Recall</div>
             </div>
             """, unsafe_allow_html=True)
         
         with col4:
             st.markdown(f"""
             <div class="stat-card">
-                <div style="font-size: 2rem; font-weight: 800; color: #f59e0b;">{metrics['f1_score']:.1f}%</div>
-                <div style="color: #666;">F1 Score</div>
+                <div style="font-size: 2rem; font-weight: 800; color: #e67e22;">{metrics['f1_score']:.1f}%</div>
+                <div style="color: #555;">F1 Score</div>
             </div>
             """, unsafe_allow_html=True)
     
@@ -503,15 +511,19 @@ with tab1:
     with col1:
         st.markdown("#### 📊 Credit Score Distribution")
         score_counts = df['Credit_Score'].value_counts().sort_index()
-        fig = go.Figure(data=[go.Bar(x=score_counts.index, y=score_counts.values, marker_color='#3b82f6')])
-        fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        colors = ['#e74c3c' if x <= 2 else '#f39c12' if x <= 3 else '#2ecc71' for x in score_counts.index]
+        fig = go.Figure(data=[go.Bar(x=score_counts.index, y=score_counts.values, marker_color=colors)])
+        fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                         xaxis_title='Credit Score', yaxis_title='Number of Applicants')
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.markdown("#### 🌍 Top Locations")
         location_counts = df['Location'].value_counts().head(6)
-        fig = go.Figure(data=[go.Bar(x=location_counts.values, y=location_counts.index, orientation='h', marker_color='#10b981')])
-        fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        fig = go.Figure(data=[go.Bar(x=location_counts.values, y=location_counts.index, orientation='h', 
+                                    marker_color='#3498db', text=location_counts.values, textposition='outside')])
+        fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                         xaxis_title='Number of Applicants')
         st.plotly_chart(fig, use_container_width=True)
     
     # Feature Importance
@@ -522,8 +534,11 @@ with tab1:
             columns=['Feature', 'Importance']
         ).sort_values('Importance', ascending=True)
         
-        fig = go.Figure(data=[go.Bar(x=importance_df['Importance'], y=importance_df['Feature'], orientation='h', marker_color='#8b5cf6')])
-        fig.update_layout(height=300, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        fig = go.Figure(data=[go.Bar(x=importance_df['Importance'], y=importance_df['Feature'], orientation='h', 
+                                    marker_color='#9b59b6', text=importance_df['Importance'].apply(lambda x: f'{x:.1%}'),
+                                    textposition='outside')])
+        fig.update_layout(height=300, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                         xaxis_title='Importance Score')
         st.plotly_chart(fig, use_container_width=True)
 
 # ================= TAB 2: ASSESSMENTS =================
@@ -532,8 +547,11 @@ with tab2:
     
     # Input summary
     input_data = pd.DataFrame({
-        "Feature": ["Location", "Gender", "Age", "Mobile Transactions", "Airtime Spend", "Utility Payments", "Repayment History", "Income Source"],
-        "Value": [Location, gender, f"{Age}", f"{Mobile_Money_Txns:.0f}", f"{Airtime_Spend_ZWL:.0f} ZWL", f"{Utility_Payments_ZWL:.0f} ZWL", Loan_Repayment_History, Income_Source]
+        "Feature": ["📍 Location", "👤 Gender", "🎂 Age", "📱 Mobile Transactions", 
+                   "📞 Airtime Spend", "💡 Utility Payments", "📊 Repayment History", "💰 Income Source"],
+        "Value": [Location, gender, f"{Age}", f"{Mobile_Money_Txns:.0f}", 
+                 f"{Airtime_Spend_ZWL:.0f} ZWL", f"{Utility_Payments_ZWL:.0f} ZWL", 
+                 Loan_Repayment_History, Income_Source]
     })
     st.dataframe(input_data, use_container_width=True, hide_index=True)
     
@@ -598,21 +616,27 @@ with tab3:
     
     with col1:
         st.markdown("#### Age Distribution")
-        fig = px.histogram(df, x='Age', nbins=20, title='Age Distribution', color_discrete_sequence=['#3b82f6'])
-        fig.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        fig = px.histogram(df, x='Age', nbins=20, title='Age Distribution', 
+                          color_discrete_sequence=['#3498db'], marginal='box')
+        fig.update_layout(height=450, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.markdown("#### Gender Distribution")
         gender_counts = df['Gender'].value_counts()
-        fig = go.Figure(data=[go.Pie(labels=gender_counts.index, values=gender_counts.values, hole=0.3, marker_colors=['#3b82f6', '#ec4891'])])
-        fig.update_layout(height=400)
+        colors = ['#3498db', '#e74c3c']
+        fig = go.Figure(data=[go.Pie(labels=gender_counts.index, values=gender_counts.values, 
+                                    hole=0.3, marker_colors=colors, textinfo='percent+label')])
+        fig.update_layout(height=450)
         st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("#### Credit Score by Location")
-    location_scores = df.groupby('Location')['Credit_Score'].mean().sort_values(ascending=False).head(10)
-    fig = go.Figure(data=[go.Bar(x=location_scores.values, y=location_scores.index, orientation='h', marker_color='#10b981')])
-    fig.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+    location_scores = df.groupby('Location')['Credit_Score'].mean().sort_values(ascending=True)
+    colors_loc = ['#e74c3c' if x < 3 else '#f39c12' if x < 4 else '#2ecc71' for x in location_scores.values]
+    fig = go.Figure(data=[go.Bar(x=location_scores.values, y=location_scores.index, orientation='h', 
+                                marker_color=colors_loc, text=location_scores.values.round(2), textposition='outside')])
+    fig.update_layout(height=500, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                     xaxis_title='Average Credit Score')
     st.plotly_chart(fig, use_container_width=True)
 
 # ================= TAB 4: MONTHLY REPORTS =================
@@ -637,42 +661,157 @@ with tab4:
             
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=daily_scores['date'], y=daily_scores['score'], mode='lines+markers', 
-                                    name='Avg Score', line=dict(color='#3b82f6', width=3), marker=dict(size=10)))
-            fig.add_hline(y=3, line_dash="dash", line_color="red", annotation_text="Approval Threshold")
+                                    name='Avg Score', line=dict(color='#2ecc71', width=3), 
+                                    marker=dict(size=10, color='#3498db')))
+            fig.add_hline(y=3, line_dash="dash", line_color="#e74c3c", 
+                         annotation_text="Approval Threshold", annotation_font_color="#e74c3c")
             fig.update_layout(title='Score Trend (Last 10 Assessments)', height=400, 
-                            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                            xaxis_title='Date', yaxis_title='Average Credit Score')
             st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No assessments recorded in the last 30 days. Start saving assessments to see monthly reports.")
+        st.info("📭 No assessments recorded in the last 30 days. Start saving assessments to see monthly reports.")
 
-# ================= TAB 5: PORTFOLIO RISK MAP =================
+# ================= TAB 5: PORTFOLIO RISK MAP - WITH CHOROPLETH =================
 with tab5:
-    st.markdown("### 🗺️ Portfolio Risk Map")
+    st.markdown("### 🗺️ Portfolio Risk Map - Zimbabwe")
+    st.markdown("Geographic distribution of credit risk across Zimbabwean provinces")
+    
+    # Calculate risk scores by province
+    province_risk = df.groupby('Province').agg({
+        'Credit_Score': ['mean', 'count', lambda x: (x < 3).mean() * 100]
+    }).round(2)
+    province_risk.columns = ['Avg_Credit_Score', 'Applicant_Count', 'High_Risk_Percentage']
+    province_risk = province_risk.reset_index()
+    
+    # Create choropleth map of Zimbabwe
+    fig_map = go.Figure()
+    
+    # Add choropleth trace
+    fig_map.add_trace(go.Choropleth(
+        locationmode='country names',
+        locations=province_risk['Province'],
+        z=province_risk['Avg_Credit_Score'],
+        text=province_risk['Applicant_Count'],
+        colorscale=[
+            [0, '#e74c3c'],      # Red for low scores
+            [0.33, '#f39c12'],   # Orange for medium-low
+            [0.66, '#3498db'],   # Blue for medium-high
+            [1, '#2ecc71']       # Green for high scores
+        ],
+        colorbar=dict(
+            title="Avg Credit Score",
+            titleside="right",
+            titlefont=dict(size=14, color='white'),
+            tickfont=dict(color='white'),
+            thickness=20
+        ),
+        marker=dict(line=dict(color='black', width=1)),
+        hovertemplate='<b>%{location}</b><br>' +
+                      'Average Score: %{z:.2f}/6<br>' +
+                      'Applicants: %{text}<br>' +
+                      '<extra></extra>'
+    ))
+    
+    fig_map.update_layout(
+        title=dict(
+            text="<b>Credit Score Distribution Across Zimbabwe</b>",
+            font=dict(size=20, color='white'),
+            x=0.5
+        ),
+        geo=dict(
+            scope='africa',
+            projection=dict(type='mercator'),
+            showland=True,
+            landcolor='#2c3e50',
+            countrycolor='white',
+            coastlinecolor='white',
+            showcountries=True,
+            showcoastlines=True,
+            bgcolor='rgba(0,0,0,0)'
+        ),
+        height=600,
+        margin=dict(l=0, r=0, t=50, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    
+    # Since we're focusing on Zimbabwe, let's add a note that we're showing African context
+    fig_map.add_annotation(
+        text="📍 Zimbabwe Highlighted",
+        xref="paper", yref="paper",
+        x=0.02, y=0.98,
+        showarrow=False,
+        font=dict(size=12, color="#FFD700"),
+        bgcolor="rgba(0,0,0,0.5)",
+        borderpad=4
+    )
+    
+    st.plotly_chart(fig_map, use_container_width=True)
+    
+    # Province-level detailed metrics
+    st.markdown("### 📊 Province-Level Risk Metrics")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("#### Risk by Location")
-        location_risk = df.groupby('Location')['Credit_Score'].mean().sort_values()
-        fig = go.Figure(data=[go.Bar(x=location_risk.values, y=location_risk.index, orientation='h', 
-                                    marker_color='#f59e0b', text=location_risk.values.round(2), textposition='outside')])
-        fig.update_layout(height=500, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                         xaxis_title='Average Credit Score')
-        st.plotly_chart(fig, use_container_width=True)
+        # Bar chart of average scores by province
+        province_sorted = province_risk.sort_values('Avg_Credit_Score', ascending=True)
+        colors_prov = ['#e74c3c' if x < 3 else '#f39c12' if x < 4 else '#2ecc71' for x in province_sorted['Avg_Credit_Score']]
+        
+        fig_bar = go.Figure(data=[go.Bar(
+            x=province_sorted['Avg_Credit_Score'], 
+            y=province_sorted['Province'], 
+            orientation='h',
+            marker_color=colors_prov,
+            text=province_sorted['Avg_Credit_Score'].round(2),
+            textposition='outside',
+            hovertemplate='<b>%{y}</b><br>Score: %{x:.2f}/6<br>High Risk: %{customdata:.1f}%<extra></extra>',
+            customdata=province_sorted['High_Risk_Percentage']
+        )])
+        
+        fig_bar.update_layout(
+            title='Average Credit Score by Province',
+            height=400,
+            xaxis_title='Average Credit Score (0-6)',
+            yaxis_title='Province',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(range=[0, 6], gridcolor='#555'),
+            yaxis=dict(gridcolor='#555')
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
     
     with col2:
-        st.markdown("#### Risk by Income Source")
-        income_risk = df.groupby('Income_Source')['Credit_Score'].mean().sort_values()
-        fig = go.Figure(data=[go.Bar(x=income_risk.values, y=income_risk.index, orientation='h', 
-                                    marker_color='#10b981', text=income_risk.values.round(2), textposition='outside')])
-        fig.update_layout(height=500, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                         xaxis_title='Average Credit Score')
-        st.plotly_chart(fig, use_container_width=True)
+        # High risk percentage by province
+        high_risk_sorted = province_risk.sort_values('High_Risk_Percentage', ascending=False)
+        
+        fig_risk = go.Figure(data=[go.Bar(
+            x=high_risk_sorted['High_Risk_Percentage'],
+            y=high_risk_sorted['Province'],
+            orientation='h',
+            marker_color='#e74c3c',
+            text=high_risk_sorted['High_Risk_Percentage'].round(1),
+            textposition='outside',
+            hovertemplate='<b>%{y}</b><br>High Risk: %{x:.1f}%<br>Total Applicants: %{customdata}<extra></extra>',
+            customdata=high_risk_sorted['Applicant_Count']
+        )])
+        
+        fig_risk.update_layout(
+            title='Percentage of High-Risk Applicants by Province',
+            height=400,
+            xaxis_title='High Risk Applicants (%)',
+            yaxis_title='Province',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(range=[0, 100], gridcolor='#555'),
+            yaxis=dict(gridcolor='#555')
+        )
+        st.plotly_chart(fig_risk, use_container_width=True)
     
-    # Risk matrix - FIXED VERSION
-    st.markdown("#### Risk Heatmap: Location vs Repayment History")
+    # Risk matrix
+    st.markdown("#### 🔥 Risk Heatmap: Location vs Repayment History")
     try:
-        # Create pivot table correctly
         risk_pivot = df.pivot_table(
             values='Credit_Score', 
             index='Location', 
@@ -683,10 +822,11 @@ with tab5:
         
         fig = px.imshow(
             risk_pivot, 
-            text_auto=True, 
+            text_auto='.2f', 
             aspect='auto', 
             color_continuous_scale='RdYlGn',
-            title='Average Credit Score by Location and Repayment History'
+            title='Average Credit Score by Location and Repayment History',
+            labels=dict(x='Repayment History', y='Location', color='Score')
         )
         fig.update_layout(height=500)
         st.plotly_chart(fig, use_container_width=True)
@@ -696,12 +836,24 @@ with tab5:
     
     # High risk alerts
     st.markdown("#### ⚠️ High Risk Alerts")
-    high_risk = df[df['Credit_Score'] <= 2]['Location'].value_counts().head(5)
-    if len(high_risk) > 0:
-        for loc, count in high_risk.items():
+    high_risk_locations = df[df['Credit_Score'] <= 2]['Location'].value_counts().head(5)
+    if len(high_risk_locations) > 0:
+        for loc, count in high_risk_locations.items():
             st.warning(f"📍 **{loc}**: {count} high-risk applicants identified")
     else:
-        st.success("No high-risk concentrations detected")
+        st.success("✅ No high-risk concentrations detected")
+    
+    # Risk summary statistics
+    st.markdown("#### 📈 Risk Summary Statistics")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("🏆 Safest Province", province_risk.loc[province_risk['Avg_Credit_Score'].idxmax(), 'Province'], 
+                 f"Score: {province_risk['Avg_Credit_Score'].max():.2f}")
+    with col2:
+        st.metric("⚠️ Riskiest Province", province_risk.loc[province_risk['Avg_Credit_Score'].idxmin(), 'Province'],
+                 f"Score: {province_risk['Avg_Credit_Score'].min():.2f}")
+    with col3:
+        st.metric("📊 National Average Score", f"{df['Credit_Score'].mean():.2f}/6")
 
 # Footer
 st.markdown("---")
