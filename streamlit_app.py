@@ -295,7 +295,6 @@ def train_model():
 if not st.session_state.model_trained:
     with st.spinner("🤖 Training AI Model..."):
         train_model()
-        st.success("✅ Model ready!")
 
 # Helper functions
 def get_risk_level(score):
@@ -401,38 +400,31 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 # ================= TAB 1: DASHBOARD =================
 with tab1:
-    st.markdown('<div class="glass-panel" style="margin-bottom: 1.5rem;">', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        current_time = datetime.now().strftime("%I:%M %p")
-        st.metric("🕐 System Time", current_time, datetime.now().strftime("%B %d"))
-    with col2:
-        if st.session_state.model_trained:
-            st.markdown('<span class="badge badge-success">✅ AI Model Active</span>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<h2 style="color: #2c3e50; font-weight: 800; margin-bottom: 0px;">🌍 Zimbabwe Smart Credit Overview</h2>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #7f8c8d; font-size: 1.1rem; margin-bottom: 2rem;">A robust, world-class AI-powered credit scoring engine leveraging <b>alternative data</b> for maximum financial inclusion.</p>', unsafe_allow_html=True)
     
-    st.markdown("### 📊 Key Performance Indicators")
+    st.markdown("### 📊 Platform Analytics")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #3498db;">
+        <div class="metric-card" style="border-left-color: #3498db; background: linear-gradient(135deg, white, #f8fbff);">
             <div class="metric-value">{len(df):,}</div>
-            <div class="metric-label">📊 Total Records</div>
+            <div class="metric-label">📊 Processed Records</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #9b59b6;">
+        <div class="metric-card" style="border-left-color: #9b59b6; background: linear-gradient(135deg, white, #fcf8ff);">
             <div class="metric-value">{df['Credit_Score'].nunique()}</div>
-            <div class="metric-label">🎯 Credit Classes</div>
+            <div class="metric-label">🎯 Predictive Tiers</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #2ecc71;">
+        <div class="metric-card" style="border-left-color: #2ecc71; background: linear-gradient(135deg, white, #f4fff8);">
             <div class="metric-value">{len(st.session_state.assessments_history)}</div>
             <div class="metric-label">📈 Assessments (30d)</div>
         </div>
@@ -441,29 +433,39 @@ with tab1:
     with col4:
         approval_rate = (df['Credit_Score'] >= 3).mean() * 100
         st.markdown(f"""
-        <div class="metric-card" style="border-left-color: #e67e22;">
+        <div class="metric-card" style="border-left-color: #e67e22; background: linear-gradient(135deg, white, #fffcf8);">
             <div class="metric-value">{approval_rate:.0f}%</div>
-            <div class="metric-label">✅ Approval Rate</div>
+            <div class="metric-label">✅ Base Approval Rate</div>
         </div>
         """, unsafe_allow_html=True)
     
-
-    
+    st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("#### 📊 Credit Score Distribution")
+        st.markdown("#### 📊 Score Stratification")
         score_counts = df['Credit_Score'].value_counts().sort_index()
         colors = ['#e74c3c' if x <= 2 else '#f39c12' if x <= 3 else '#2ecc71' for x in score_counts.index]
-        fig = go.Figure(data=[go.Bar(x=score_counts.index, y=score_counts.values, marker_color=colors)])
-        fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True)
+        fig_score = go.Figure(data=[go.Bar(
+            x=['Poor (1)', 'Fair (2)', 'Avg (3)', 'Good (4)', 'V.Good (5)', 'Exc (6)'], 
+            y=score_counts.values, 
+            marker_color=colors,
+            text=score_counts.values, textposition='auto'
+        )])
+        fig_score.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=30, b=0, l=0, r=0))
+        st.plotly_chart(fig_score, use_container_width=True)
     
     with col2:
-        st.markdown("#### 🌍 Top Locations")
+        st.markdown("#### 🌍 Geographic Footprint")
         location_counts = df['Location'].value_counts().head(6)
-        fig = go.Figure(data=[go.Bar(x=location_counts.values, y=location_counts.index, orientation='h', marker_color='#3498db')])
-        fig.update_layout(height=350, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True)
+        fig_loc = go.Figure(data=[go.Bar(
+            x=location_counts.values, 
+            y=location_counts.index, 
+            orientation='h', 
+            marker_color='#3498db',
+            text=location_counts.values, textposition='auto'
+        )])
+        fig_loc.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=30, b=0, l=0, r=0), yaxis={'categoryorder':'total ascending'})
+        st.plotly_chart(fig_loc, use_container_width=True)
 
 # ================= TAB 2: ASSESSMENTS =================
 with tab2:
@@ -489,14 +491,6 @@ with tab2:
             st.error(f"### ❌ HIGHER RISK PROFILE")
         st.write(f"**Risk Level:** {risk_level}")
     
-    if st.session_state.model_trained and predicted_class != "Unknown":
-        st.markdown("### 🤖 AI Credit Prediction")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("AI Predicted Class", predicted_class)
-        with col2:
-            st.metric("Confidence Level", f"{confidence:.1f}%")
-    
     col1, col2 = st.columns(2)
     with col1:
         if st.button("💾 Save Assessment", type="primary", use_container_width=True):
@@ -512,13 +506,33 @@ with tab2:
             st.success(f"✅ Assessment saved! ID: {assessment_id}")
             st.rerun()
     
-    st.markdown("### 📝 Recommendations")
+    st.markdown("### 📝 Actionable Recommendations")
+    
+    recs = []
+    
+    if Loan_Repayment_History == "Poor":
+        recs.append("❌ **Critical:** Applicant has a history of poor loan repayments. Flag for elevated scrutiny.")
+    elif Loan_Repayment_History == "Excellent":
+        recs.append("✅ **Strength:** Excellent historical repayment behavior indicates high reliability.")
+        
+    median_txns = df['Mobile_Money_Txns'].median()
+    if Mobile_Money_Txns < (median_txns * 0.5):
+        recs.append("⚠️ **Digital Footprint:** Insufficient mobile money transaction volume. Gather alternative income proofs.")
+    elif Mobile_Money_Txns > (median_txns * 1.5):
+        recs.append("✅ **Digital Footprint:** High transaction density suggests healthy, verifiable alternative income.")
+        
+    if Utility_Payments_USD == 0:
+        recs.append("⚠️ **Verifications:** No utility payments detected on record. Require manual KYC or proof of residence.")
+        
     if score >= 5:
-        st.success("✅ Strong candidate for credit approval\n✅ Eligible for higher credit limits (up to $50,000)\n✅ Favorable interest rates (12-15% p.a.)")
+        recs.append("🎯 **Final Outcome:** Approve. Applicant is a premium candidate eligible for high credit tiering ($5,000 - $10,000) at prime rates.")
+        st.success("\n\n".join(recs))
     elif score >= 3:
-        st.warning("⚠️ Standard credit verification required\n⚠️ Moderate credit limits ($10,000-25,000)\n⚠️ Standard interest rates (18-22% p.a.)")
+        recs.append("🎯 **Final Outcome:** Conditional Approval. Applicant meets baseline criteria. Cap initial limits at $500 - $2,000.")
+        st.warning("\n\n".join(recs))
     else:
-        st.error("❌ Enhanced verification required\n❌ Collateral might be necessary\n❌ Lower credit limits (up to $5,000)")
+        recs.append("🎯 **Final Outcome:** Decline. Applicant exhibits severe risk attributes below organizational thresholds.")
+        st.error("\n\n".join(recs))
 
 # ================= TAB 3: ANALYSIS =================
 with tab3:
