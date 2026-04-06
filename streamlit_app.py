@@ -205,6 +205,7 @@ def load_data():
     np.random.seed(42)
     income_sources = ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other']
     df['Income_Source'] = np.random.choice(income_sources, size=len(df), p=[0.4, 0.25, 0.15, 0.1, 0.1])
+    df.rename(columns={'Airtime_Spend_ZWL': 'Airtime_Spend_USD', 'Utility_Payments_ZWL': 'Utility_Payments_USD'}, inplace=True)
     return df
 
 df = load_data()
@@ -231,7 +232,7 @@ province_metrics = province_metrics.reset_index()
 def train_model():
     try:
         feature_cols = ['Location', 'Gender', 'Age', 'Mobile_Money_Txns', 
-                       'Airtime_Spend_ZWL', 'Utility_Payments_ZWL', 'Loan_Repayment_History']
+                       'Airtime_Spend_USD', 'Utility_Payments_USD', 'Loan_Repayment_History']
         
         X = df[feature_cols].copy()
         
@@ -309,8 +310,8 @@ def predict_credit(input_data):
         feature_cols = st.session_state.feature_columns
         X_input = pd.DataFrame([[
             input_data['Location'], input_data['Gender'], input_data['Age'],
-            input_data['Mobile_Money_Txns'], input_data['Airtime_Spend_ZWL'],
-            input_data['Utility_Payments_ZWL'], input_data['Loan_Repayment_History']
+            input_data['Mobile_Money_Txns'], input_data['Airtime_Spend_USD'],
+            input_data['Utility_Payments_USD'], input_data['Loan_Repayment_History']
         ]], columns=feature_cols)
         
         for col in ['Location', 'Gender', 'Loan_Repayment_History']:
@@ -365,8 +366,8 @@ with st.sidebar:
     st.markdown("### 💰 Financial Behavior")
     
     Mobile_Money_Txns = st.slider("📱 Mobile Money Transactions", 0.0, 300.0, 75.0)
-    Airtime_Spend_ZWL = st.slider("📞 Airtime Spend (ZWL)", 0.0, 300.0, 50.0)
-    Utility_Payments_ZWL = st.slider("💡 Utility Payments (ZWL)", 0.0, 300.0, 80.0)
+    Airtime_Spend_USD = st.slider("📞 Airtime Spend (USD)", 0.0, 300.0, 50.0)
+    Utility_Payments_USD = st.slider("💡 Utility Payments (USD)", 0.0, 300.0, 80.0)
     Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", ['Poor', 'Fair', 'Good', 'Excellent'])
     Income_Source = st.selectbox("💰 Source of Income", ['Informal Business', 'Farming', 'Remittances', 'Other'])
 
@@ -389,29 +390,25 @@ risk_level = get_risk_level(score)
 # Get AI prediction
 predicted_class, confidence = predict_credit({
     'Location': Location, 'Gender': gender, 'Age': Age,
-    'Mobile_Money_Txns': Mobile_Money_Txns, 'Airtime_Spend_ZWL': Airtime_Spend_ZWL,
-    'Utility_Payments_ZWL': Utility_Payments_ZWL, 'Loan_Repayment_History': Loan_Repayment_History
+    'Mobile_Money_Txns': Mobile_Money_Txns, 'Airtime_Spend_USD': Airtime_Spend_USD,
+    'Utility_Payments_USD': Utility_Payments_USD, 'Loan_Repayment_History': Loan_Repayment_History
 })
 
 # Main Tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Dashboard", "🎯 Assessments", "🔍 Analysis", "📋 Monthly Reports", "🗺️ Portfolio Risk Map"
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Dashboard", "🎯 Assessments", "🔍 Analysis", "📋 Monthly Reports"
 ])
 
 # ================= TAB 1: DASHBOARD =================
 with tab1:
     st.markdown('<div class="glass-panel" style="margin-bottom: 1.5rem;">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([2, 1, 1])
+    col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### 👋 Welcome to Zim Smart Credit")
-        st.markdown("Zimbabwe's first AI-powered credit scoring platform leveraging **alternative data** for financial inclusion.")
-    with col2:
         current_time = datetime.now().strftime("%I:%M %p")
         st.metric("🕐 System Time", current_time, datetime.now().strftime("%B %d"))
-    with col3:
+    with col2:
         if st.session_state.model_trained:
             st.markdown('<span class="badge badge-success">✅ AI Model Active</span>', unsafe_allow_html=True)
-            st.caption(f"🎯 Accuracy: {st.session_state.model_metrics['accuracy']:.1f}%")
     st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("### 📊 Key Performance Indicators")
@@ -450,27 +447,7 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
     
-    if st.session_state.model_trained:
-        st.markdown('<div class="section-header">🤖 AI Model Performance</div>', unsafe_allow_html=True)
-        metrics = st.session_state.model_metrics
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(f"""
-            <div class="stat-card"><div style="font-size: 2rem; font-weight: 800; color: #3498db;">{metrics['accuracy']:.1f}%</div><div>Accuracy</div></div>
-            """, unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""
-            <div class="stat-card"><div style="font-size: 2rem; font-weight: 800; color: #9b59b6;">{metrics['precision']:.1f}%</div><div>Precision</div></div>
-            """, unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"""
-            <div class="stat-card"><div style="font-size: 2rem; font-weight: 800; color: #2ecc71;">{metrics['recall']:.1f}%</div><div>Recall</div></div>
-            """, unsafe_allow_html=True)
-        with col4:
-            st.markdown(f"""
-            <div class="stat-card"><div style="font-size: 2rem; font-weight: 800; color: #e67e22;">{metrics['f1_score']:.1f}%</div><div>F1 Score</div></div>
-            """, unsafe_allow_html=True)
+
     
     col1, col2 = st.columns(2)
     with col1:
@@ -494,7 +471,7 @@ with tab2:
     
     input_data = pd.DataFrame({
         "Feature": ["📍 Location", "👤 Gender", "🎂 Age", "📱 Mobile Transactions", "📞 Airtime Spend", "💡 Utility Payments", "📊 Repayment History", "💰 Income Source"],
-        "Value": [Location, gender, f"{Age}", f"{Mobile_Money_Txns:.0f}", f"{Airtime_Spend_ZWL:.0f} ZWL", f"{Utility_Payments_ZWL:.0f} ZWL", Loan_Repayment_History, Income_Source]
+        "Value": [Location, gender, f"{Age}", f"{Mobile_Money_Txns:.0f}", f"${Airtime_Spend_USD:.2f}", f"${Utility_Payments_USD:.2f}", Loan_Repayment_History, Income_Source]
     })
     st.dataframe(input_data, use_container_width=True, hide_index=True)
     
@@ -525,8 +502,8 @@ with tab2:
         if st.button("💾 Save Assessment", type="primary", use_container_width=True):
             assessment_data = {
                 'location': Location, 'gender': gender, 'age': Age,
-                'mobile_money_txns': Mobile_Money_Txns, 'airtime_spend': Airtime_Spend_ZWL,
-                'utility_payments': Utility_Payments_ZWL, 'repayment_history': Loan_Repayment_History,
+                'mobile_money_txns': Mobile_Money_Txns, 'airtime_spend': Airtime_Spend_USD,
+                'utility_payments': Utility_Payments_USD, 'repayment_history': Loan_Repayment_History,
                 'income_source': Income_Source, 'score': score, 'max_score': max_score,
                 'risk_level': risk_level, 'predicted_class': predicted_class, 'confidence': confidence
             }
@@ -537,11 +514,11 @@ with tab2:
     
     st.markdown("### 📝 Recommendations")
     if score >= 5:
-        st.success("✅ Strong candidate for credit approval\n✅ Eligible for higher credit limits (up to ZWL 50,000)\n✅ Favorable interest rates (12-15% p.a.)")
+        st.success("✅ Strong candidate for credit approval\n✅ Eligible for higher credit limits (up to $50,000)\n✅ Favorable interest rates (12-15% p.a.)")
     elif score >= 3:
-        st.warning("⚠️ Standard credit verification required\n⚠️ Moderate credit limits (ZWL 10,000-25,000)\n⚠️ Standard interest rates (18-22% p.a.)")
+        st.warning("⚠️ Standard credit verification required\n⚠️ Moderate credit limits ($10,000-25,000)\n⚠️ Standard interest rates (18-22% p.a.)")
     else:
-        st.error("❌ Enhanced verification required\n❌ Collateral might be necessary\n❌ Lower credit limits (up to ZWL 5,000)")
+        st.error("❌ Enhanced verification required\n❌ Collateral might be necessary\n❌ Lower credit limits (up to $5,000)")
 
 # ================= TAB 3: ANALYSIS =================
 with tab3:
@@ -569,155 +546,107 @@ with tab3:
 
 # ================= TAB 4: MONTHLY REPORTS =================
 with tab4:
-    st.markdown("### 📋 Monthly Reports")
+    st.markdown("### 📋 Monthly Assessment Reports")
+    st.markdown("Overview of all credit scoring assessments performed in the last 30 days.")
+    
     stats = get_monthly_stats()
     
     if stats:
-        col1, col2, col3 = st.columns(3)
+        st.markdown('<div class="glass-panel" style="margin-bottom: 2rem;">', unsafe_allow_html=True)
+        col1, col2, col3, col4 = st.columns(4)
+        
         with col1:
-            st.metric("📊 Total Assessments", stats['total'])
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #3498db;">
+                <div class="metric-value">{stats['total']}</div>
+                <div class="metric-label">📋 Total Applications</div>
+            </div>
+            """, unsafe_allow_html=True)
         with col2:
-            st.metric("📈 Average Score", f"{stats['avg_score']:.2f}/6")
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #9b59b6;">
+                <div class="metric-value">{stats['avg_score']:.1f}/6</div>
+                <div class="metric-label">📈 Average Score</div>
+            </div>
+            """, unsafe_allow_html=True)
         with col3:
-            st.metric("✅ Approval Rate", f"{stats['approval_rate']:.1f}%")
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #2ecc71;">
+                <div class="metric-value">{stats['approval_rate']:.1f}%</div>
+                <div class="metric-label">✅ Approval Rate</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #e74c3c;">
+                <div class="metric-value">{stats['high_risk']:.1f}%</div>
+                <div class="metric-label">⚠️ High Risk Rate</div>
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
         
         if len(st.session_state.assessments_history) > 0:
-            df_history = pd.DataFrame(st.session_state.assessments_history[-10:])
+            df_history = pd.DataFrame(st.session_state.assessments_history)
             df_history['date'] = pd.to_datetime(df_history['timestamp']).dt.date
-            daily_scores = df_history.groupby('date')['score'].mean().reset_index()
             
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=daily_scores['date'], y=daily_scores['score'], mode='lines+markers', line=dict(color='#2ecc71', width=3)))
-            fig.add_hline(y=3, line_dash="dash", line_color="#e74c3c", annotation_text="Approval Threshold")
-            fig.update_layout(title='Score Trend (Last 10 Assessments)', height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.markdown("#### 📈 Assessment Score Trends")
+                daily_scores = df_history.groupby('date')['score'].mean().reset_index()
+                fig_trend = go.Figure()
+                fig_trend.add_trace(go.Scatter(
+                    x=daily_scores['date'], y=daily_scores['score'], 
+                    mode='lines+markers', 
+                    line=dict(color='#3498db', width=3),
+                    marker=dict(size=8, color='#2980b9'),
+                    fill='tozeroy', fillcolor='rgba(52, 152, 219, 0.1)'
+                ))
+                fig_trend.add_hline(y=3, line_dash="dash", line_color="#e74c3c", annotation_text="Approval Threshold")
+                fig_trend.update_layout(
+                    height=350, margin=dict(l=0, r=0, t=30, b=0),
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    yaxis=dict(range=[0, 6.5])
+                )
+                st.plotly_chart(fig_trend, use_container_width=True)
+                
+            with col2:
+                st.markdown("#### 🎯 Risk Distribution")
+                risk_counts = df_history['risk_level'].value_counts()
+                color_map = {'Low': '#2ecc71', 'Medium': '#f39c12', 'High': '#e74c3c'}
+                colors = [color_map.get(x, '#95a5a6') for x in risk_counts.index]
+                
+                fig_pie = go.Figure(data=[go.Pie(
+                    labels=risk_counts.index, values=risk_counts.values, 
+                    hole=0.5, marker_colors=colors
+                )])
+                fig_pie.update_layout(
+                    height=350, margin=dict(l=0, r=0, t=30, b=0),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+            
+            st.markdown("---")
+            st.markdown("#### �️ Assessment Register")
+            
+            display_cols = ['assessment_id', 'date', 'location', 'gender', 'score', 'risk_level']
+            st.dataframe(
+                df_history[display_cols].sort_values('date', ascending=False), 
+                use_container_width=True, hide_index=True
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            csv = df_history.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Full Monthly Report (CSV)",
+                data=csv,
+                file_name=f"monthly_report_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
     else:
-        st.info("📭 No assessments recorded in the last 30 days.")
-
-# ================= TAB 5: PORTFOLIO RISK MAP - GEOJSON CHOROPLETH =================
-with tab5:
-    st.markdown("### 🗺️ Zimbabwe Credit Risk Map")
-    st.markdown("Geographic distribution of credit scores across Zimbabwean provinces")
-    
-    # Province coordinates for fallback visualization
-    province_coords = {
-        'Harare': {'lat': -17.8252, 'lon': 31.0335},
-        'Bulawayo': {'lat': -20.1325, 'lon': 28.6265},
-        'Manicaland': {'lat': -18.9216, 'lon': 32.1746},
-        'Mashonaland Central': {'lat': -16.7740, 'lon': 30.9882},
-        'Mashonaland East': {'lat': -17.5900, 'lon': 31.3150},
-        'Mashonaland West': {'lat': -16.6500, 'lon': 29.5000},
-        'Masvingo': {'lat': -20.0625, 'lon': 30.8325},
-        'Matabeleland North': {'lat': -18.6400, 'lon': 27.0000},
-        'Matabeleland South': {'lat': -21.0000, 'lon': 29.0000},
-        'Midlands': {'lat': -19.0000, 'lon': 29.5000}
-    }
-    
-    province_metrics['lat'] = province_metrics['Province'].apply(lambda x: province_coords.get(x, {'lat': 0})['lat'])
-    province_metrics['lon'] = province_metrics['Province'].apply(lambda x: province_coords.get(x, {'lon': 0})['lon'])
-    
-    # Create a beautiful bubble map
-    fig_map = go.Figure()
-    
-    fig_map.add_trace(go.Scattermapbox(
-        lat=province_metrics['lat'],
-        lon=province_metrics['lon'],
-        mode='markers+text',
-        marker=dict(
-            size=province_metrics['count'] / 30,
-            color=province_metrics['avg_score'],
-            colorscale=[
-                [0, '#e74c3c'],
-                [0.33, '#f39c12'],
-                [0.66, '#3498db'],
-                [1, '#2ecc71']
-            ],
-            colorbar=dict(title="Avg Credit Score"),
-            showscale=True,
-            sizemin=10,
-            sizemode='area',
-            line=dict(color='white', width=2)
-        ),
-        text=province_metrics['Province'],
-        textposition="top center",
-        textfont=dict(size=12, color='#2c3e50', family='Inter', weight='bold'),
-        hovertemplate='<b>%{text}</b><br>' +
-                      'Average Score: %{marker.color:.2f}/6<br>' +
-                      'Applicants: %{marker.size:.0f}<br>' +
-                      'High Risk: ' + province_metrics['high_risk_pct'].round(1).astype(str) + '%<extra></extra>'
-    ))
-    
-    fig_map.update_layout(
-        mapbox=dict(
-            style='carto-positron',
-            center=dict(lat=-19.0154, lon=29.1549),
-            zoom=5.5
-        ),
-        height=600,
-        margin=dict(l=0, r=0, t=40, b=0),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        title=dict(text="<b>Credit Risk Distribution Across Zimbabwe</b>", font=dict(size=18, color='#2c3e50'), x=0.5)
-    )
-    
-    st.plotly_chart(fig_map, use_container_width=True)
-    
-    # Province-level detailed metrics
-    st.markdown("### 📊 Province-Level Risk Metrics")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        province_sorted = province_metrics.sort_values('avg_score', ascending=True)
-        colors_prov = ['#e74c3c' if x < 3 else '#f39c12' if x < 4 else '#2ecc71' for x in province_sorted['avg_score']]
-        
-        fig_bar = go.Figure(data=[go.Bar(
-            x=province_sorted['avg_score'], y=province_sorted['Province'], orientation='h',
-            marker_color=colors_prov, text=province_sorted['avg_score'].round(2), textposition='outside'
-        )])
-        fig_bar.update_layout(title='Average Credit Score by Province', height=400,
-                             xaxis_title='Average Credit Score (0-6)', xaxis=dict(range=[0, 6]),
-                             plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_bar, use_container_width=True)
-    
-    with col2:
-        high_risk_sorted = province_metrics.sort_values('high_risk_pct', ascending=False)
-        fig_risk = go.Figure(data=[go.Bar(
-            x=high_risk_sorted['high_risk_pct'], y=high_risk_sorted['Province'], orientation='h',
-            marker_color='#e74c3c', text=high_risk_sorted['high_risk_pct'].round(1), textposition='outside'
-        )])
-        fig_risk.update_layout(title='Percentage of High-Risk Applicants by Province', height=400,
-                              xaxis_title='High Risk Applicants (%)', xaxis=dict(range=[0, 100]),
-                              plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_risk, use_container_width=True)
-    
-    # Detailed data table
-    st.markdown("#### 📋 Detailed Province Statistics")
-    display_df = province_metrics.copy()
-    display_df.columns = ['Province', 'Avg Score', 'Total Applicants', 'High Risk %']
-    display_df = display_df.sort_values('Avg Score', ascending=False)
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
-    
-    # High risk alerts
-    st.markdown("#### ⚠️ High Risk Alerts")
-    high_risk_locations = df[df['Credit_Score'] <= 2]['Location'].value_counts().head(5)
-    if len(high_risk_locations) > 0:
-        for loc, count in high_risk_locations.items():
-            st.warning(f"📍 **{loc}**: {count} high-risk applicants identified")
-    else:
-        st.success("✅ No high-risk concentrations detected")
-    
-    # Risk summary
-    st.markdown("#### 📈 Risk Summary Statistics")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        safest = province_metrics.loc[province_metrics['avg_score'].idxmax(), 'Province']
-        st.metric("🏆 Safest Province", safest, f"Score: {province_metrics['avg_score'].max():.2f}")
-    with col2:
-        riskiest = province_metrics.loc[province_metrics['avg_score'].idxmin(), 'Province']
-        st.metric("⚠️ Riskiest Province", riskiest, f"Score: {province_metrics['avg_score'].min():.2f}")
-    with col3:
-        st.metric("📊 National Average", f"{df['Credit_Score'].mean():.2f}/6")
+        st.info("📭 No assessments recorded in the last 30 days. Save an assessment on the Assessment tab to populate this dashboard!")
 
 # Footer
 st.markdown("---")
