@@ -120,18 +120,13 @@ st.markdown("""
     }
     
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
-        border-right: 1px solid rgba(255,255,255,0.1);
+        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+        border-right: 1px solid rgba(0,0,0,0.05);
     }
     
     [data-testid="stSidebar"] label {
-        color: #ecf0f1 !important;
+        color: #2c3e50 !important;
         font-weight: 500;
-    }
-    
-    [data-testid="stSidebar"] .stSelectbox label,
-    [data-testid="stSidebar"] .stSlider label {
-        color: #bdc3c7 !important;
     }
     
     .stButton > button {
@@ -239,8 +234,21 @@ def train_model():
                        'Airtime_Spend_ZWL', 'Utility_Payments_ZWL', 'Loan_Repayment_History']
         
         X = df[feature_cols].copy()
-        y = df['Credit_Score'].copy()
         
+        # Convert Credit_Score to categorical classes for classification
+        def score_to_category(score):
+            if score <= 2:
+                return 'Poor'
+            elif score == 3:
+                return 'Fair'
+            elif score == 4:
+                return 'Good'
+            else:
+                return 'Excellent'
+        
+        y_categorical = df['Credit_Score'].apply(score_to_category)
+        
+        # Encode categorical features
         label_encoders = {}
         categorical_cols = ['Location', 'Gender', 'Loan_Repayment_History']
         
@@ -249,8 +257,9 @@ def train_model():
             X[col] = le.fit_transform(X[col].astype(str))
             label_encoders[col] = le
         
+        # Encode target
         target_encoder = LabelEncoder()
-        y_encoded = target_encoder.fit_transform(y)
+        y_encoded = target_encoder.fit_transform(y_categorical)
         
         X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
         
@@ -590,105 +599,68 @@ with tab5:
     st.markdown("### 🗺️ Zimbabwe Credit Risk Map")
     st.markdown("Geographic distribution of credit scores across Zimbabwean provinces")
     
-    # Try to load GeoJSON for Zimbabwe
-    try:
-        # Fetch Zimbabwe GeoJSON from a reliable source
-        geojson_url = "https://raw.githubusercontent.com/geoiq/zimbabwe-geojson/master/zimbabwe.geojson"
-        response = requests.get(geojson_url)
-        
-        if response.status_code == 200:
-            geojson_data = response.json()
-            
-            # Create choropleth map
-            fig_choropleth = go.Figure(go.Choroplethmapbox(
-                geojson=geojson_data,
-                locations=province_metrics['Province'],
-                z=province_metrics['avg_score'],
-                featureidkey="properties.name",
-                colorscale=[
-                    [0, '#e74c3c'],
-                    [0.33, '#f39c12'],
-                    [0.66, '#3498db'],
-                    [1, '#2ecc71']
-                ],
-                marker_opacity=0.8,
-                marker_line_width=1,
-                marker_line_color='white',
-                colorbar=dict(
-                    title="Avg Credit Score",
-                    titleside="right",
-                    titlefont=dict(size=12, color='#2c3e50'),
-                    tickfont=dict(color='#2c3e50')
-                ),
-                text=province_metrics['count'],
-                hovertemplate='<b>%{location}</b><br>' +
-                              'Average Score: %{z:.2f}/6<br>' +
-                              'Applicants: %{text}<br>' +
-                              '<extra></extra>'
-            ))
-            
-            fig_choropleth.update_layout(
-                mapbox_style="carto-positron",
-                mapbox_zoom=5.5,
-                mapbox_center={"lat": -19.0154, "lon": 29.1549},
-                height=600,
-                margin={"r": 0, "t": 40, "l": 0, "b": 0},
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            
-            st.plotly_chart(fig_choropleth, use_container_width=True)
-        else:
-            st.warning("GeoJSON data unavailable. Using alternative visualization.")
-            # Fallback to scatter map
-            fig_map = go.Figure()
-            
-            province_coords = {
-                'Harare': {'lat': -17.8252, 'lon': 31.0335},
-                'Bulawayo': {'lat': -20.1325, 'lon': 28.6265},
-                'Manicaland': {'lat': -18.9216, 'lon': 32.1746},
-                'Mashonaland Central': {'lat': -16.7740, 'lon': 30.9882},
-                'Mashonaland East': {'lat': -17.5900, 'lon': 31.3150},
-                'Mashonaland West': {'lat': -16.6500, 'lon': 29.5000},
-                'Masvingo': {'lat': -20.0625, 'lon': 30.8325},
-                'Matabeleland North': {'lat': -18.6400, 'lon': 27.0000},
-                'Matabeleland South': {'lat': -21.0000, 'lon': 29.0000},
-                'Midlands': {'lat': -19.0000, 'lon': 29.5000}
-            }
-            
-            province_metrics['lat'] = province_metrics['Province'].apply(lambda x: province_coords.get(x, {'lat': 0})['lat'])
-            province_metrics['lon'] = province_metrics['Province'].apply(lambda x: province_coords.get(x, {'lon': 0})['lon'])
-            
-            fig_map.add_trace(go.Scattermapbox(
-                lat=province_metrics['lat'],
-                lon=province_metrics['lon'],
-                mode='markers+text',
-                marker=dict(
-                    size=province_metrics['count'] / 30,
-                    color=province_metrics['avg_score'],
-                    colorscale='RdYlGn',
-                    colorbar=dict(title="Avg Credit Score"),
-                    showscale=True,
-                    sizemin=10
-                ),
-                text=province_metrics['Province'],
-                textposition="top center",
-                textfont=dict(size=11, color='#2c3e50'),
-                hovertemplate='<b>%{text}</b><br>Score: %{marker.color:.2f}<extra></extra>'
-            ))
-            
-            fig_map.update_layout(
-                mapbox_style="carto-positron",
-                mapbox_center=dict(lat=-19.0154, lon=29.1549),
-                mapbox_zoom=5.5,
-                height=600,
-                margin=dict(l=0, r=0, t=40, b=0)
-            )
-            
-            st.plotly_chart(fig_map, use_container_width=True)
-            
-    except Exception as e:
-        st.warning(f"Map visualization using alternative method")
+    # Province coordinates for fallback visualization
+    province_coords = {
+        'Harare': {'lat': -17.8252, 'lon': 31.0335},
+        'Bulawayo': {'lat': -20.1325, 'lon': 28.6265},
+        'Manicaland': {'lat': -18.9216, 'lon': 32.1746},
+        'Mashonaland Central': {'lat': -16.7740, 'lon': 30.9882},
+        'Mashonaland East': {'lat': -17.5900, 'lon': 31.3150},
+        'Mashonaland West': {'lat': -16.6500, 'lon': 29.5000},
+        'Masvingo': {'lat': -20.0625, 'lon': 30.8325},
+        'Matabeleland North': {'lat': -18.6400, 'lon': 27.0000},
+        'Matabeleland South': {'lat': -21.0000, 'lon': 29.0000},
+        'Midlands': {'lat': -19.0000, 'lon': 29.5000}
+    }
+    
+    province_metrics['lat'] = province_metrics['Province'].apply(lambda x: province_coords.get(x, {'lat': 0})['lat'])
+    province_metrics['lon'] = province_metrics['Province'].apply(lambda x: province_coords.get(x, {'lon': 0})['lon'])
+    
+    # Create a beautiful bubble map
+    fig_map = go.Figure()
+    
+    fig_map.add_trace(go.Scattermapbox(
+        lat=province_metrics['lat'],
+        lon=province_metrics['lon'],
+        mode='markers+text',
+        marker=dict(
+            size=province_metrics['count'] / 30,
+            color=province_metrics['avg_score'],
+            colorscale=[
+                [0, '#e74c3c'],
+                [0.33, '#f39c12'],
+                [0.66, '#3498db'],
+                [1, '#2ecc71']
+            ],
+            colorbar=dict(title="Avg Credit Score"),
+            showscale=True,
+            sizemin=10,
+            sizemode='area',
+            line=dict(color='white', width=2)
+        ),
+        text=province_metrics['Province'],
+        textposition="top center",
+        textfont=dict(size=12, color='#2c3e50', family='Inter', weight='bold'),
+        hovertemplate='<b>%{text}</b><br>' +
+                      'Average Score: %{marker.color:.2f}/6<br>' +
+                      'Applicants: %{marker.size:.0f}<br>' +
+                      'High Risk: ' + province_metrics['high_risk_pct'].round(1).astype(str) + '%<extra></extra>'
+    ))
+    
+    fig_map.update_layout(
+        mapbox=dict(
+            style='carto-positron',
+            center=dict(lat=-19.0154, lon=29.1549),
+            zoom=5.5
+        ),
+        height=600,
+        margin=dict(l=0, r=0, t=40, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        title=dict(text="<b>Credit Risk Distribution Across Zimbabwe</b>", font=dict(size=18, color='#2c3e50'), x=0.5)
+    )
+    
+    st.plotly_chart(fig_map, use_container_width=True)
     
     # Province-level detailed metrics
     st.markdown("### 📊 Province-Level Risk Metrics")
