@@ -164,21 +164,40 @@ if 'assessment_results' not in st.session_state:
 # ================= TRAIN MODEL =================
 @st.cache_resource
 def train_model(df):
+    # Prepare features
     X = df[['Location','Gender','Age','Mobile_Money_Txns',
             'Airtime_Spend_ZWL','Utility_Payments_ZWL','Loan_Repayment_History']].copy()
-    y = df['Credit_Score']
-
+    
+    # Prepare target - convert Credit_Score to categorical (Poor, Fair, Good, Excellent)
+    def score_to_category(score):
+        if score <= 2:
+            return 'Poor'
+        elif score <= 3:
+            return 'Fair'
+        elif score <= 4:
+            return 'Good'
+        else:
+            return 'Excellent'
+    
+    y = df['Credit_Score'].apply(score_to_category)
+    
+    # Encode categorical features
     encoders = {}
     for col in ['Location','Gender','Loan_Repayment_History']:
         le = LabelEncoder()
         X[col] = le.fit_transform(X[col].astype(str))
         encoders[col] = le
-
+    
+    # Encode target
+    target_encoder = LabelEncoder()
+    y_encoded = target_encoder.fit_transform(y)
+    
+    # Train model
     model = RandomForestClassifier(n_estimators=120, max_depth=12, random_state=42)
-    model.fit(X, y)
+    model.fit(X, y_encoded)
     
     # Calculate metrics
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
     y_pred = model.predict(X_test)
     
     metrics = {
@@ -188,9 +207,9 @@ def train_model(df):
         'f1': f1_score(y_test, y_pred, average='weighted') * 100
     }
 
-    return model, encoders, metrics
+    return model, encoders, target_encoder, metrics
 
-model, encoders, model_metrics = train_model(df)
+model, encoders, target_encoder, model_metrics = train_model(df)
 
 # ================= SIDEBAR =================
 st.sidebar.header("📝 Applicant Information")
@@ -203,11 +222,10 @@ Age = st.sidebar.slider("🎂 Age", 18, 80, 35)
 st.sidebar.markdown("### 💰 Financial Behavior")
 st.sidebar.markdown("---")
 
-Mobile = st.sidebar.slider("📱 Mobile Money Txns", 0, 300, 70)
-Airtime = st.sidebar.slider("📞 Airtime Spend (ZWL)", 0, 300, 50)
-Utility = st.sidebar.slider("💡 Utility Payments (ZWL)", 0, 300, 80)
+Mobile = st.sidebar.slider("📱 Mobile Money Txns", 0.0, 300.0, 70.0)
+Airtime = st.sidebar.slider("📞 Airtime Spend (ZWL)", 0.0, 300.0, 50.0)
+Utility = st.sidebar.slider("💡 Utility Payments (ZWL)", 0.0, 300.0, 80.0)
 Repayment = st.sidebar.selectbox("📊 Repayment History", ['Poor','Fair','Good','Excellent'])
-Income_Source = st.sidebar.selectbox("💰 Income Source", ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other'])
 
 # ================= SCORING =================
 score = 0
@@ -232,9 +250,10 @@ def predict():
                  'Airtime_Spend_ZWL','Utility_Payments_ZWL','Loan_Repayment_History'])
 
     for col in encoders:
-        data[col] = encoders[col].transform(data[col])
+        data[col] = encoders[col].transform(data[col].astype(str))
 
-    pred = model.predict(data)[0]
+    pred_encoded = model.predict(data)[0]
+    pred = target_encoder.inverse_transform([pred_encoded])[0]
     prob = model.predict_proba(data).max() * 100
     return pred, prob
 
@@ -449,10 +468,7 @@ with tab4:
     province_risk.columns = ['Province', 'Avg_Score', 'Count', 'High_Risk_Pct']
     province_risk = province_risk.dropna()
     
-    # Create choropleth map using mapbox
-    fig = go.Figure()
-    
-    # Province coordinates for fallback
+    # Province coordinates
     province_coords = {
         'Harare': {'lat': -17.8252, 'lon': 31.0335},
         'Bulawayo': {'lat': -20.1325, 'lon': 28.6265},
@@ -469,7 +485,9 @@ with tab4:
     province_risk['lat'] = province_risk['Province'].apply(lambda x: province_coords.get(x, {'lat': 0})['lat'])
     province_risk['lon'] = province_risk['Province'].apply(lambda x: province_coords.get(x, {'lon': 0})['lon'])
     
-    # Add scatter mapbox
+    # Create map
+    fig = go.Figure()
+    
     fig.add_trace(go.Scattermapbox(
         lat=province_risk['lat'],
         lon=province_risk['lon'],
