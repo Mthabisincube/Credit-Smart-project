@@ -1,15 +1,15 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import plotly.graph_objects as go
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
-import json
+import uuid
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
@@ -18,7 +18,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ================= LIGHT UI =================
+# ================= LIGHT UI WITH ENHANCED STYLING =================
 st.markdown("""
 <style>
 .stApp {
@@ -29,17 +29,16 @@ st.markdown("""
     text-align: center;
     font-size: 2.5rem;
     font-weight: 800;
-    color: #2c3e50;
-    margin-bottom: 0.5rem;
-    padding: 1rem;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
 }
 .sub-header {
     text-align: center;
     color: #5a6c7e;
     margin-bottom: 2rem;
+    font-size: 1rem;
 }
 .metric-card {
     background: #ffffff;
@@ -79,6 +78,7 @@ st.markdown("""
     border-radius: 8px;
     font-weight: 600;
     transition: all 0.3s ease;
+    width: 100%;
 }
 .stButton > button:hover {
     transform: translateY(-2px);
@@ -132,10 +132,8 @@ st.markdown('<div class="sub-header">🚀 AI-Powered Credit Scoring | Alternativ
 # ================= LOAD DATA =================
 @st.cache_data
 def load_data():
-    df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
+    df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/master/smart_credit_scoring_zimbabwe.csv")
     np.random.seed(42)
-    income_sources = ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other']
-    df['Income_Source'] = np.random.choice(income_sources, size=len(df), p=[0.4, 0.25, 0.15, 0.1, 0.1])
     return df
 
 df = load_data()
@@ -179,14 +177,20 @@ def train_model(df):
     model = RandomForestClassifier(n_estimators=120, max_depth=12, random_state=42)
     model.fit(X, y)
     
-    # Calculate accuracy
+    # Calculate metrics
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred) * 100
+    
+    metrics = {
+        'accuracy': accuracy_score(y_test, y_pred) * 100,
+        'precision': precision_score(y_test, y_pred, average='weighted') * 100,
+        'recall': recall_score(y_test, y_pred, average='weighted') * 100,
+        'f1': f1_score(y_test, y_pred, average='weighted') * 100
+    }
 
-    return model, encoders, accuracy
+    return model, encoders, metrics
 
-model, encoders, model_accuracy = train_model(df)
+model, encoders, model_metrics = train_model(df)
 
 # ================= SIDEBAR =================
 st.sidebar.header("📝 Applicant Information")
@@ -199,11 +203,11 @@ Age = st.sidebar.slider("🎂 Age", 18, 80, 35)
 st.sidebar.markdown("### 💰 Financial Behavior")
 st.sidebar.markdown("---")
 
-Mobile = st.sidebar.slider("📱 Mobile Money Txns", 0.0, 300.0, 70.0)
-Airtime = st.sidebar.slider("📞 Airtime Spend (ZWL)", 0.0, 300.0, 50.0)
-Utility = st.sidebar.slider("💡 Utility Payments (ZWL)", 0.0, 300.0, 80.0)
+Mobile = st.sidebar.slider("📱 Mobile Money Txns", 0, 300, 70)
+Airtime = st.sidebar.slider("📞 Airtime Spend (ZWL)", 0, 300, 50)
+Utility = st.sidebar.slider("💡 Utility Payments (ZWL)", 0, 300, 80)
 Repayment = st.sidebar.selectbox("📊 Repayment History", ['Poor','Fair','Good','Excellent'])
-Income_Source = st.sidebar.selectbox("💰 Income Source", ['Informal Business', 'Farming', 'Remittances', 'Other'])
+Income_Source = st.sidebar.selectbox("💰 Income Source", ['Formal Employment', 'Informal Business', 'Farming', 'Remittances', 'Other'])
 
 # ================= SCORING =================
 score = 0
@@ -241,9 +245,10 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "🎯 Assessment", "📈 Ana
 
 # ================= DASHBOARD =================
 with tab1:
-    st.markdown("### 📊 Overview Dashboard")
+    st.markdown("### 📊 Portfolio Overview")
     
     col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
         st.markdown(f"""
         <div class="metric-card">
@@ -263,7 +268,7 @@ with tab1:
     with col3:
         st.markdown(f"""
         <div class="metric-card">
-            <div style="font-size: 2rem; font-weight: 800; color: #9b59b6;">{model_accuracy:.1f}%</div>
+            <div style="font-size: 2rem; font-weight: 800; color: #9b59b6;">{model_metrics['accuracy']:.1f}%</div>
             <div style="color: #5a6c7e;">Model Accuracy</div>
         </div>
         """, unsafe_allow_html=True)
@@ -296,14 +301,15 @@ with tab1:
                          xaxis_title='Number of Applicants')
         st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown('<div class="section-header">🏆 Province Performance</div>', unsafe_allow_html=True)
-    province_scores = df.groupby('Province')['Credit_Score'].mean().sort_values(ascending=True)
-    colors_prov = ['#e74c3c' if x < 3 else '#f39c12' if x < 4 else '#2ecc71' for x in province_scores.values]
-    fig = go.Figure(data=[go.Bar(x=province_scores.values, y=province_scores.index, orientation='h', 
-                                marker_color=colors_prov, text=province_scores.values.round(2), textposition='outside')])
-    fig.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-                     xaxis_title='Average Credit Score', xaxis=dict(range=[0, 6]))
-    st.plotly_chart(fig, use_container_width=True)
+    # Model performance metrics
+    st.markdown('<div class="section-header">🤖 Model Performance</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Precision", f"{model_metrics['precision']:.1f}%")
+    with col2:
+        st.metric("Recall", f"{model_metrics['recall']:.1f}%")
+    with col3:
+        st.metric("F1 Score", f"{model_metrics['f1']:.1f}%")
 
 # ================= ASSESSMENT =================
 with tab2:
@@ -334,7 +340,7 @@ with tab2:
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div style="font-size: 1.5rem; font-weight: 700;">🤖 AI Prediction</div>
+            <div style="font-size: 1.2rem; font-weight: 700;">🤖 AI Prediction</div>
             <div style="font-size: 2rem; font-weight: 800; color: #9b59b6;">{prediction}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -342,7 +348,7 @@ with tab2:
     with col2:
         st.markdown(f"""
         <div class="metric-card">
-            <div style="font-size: 1.5rem; font-weight: 700;">📊 Confidence</div>
+            <div style="font-size: 1.2rem; font-weight: 700;">📊 Confidence</div>
             <div style="font-size: 2rem; font-weight: 800; color: #2ecc71;">{confidence:.1f}%</div>
         </div>
         """, unsafe_allow_html=True)
@@ -357,19 +363,19 @@ with tab2:
         st.error("❌ Enhanced verification required\n❌ Collateral might be necessary\n❌ Lower credit limits (up to ZWL 5,000)")
     
     # Save button
-    if st.button("💾 Save Assessment", type="primary", use_container_width=True):
-        st.session_state.history.append({
+    if st.button("💾 Save Assessment", type="primary"):
+        assessment_entry = {
             "date": datetime.now(),
             "score": score,
             "risk": risk_level,
             "prediction": prediction,
+            "confidence": confidence,
             "location": Location,
             "gender": Gender,
             "age": Age
-        })
-        st.session_state.assessment_results = {
-            'score': score, 'risk': risk_level, 'prediction': prediction, 'confidence': confidence
         }
+        st.session_state.history.append(assessment_entry)
+        st.session_state.assessment_results = assessment_entry
         st.success(f"✅ Assessment saved! Total saved: {len(st.session_state.history)}")
         st.balloons()
     
@@ -383,7 +389,7 @@ with tab2:
 
 # ================= ANALYSIS =================
 with tab3:
-    st.markdown("### 📈 Data Analysis")
+    st.markdown("### 📈 Data Insights")
     
     col1, col2 = st.columns(2)
     
@@ -443,75 +449,62 @@ with tab4:
     province_risk.columns = ['Province', 'Avg_Score', 'Count', 'High_Risk_Pct']
     province_risk = province_risk.dropna()
     
-    # Create choropleth map
-    try:
-        # Use a simpler approach with mapbox
-        fig = go.Figure()
-        
-        # Add scatter mapbox for provinces
-        province_coords = {
-            'Harare': {'lat': -17.8252, 'lon': 31.0335},
-            'Bulawayo': {'lat': -20.1325, 'lon': 28.6265},
-            'Manicaland': {'lat': -18.9216, 'lon': 32.1746},
-            'Mashonaland East': {'lat': -17.5900, 'lon': 31.3150},
-            'Mashonaland West': {'lat': -16.6500, 'lon': 29.5000},
-            'Mashonaland Central': {'lat': -16.7740, 'lon': 30.9882},
-            'Masvingo': {'lat': -20.0625, 'lon': 30.8325},
-            'Midlands': {'lat': -19.0000, 'lon': 29.5000},
-            'Matabeleland North': {'lat': -18.6400, 'lon': 27.0000},
-            'Matabeleland South': {'lat': -21.0000, 'lon': 29.0000}
-        }
-        
-        province_risk['lat'] = province_risk['Province'].apply(lambda x: province_coords.get(x, {'lat': 0})['lat'])
-        province_risk['lon'] = province_risk['Province'].apply(lambda x: province_coords.get(x, {'lon': 0})['lon'])
-        
-        # Color scale based on average score
-        colors = ['#e74c3c', '#f39c12', '#f1c40f', '#2ecc71']
-        
-        fig.add_trace(go.Scattermapbox(
-            lat=province_risk['lat'],
-            lon=province_risk['lon'],
-            mode='markers+text',
-            marker=dict(
-                size=province_risk['Count'] / 50,
-                color=province_risk['Avg_Score'],
-                colorscale='RdYlGn',
-                colorbar=dict(title="Avg Credit Score"),
-                showscale=True,
-                sizemin=10,
-                sizemode='area'
-            ),
-            text=province_risk['Province'],
-            textposition="top center",
-            textfont=dict(size=12, color='#2c3e50'),
-            hovertemplate='<b>%{text}</b><br>' +
-                          'Average Score: %{marker.color:.2f}/6<br>' +
-                          'Applicants: %{marker.size:.0f}<br>' +
-                          'High Risk: ' + province_risk['High_Risk_Pct'].round(1).astype(str) + '%<extra></extra>'
-        ))
-        
-        fig.update_layout(
-            mapbox=dict(
-                style='carto-positron',
-                center=dict(lat=-19.0154, lon=29.1549),
-                zoom=5.5
-            ),
-            height=600,
-            margin=dict(l=0, r=0, t=0, b=0),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-    except Exception as e:
-        st.warning(f"Map display using alternative method")
-        # Fallback to bar chart
-        fig = px.bar(province_risk, x='Province', y='Avg_Score', 
-                    color='Avg_Score', color_continuous_scale='RdYlGn',
-                    title='Average Credit Score by Province')
-        fig.update_layout(height=500)
-        st.plotly_chart(fig, use_container_width=True)
+    # Create choropleth map using mapbox
+    fig = go.Figure()
+    
+    # Province coordinates for fallback
+    province_coords = {
+        'Harare': {'lat': -17.8252, 'lon': 31.0335},
+        'Bulawayo': {'lat': -20.1325, 'lon': 28.6265},
+        'Manicaland': {'lat': -18.9216, 'lon': 32.1746},
+        'Mashonaland East': {'lat': -17.5900, 'lon': 31.3150},
+        'Mashonaland West': {'lat': -16.6500, 'lon': 29.5000},
+        'Mashonaland Central': {'lat': -16.7740, 'lon': 30.9882},
+        'Masvingo': {'lat': -20.0625, 'lon': 30.8325},
+        'Midlands': {'lat': -19.0000, 'lon': 29.5000},
+        'Matabeleland North': {'lat': -18.6400, 'lon': 27.0000},
+        'Matabeleland South': {'lat': -21.0000, 'lon': 29.0000}
+    }
+    
+    province_risk['lat'] = province_risk['Province'].apply(lambda x: province_coords.get(x, {'lat': 0})['lat'])
+    province_risk['lon'] = province_risk['Province'].apply(lambda x: province_coords.get(x, {'lon': 0})['lon'])
+    
+    # Add scatter mapbox
+    fig.add_trace(go.Scattermapbox(
+        lat=province_risk['lat'],
+        lon=province_risk['lon'],
+        mode='markers+text',
+        marker=dict(
+            size=province_risk['Count'] / 30,
+            color=province_risk['Avg_Score'],
+            colorscale='RdYlGn',
+            colorbar=dict(title="Avg Credit Score"),
+            showscale=True,
+            sizemin=10,
+            sizemode='area'
+        ),
+        text=province_risk['Province'],
+        textposition="top center",
+        textfont=dict(size=11, color='#2c3e50'),
+        hovertemplate='<b>%{text}</b><br>' +
+                      'Average Score: %{marker.color:.2f}/6<br>' +
+                      'Applicants: %{marker.size:.0f}<br>' +
+                      'High Risk: ' + province_risk['High_Risk_Pct'].round(1).astype(str) + '%<extra></extra>'
+    ))
+    
+    fig.update_layout(
+        mapbox=dict(
+            style='carto-positron',
+            center=dict(lat=-19.0154, lon=29.1549),
+            zoom=5.5
+        ),
+        height=600,
+        margin=dict(l=0, r=0, t=40, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
     
     # Province-level detailed metrics
     st.markdown("### 📊 Province Risk Details")
