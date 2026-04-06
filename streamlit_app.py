@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import plotly.graph_objects as go
 import plotly.express as px
@@ -11,8 +11,6 @@ from datetime import datetime, timedelta
 import json
 import uuid
 import matplotlib.pyplot as plt
-from fpdf import FPDF
-import base64
 
 # Page configuration
 st.set_page_config(
@@ -22,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ================= ENHANCED CUSTOM CSS =================
+# ================= CUSTOM CSS =================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -48,7 +46,6 @@ st.markdown("""
         text-align: center;
         font-weight: 800;
         margin-bottom: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
     
     .sub-header {
@@ -65,7 +62,6 @@ st.markdown("""
     
     .metric-card {
         background: rgba(255,255,255,0.95);
-        backdrop-filter: blur(10px);
         border-radius: 20px;
         padding: 1.5rem;
         margin: 0.5rem 0;
@@ -201,7 +197,7 @@ if 'assessment_results' not in st.session_state:
         'confidence': None, 'risk_level': 'Medium', 'assessment_id': None, 'timestamp': None
     }
 
-# Load and prepare data
+# Load data
 @st.cache_data
 def load_data():
     df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
@@ -291,9 +287,12 @@ if not st.session_state.model_trained:
 
 # Helper functions
 def get_risk_level(score):
-    if score >= 5: return "Low"
-    elif score >= 3: return "Medium"
-    else: return "High"
+    if score >= 5: 
+        return "Low"
+    elif score >= 3: 
+        return "Medium"
+    else: 
+        return "High"
 
 def predict_credit(input_data):
     """Make prediction using trained model"""
@@ -329,7 +328,6 @@ def predict_credit(input_data):
         
         return predicted_class, confidence
     except Exception as e:
-        st.warning(f"Prediction unavailable: {str(e)[:50]}")
         return "Unknown", 0
 
 def save_assessment(assessment_data):
@@ -337,6 +335,12 @@ def save_assessment(assessment_data):
     assessment_data['timestamp'] = datetime.now().isoformat()
     assessment_data['date'] = datetime.now().strftime('%Y-%m-%d')
     st.session_state.assessments_history.append(assessment_data.copy())
+    # Keep only last 30 days
+    cutoff = datetime.now() - timedelta(days=30)
+    st.session_state.assessments_history = [
+        a for a in st.session_state.assessments_history 
+        if datetime.fromisoformat(a['timestamp']) > cutoff
+    ]
     return assessment_data['assessment_id']
 
 def get_monthly_stats():
@@ -594,22 +598,21 @@ with tab3:
     
     with col1:
         st.markdown("#### Age Distribution")
-        fig = px.histogram(df, x='Age', nbins=20, title='Age Distribution')
-        fig.update_layout(height=400)
+        fig = px.histogram(df, x='Age', nbins=20, title='Age Distribution', color_discrete_sequence=['#3b82f6'])
+        fig.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.markdown("#### Gender Distribution")
         gender_counts = df['Gender'].value_counts()
-        fig = go.Figure(data=[go.Pie(labels=gender_counts.index, values=gender_counts.values, hole=0.3)])
+        fig = go.Figure(data=[go.Pie(labels=gender_counts.index, values=gender_counts.values, hole=0.3, marker_colors=['#3b82f6', '#ec4891'])])
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown("#### Correlation Matrix")
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
-    corr = df[numeric_cols].corr()
-    fig = px.imshow(corr, text_auto=True, color_continuous_scale='RdBu', aspect='auto')
-    fig.update_layout(height=500)
+    st.markdown("#### Credit Score by Location")
+    location_scores = df.groupby('Location')['Credit_Score'].mean().sort_values(ascending=False).head(10)
+    fig = go.Figure(data=[go.Bar(x=location_scores.values, y=location_scores.index, orientation='h', marker_color='#10b981')])
+    fig.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
     st.plotly_chart(fig, use_container_width=True)
 
 # ================= TAB 4: MONTHLY REPORTS =================
@@ -626,16 +629,18 @@ with tab4:
         with col3:
             st.metric("✅ Approval Rate", f"{stats['approval_rate']:.1f}%")
         
-        # Create a simple trend visualization
+        # Create trend visualization
         if len(st.session_state.assessments_history) > 0:
             df_history = pd.DataFrame(st.session_state.assessments_history[-10:])
             df_history['date'] = pd.to_datetime(df_history['timestamp']).dt.date
             daily_scores = df_history.groupby('date')['score'].mean().reset_index()
             
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=daily_scores['date'], y=daily_scores['score'], mode='lines+markers', name='Avg Score'))
-            fig.add_hline(y=3, line_dash="dash", line_color="red", annotation_text="Threshold")
-            fig.update_layout(title='Score Trend (Last 10 Assessments)', height=400)
+            fig.add_trace(go.Scatter(x=daily_scores['date'], y=daily_scores['score'], mode='lines+markers', 
+                                    name='Avg Score', line=dict(color='#3b82f6', width=3), marker=dict(size=10)))
+            fig.add_hline(y=3, line_dash="dash", line_color="red", annotation_text="Approval Threshold")
+            fig.update_layout(title='Score Trend (Last 10 Assessments)', height=400, 
+                            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No assessments recorded in the last 30 days. Start saving assessments to see monthly reports.")
@@ -649,22 +654,45 @@ with tab5:
     with col1:
         st.markdown("#### Risk by Location")
         location_risk = df.groupby('Location')['Credit_Score'].mean().sort_values()
-        fig = go.Figure(data=[go.Bar(x=location_risk.values, y=location_risk.index, orientation='h', marker_color='#f59e0b')])
-        fig.update_layout(height=400)
+        fig = go.Figure(data=[go.Bar(x=location_risk.values, y=location_risk.index, orientation='h', 
+                                    marker_color='#f59e0b', text=location_risk.values.round(2), textposition='outside')])
+        fig.update_layout(height=500, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                         xaxis_title='Average Credit Score')
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         st.markdown("#### Risk by Income Source")
         income_risk = df.groupby('Income_Source')['Credit_Score'].mean().sort_values()
-        fig = go.Figure(data=[go.Bar(x=income_risk.values, y=income_risk.index, orientation='h', marker_color='#10b981')])
-        fig.update_layout(height=400)
+        fig = go.Figure(data=[go.Bar(x=income_risk.values, y=income_risk.index, orientation='h', 
+                                    marker_color='#10b981', text=income_risk.values.round(2), textposition='outside')])
+        fig.update_layout(height=500, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                         xaxis_title='Average Credit Score')
         st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown("#### Risk Heatmap: Location vs Repayment")
-    heatmap_data = pd.crosstab(df['Location'], df['Loan_Repayment_History'], values=df['Credit_Score'], aggfunc='mean', fill_value=0)
-    fig = px.imshow(heatmap_data, text_auto=True, aspect='auto', color_continuous_scale='RdYlGn')
-    fig.update_layout(height=500)
-    st.plotly_chart(fig, use_container_width=True)
+    # Risk matrix - FIXED VERSION
+    st.markdown("#### Risk Heatmap: Location vs Repayment History")
+    try:
+        # Create pivot table correctly
+        risk_pivot = df.pivot_table(
+            values='Credit_Score', 
+            index='Location', 
+            columns='Loan_Repayment_History', 
+            aggfunc='mean', 
+            fill_value=0
+        )
+        
+        fig = px.imshow(
+            risk_pivot, 
+            text_auto=True, 
+            aspect='auto', 
+            color_continuous_scale='RdYlGn',
+            title='Average Credit Score by Location and Repayment History'
+        )
+        fig.update_layout(height=500)
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.warning("Heatmap data unavailable")
+        st.dataframe(df.groupby(['Location', 'Loan_Repayment_History'])['Credit_Score'].mean().unstack().fillna(0))
     
     # High risk alerts
     st.markdown("#### ⚠️ High Risk Alerts")
