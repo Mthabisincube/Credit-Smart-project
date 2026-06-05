@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -10,9 +10,8 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import json
 import uuid
-import requests
 
-# Page configuration
+# Page configuration (unchanged)
 st.set_page_config(
     page_title="Zim Smart Credit App",
     page_icon="💳",
@@ -20,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ================= LIGHT UI CSS =================
+# ================= LIGHT UI CSS (unchanged) =================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -180,7 +179,7 @@ st.markdown("""
 st.markdown('<h1 class="main-header">🏦 Zim Smart Credit App</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">🚀 AI-Powered Credit Scoring | Alternative Data Intelligence | Financial Inclusion for Zimbabwe</p>', unsafe_allow_html=True)
 
-# Initialize session state
+# Session state initialization (unchanged except for score scale note)
 if 'assessments_history' not in st.session_state:
     st.session_state.assessments_history = []
 
@@ -194,11 +193,16 @@ if 'model' not in st.session_state:
 
 if 'assessment_results' not in st.session_state:
     st.session_state.assessment_results = {
-        'score': 0, 'max_score': 6, 'predicted_class': None,
-        'confidence': None, 'risk_level': 'Medium', 'assessment_id': None, 'timestamp': None
+        'score': 0,          # will now be 0-100
+        'max_score': 100,
+        'predicted_class': None,
+        'confidence': None,
+        'risk_level': 'Medium',
+        'assessment_id': None,
+        'timestamp': None
     }
 
-# Load data
+# Load data (unchanged)
 @st.cache_data
 def load_data():
     df = pd.read_csv("https://raw.githubusercontent.com/Mthabisincube/Credit-Smart-project/refs/heads/master/smart_credit_scoring_zimbabwe.csv")
@@ -210,7 +214,7 @@ def load_data():
 
 df = load_data()
 
-# Map locations to provinces
+# Map locations to provinces (unchanged)
 location_to_province = {
     'Harare': 'Harare', 'Bulawayo': 'Bulawayo', 'Mutare': 'Manicaland',
     'Marondera': 'Mashonaland East', 'Chinhoyi': 'Mashonaland West',
@@ -221,22 +225,123 @@ location_to_province = {
 df['Province'] = df['Location'].map(location_to_province).fillna('Other')
 df = df[df['Province'] != 'Other']
 
-# Calculate province-level metrics
+# Province metrics (unchanged)
 province_metrics = df.groupby('Province').agg({
     'Credit_Score': ['mean', 'count', lambda x: (x < 3).mean() * 100]
 }).round(2)
 province_metrics.columns = ['avg_score', 'count', 'high_risk_pct']
 province_metrics = province_metrics.reset_index()
 
-# Train model function
+# -------------------------------------------------------------------
+#  NEW TRANSPARENT CREDIT SCORING LOGIC (0–100)
+# -------------------------------------------------------------------
+def calculate_transparent_score(age, mobile_money, airtime, utility, repayment_history, income_source):
+    """
+    Transparent, rule‑based credit score on a 0‑100 scale.
+    Each feature contributes a maximum, determined by domain logic and data‑driven percentiles.
+    """
+    score = 0.0
+    max_score = 0.0
+    details = {}   # for display later
+
+    # 1. Loan Repayment History (0‑40 points)
+    rep_map = {'Poor': 0, 'Fair': 10, 'Good': 25, 'Excellent': 40}
+    pts = rep_map[repayment_history]
+    score += pts
+    max_score += 40
+    details['Loan Repayment History'] = pts
+
+    # 2. Mobile Money Transactions (0‑25 points) – proxy for income / digital footprint
+    # Use quantiles from the dataset
+    p25 = df['Mobile_Money_Txns'].quantile(0.25)
+    p50 = df['Mobile_Money_Txns'].quantile(0.50)
+    p75 = df['Mobile_Money_Txns'].quantile(0.75)
+    if mobile_money >= p75:
+        pts_mm = 25
+    elif mobile_money >= p50:
+        pts_mm = 15
+    elif mobile_money >= p25:
+        pts_mm = 5
+    else:
+        pts_mm = 0
+    score += pts_mm
+    max_score += 25
+    details['Mobile Money Transactions'] = pts_mm
+
+    # 3. Airtime Spend (0‑10 points) – communication behaviour
+    p25_air = df['Airtime_Spend_USD'].quantile(0.25)
+    p50_air = df['Airtime_Spend_USD'].quantile(0.50)
+    p75_air = df['Airtime_Spend_USD'].quantile(0.75)
+    if airtime >= p75_air:
+        pts_air = 10
+    elif airtime >= p50_air:
+        pts_air = 6
+    elif airtime >= p25_air:
+        pts_air = 2
+    else:
+        pts_air = 0
+    score += pts_air
+    max_score += 10
+    details['Airtime Spend'] = pts_air
+
+    # 4. Utility Payments (0‑10 points) – bill payment reliability
+    p25_util = df['Utility_Payments_USD'].quantile(0.25)
+    p50_util = df['Utility_Payments_USD'].quantile(0.50)
+    p75_util = df['Utility_Payments_USD'].quantile(0.75)
+    if utility >= p75_util:
+        pts_util = 10
+    elif utility >= p50_util:
+        pts_util = 6
+    elif utility >= p25_util:
+        pts_util = 2
+    else:
+        pts_util = 0
+    score += pts_util
+    max_score += 10
+    details['Utility Payments'] = pts_util
+
+    # 5. Age (0‑10 points) – reasonable range
+    if 30 <= age <= 45:
+        pts_age = 10
+    elif (25 <= age < 30) or (45 < age <= 55):
+        pts_age = 6
+    else:
+        pts_age = 2   # 18‑24 or 56+ still gets a small base
+    score += pts_age
+    max_score += 10
+    details['Age'] = pts_age
+
+    # 6. Income Source (0‑5 points) – stability indicator
+    inc_map = {
+        'Formal Employment': 5,
+        'Remittances': 3,
+        'Informal Business': 2,
+        'Farming': 1,
+        'Other': 0
+    }
+    pts_inc = inc_map.get(income_source, 0)
+    score += pts_inc
+    max_score += 5
+    details['Income Source'] = pts_inc
+
+    # Normalise to 0‑100 (in case max_score is not 100 exactly)
+    final_score = round((score / max_score) * 100) if max_score > 0 else 0
+    return final_score, details
+# -------------------------------------------------------------------
+
+# Retrain the AI model WITHOUT gender, and include Income_Source
 def train_model():
     try:
-        feature_cols = ['Location', 'Gender', 'Age', 'Mobile_Money_Txns', 
-                       'Airtime_Spend_USD', 'Utility_Payments_USD', 'Loan_Repayment_History']
+        # UPDATED feature list – removed Gender, added Income_Source
+        feature_cols = [
+            'Location', 'Age', 'Mobile_Money_Txns',
+            'Airtime_Spend_USD', 'Utility_Payments_USD',
+            'Loan_Repayment_History', 'Income_Source'
+        ]
         
         X = df[feature_cols].copy()
         
-        # Convert Credit_Score to categorical classes for classification
+        # Convert original Credit_Score (1-6) to categories for classification
         def score_to_category(score):
             if score <= 2:
                 return 'Poor'
@@ -249,9 +354,9 @@ def train_model():
         
         y_categorical = df['Credit_Score'].apply(score_to_category)
         
-        # Encode categorical features
+        # Encode categorical features (Location, Loan_Repayment_History, Income_Source)
         label_encoders = {}
-        categorical_cols = ['Location', 'Gender', 'Loan_Repayment_History']
+        categorical_cols = ['Location', 'Loan_Repayment_History', 'Income_Source']
         
         for col in categorical_cols:
             le = LabelEncoder()
@@ -262,7 +367,9 @@ def train_model():
         target_encoder = LabelEncoder()
         y_encoded = target_encoder.fit_transform(y_categorical)
         
-        X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y_encoded, test_size=0.2, random_state=42
+        )
         
         model = RandomForestClassifier(
             n_estimators=100, max_depth=15, min_samples_split=5,
@@ -282,38 +389,42 @@ def train_model():
         st.session_state.model_trained = True
         st.session_state.feature_columns = feature_cols
         
+        # Store metrics and feature importance
+        importances = dict(zip(feature_cols, model.feature_importances_))
         st.session_state.model_metrics = {
-            'accuracy': accuracy, 'precision': precision, 'recall': recall,
-            'f1_score': f1, 'feature_importance': dict(zip(feature_cols, model.feature_importances_))
+            'accuracy': accuracy,
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1,
+            'feature_importance': importances
         }
         return True
     except Exception as e:
         st.error(f"Training error: {str(e)}")
         return False
 
-# Train model if not already trained
+# Train model if needed
 if not st.session_state.model_trained:
-    with st.spinner("🤖 Training AI Model..."):
+    with st.spinner("🤖 Training AI Model (without gender)..."):
         train_model()
 
-# Helper functions
-def get_risk_level(score):
-    if score >= 5: return "Low"
-    elif score >= 3: return "Medium"
-    else: return "High"
-
+# Updated predict function (no gender, includes income_source)
 def predict_credit(input_data):
     if not st.session_state.model_trained:
         return "Unknown", 0
     try:
         feature_cols = st.session_state.feature_columns
         X_input = pd.DataFrame([[
-            input_data['Location'], input_data['Gender'], input_data['Age'],
-            input_data['Mobile_Money_Txns'], input_data['Airtime_Spend_USD'],
-            input_data['Utility_Payments_USD'], input_data['Loan_Repayment_History']
+            input_data['Location'],
+            input_data['Age'],
+            input_data['Mobile_Money_Txns'],
+            input_data['Airtime_Spend_USD'],
+            input_data['Utility_Payments_USD'],
+            input_data['Loan_Repayment_History'],
+            input_data['Income_Source']
         ]], columns=feature_cols)
         
-        for col in ['Location', 'Gender', 'Loan_Repayment_History']:
+        for col in ['Location', 'Loan_Repayment_History', 'Income_Source']:
             if col in st.session_state.label_encoders:
                 le = st.session_state.label_encoders[col]
                 X_input[col] = le.transform(X_input[col].astype(str))
@@ -323,8 +434,18 @@ def predict_credit(input_data):
         confidence = max(proba) * 100
         predicted_class = st.session_state.target_encoder.inverse_transform([prediction])[0]
         return predicted_class, confidence
-    except:
+    except Exception as e:
         return "Unknown", 0
+
+# Helpers (updated risk level to use new score scale)
+def get_risk_level(score):
+    # score now out of 100
+    if score >= 75:
+        return "Low"
+    elif score >= 50:
+        return "Medium"
+    else:
+        return "High"
 
 def save_assessment(assessment_data):
     assessment_data['assessment_id'] = str(uuid.uuid4())[:8]
@@ -348,18 +469,19 @@ def get_monthly_stats():
     if len(monthly) == 0:
         return None
     return {
-        'total': len(monthly), 'avg_score': monthly['score'].mean(),
-        'approval_rate': (monthly['score'] >= 3).mean() * 100,
-        'high_risk': (monthly['score'] < 3).mean() * 100
+        'total': len(monthly),
+        'avg_score': monthly['score'].mean(),          # now 0-100
+        'approval_rate': (monthly['score'] >= 50).mean() * 100,
+        'high_risk': (monthly['score'] < 50).mean() * 100
     }
 
-# Sidebar inputs
+# ---------------- SIDEBAR (gender removed) ----------------
 with st.sidebar:
     st.markdown("### 🎯 Applicant Information")
     st.markdown("---")
     
     Location = st.selectbox("📍 Location", sorted(df['Location'].unique()))
-    gender = st.selectbox("👤 Gender", sorted(df['Gender'].unique()))
+    # GENDER FIELD REMOVED – no longer asked
     Age = st.slider("🎂 Age", 18, 80, 35)
     
     st.markdown("### 💰 Financial Behavior")
@@ -368,37 +490,34 @@ with st.sidebar:
     Airtime_Spend_USD = st.slider("📞 Airtime Spend (USD)", 0.0, 300.0, 50.0)
     Utility_Payments_USD = st.slider("💡 Utility Payments (USD)", 0.0, 300.0, 80.0)
     Loan_Repayment_History = st.selectbox("📊 Loan Repayment History", ['Poor', 'Fair', 'Good', 'Excellent'])
-    Income_Source = st.selectbox("💰 Source of Income", ['Informal Business', 'Farming', 'Remittances', 'Other'])
+    Income_Source = st.selectbox("💰 Source of Income", ['Informal Business', 'Farming', 'Remittances', 'Formal Employment', 'Other'])
+# -----------------------------------------------------------
 
-# Calculate score
-score = 0
-max_score = 6
-if 30 <= Age <= 50:
-    score += 2
-elif 25 <= Age < 30 or 50 < Age <= 60:
-    score += 1
+# Calculate the new transparent score (0-100)
+transparent_score, score_details = calculate_transparent_score(
+    Age, Mobile_Money_Txns, Airtime_Spend_USD, Utility_Payments_USD,
+    Loan_Repayment_History, Income_Source
+)
 
-if Mobile_Money_Txns > df['Mobile_Money_Txns'].median():
-    score += 1
+risk_level = get_risk_level(transparent_score)
 
-repayment_scores = {'Poor': 0, 'Fair': 1, 'Good': 2, 'Excellent': 3}
-score += repayment_scores[Loan_Repayment_History]
-
-risk_level = get_risk_level(score)
-
-# Get AI prediction
+# Get AI prediction (without gender)
 predicted_class, confidence = predict_credit({
-    'Location': Location, 'Gender': gender, 'Age': Age,
-    'Mobile_Money_Txns': Mobile_Money_Txns, 'Airtime_Spend_USD': Airtime_Spend_USD,
-    'Utility_Payments_USD': Utility_Payments_USD, 'Loan_Repayment_History': Loan_Repayment_History
+    'Location': Location,
+    'Age': Age,
+    'Mobile_Money_Txns': Mobile_Money_Txns,
+    'Airtime_Spend_USD': Airtime_Spend_USD,
+    'Utility_Payments_USD': Utility_Payments_USD,
+    'Loan_Repayment_History': Loan_Repayment_History,
+    'Income_Source': Income_Source
 })
 
-# Main Tabs
+# --- Tabs ---
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Dashboard", "🎯 Assessments", "🔍 Analysis", "📋 Monthly Reports"
 ])
 
-# ================= TAB 1: DASHBOARD =================
+# ================= TAB 1: DASHBOARD (unchanged) =================
 with tab1:
     st.markdown('<h2 style="color: #2c3e50; font-weight: 800; margin-bottom: 0px;">🌍 Zimbabwe Smart Credit Overview</h2>', unsafe_allow_html=True)
     st.markdown('<p style="color: #7f8c8d; font-size: 1.1rem; margin-bottom: 2rem;">A robust, world-class AI-powered credit scoring engine leveraging <b>alternative data</b> for maximum financial inclusion.</p>', unsafe_allow_html=True)
@@ -467,74 +586,108 @@ with tab1:
         fig_loc.update_layout(height=400, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=30, b=0, l=0, r=0), yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig_loc, use_container_width=True)
 
-# ================= TAB 2: ASSESSMENTS =================
+# ================= TAB 2: ASSESSMENTS (updated) =================
 with tab2:
     st.markdown("### 🎯 Credit Assessment")
     
+    # Input summary (gender removed)
     input_data = pd.DataFrame({
-        "Feature": ["📍 Location", "👤 Gender", "🎂 Age", "📱 Mobile Transactions", "📞 Airtime Spend", "💡 Utility Payments", "📊 Repayment History", "💰 Income Source"],
-        "Value": [Location, gender, f"{Age}", f"{Mobile_Money_Txns:.0f}", f"${Airtime_Spend_USD:.2f}", f"${Utility_Payments_USD:.2f}", Loan_Repayment_History, Income_Source]
+        "Feature": ["📍 Location", "🎂 Age", "📱 Mobile Transactions", "📞 Airtime Spend",
+                    "💡 Utility Payments", "📊 Repayment History", "💰 Income Source"],
+        "Value": [Location, f"{Age}", f"{Mobile_Money_Txns:.0f}",
+                  f"${Airtime_Spend_USD:.2f}", f"${Utility_Payments_USD:.2f}",
+                  Loan_Repayment_History, Income_Source]
     })
     st.dataframe(input_data, use_container_width=True, hide_index=True)
     
+    # Score display – now out of 100
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.metric("📈 Credit Score", f"{score}/{max_score}")
-        st.progress(score / max_score)
+        st.metric("📈 Credit Score", f"{transparent_score}/100")
+        st.progress(transparent_score / 100)
     with col2:
-        if score >= 5:
-            st.success(f"### ✅ EXCELLENT CREDITWORTHINESS")
-            st.balloons()
-        elif score >= 3:
-            st.warning(f"### ⚠️ MODERATE RISK PROFILE")
+        if transparent_score >= 75:
+            st.success("### ✅ EXCELLENT CREDITWORTHINESS")
+            # REMOVED st.balloons()
+        elif transparent_score >= 50:
+            st.warning("### ⚠️ MODERATE RISK PROFILE")
         else:
-            st.error(f"### ❌ HIGHER RISK PROFILE")
+            st.error("### ❌ HIGHER RISK PROFILE")
         st.write(f"**Risk Level:** {risk_level}")
+    
+    # ---- TRANSPARENT SCORE BREAKDOWN ----
+    st.markdown("#### 🔍 How was this score calculated?")
+    with st.expander("See detailed breakdown", expanded=True):
+        col_detail1, col_detail2 = st.columns(2)
+        with col_detail1:
+            for feat in ['Loan Repayment History', 'Mobile Money Transactions', 'Airtime Spend']:
+                pts = score_details[feat]
+                max_pts = {'Loan Repayment History': 40, 'Mobile Money Transactions': 25, 'Airtime Spend': 10}[feat]
+                st.markdown(f"**{feat}:** {pts}/{max_pts} points")
+                st.progress(pts / max_pts)
+        with col_detail2:
+            for feat in ['Utility Payments', 'Age', 'Income Source']:
+                pts = score_details[feat]
+                max_pts = {'Utility Payments': 10, 'Age': 10, 'Income Source': 5}[feat]
+                st.markdown(f"**{feat}:** {pts}/{max_pts} points")
+                st.progress(pts / max_pts)
+    
+    # AI model supplement (optional)
+    st.markdown("#### 🤖 AI Model Prediction (Random Forest)")
+    st.write(f"**Predicted Class:** {predicted_class} | **Confidence:** {confidence:.1f}%")
+    if predicted_class != "Unknown":
+        st.caption("The AI model is trained on thousands of historical records and considers the same features (excluding gender). "
+                   "It often agrees with the transparent score, providing a second opinion.")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("💾 Save Assessment", type="primary", use_container_width=True):
             assessment_data = {
-                'location': Location, 'gender': gender, 'age': Age,
-                'mobile_money_txns': Mobile_Money_Txns, 'airtime_spend': Airtime_Spend_USD,
-                'utility_payments': Utility_Payments_USD, 'repayment_history': Loan_Repayment_History,
-                'income_source': Income_Source, 'score': score, 'max_score': max_score,
-                'risk_level': risk_level, 'predicted_class': predicted_class, 'confidence': confidence
+                'location': Location,
+                'age': Age,
+                'mobile_money_txns': Mobile_Money_Txns,
+                'airtime_spend': Airtime_Spend_USD,
+                'utility_payments': Utility_Payments_USD,
+                'repayment_history': Loan_Repayment_History,
+                'income_source': Income_Source,
+                'score': transparent_score,
+                'max_score': 100,
+                'risk_level': risk_level,
+                'predicted_class': predicted_class,
+                'confidence': confidence
             }
             assessment_id = save_assessment(assessment_data)
-            st.session_state.assessment_results.update({'score': score, 'risk_level': risk_level, 'assessment_id': assessment_id})
             st.success(f"✅ Assessment saved! ID: {assessment_id}")
             st.rerun()
     
     st.markdown("### 📝 Actionable Recommendations")
-    
     recs = []
     
     if Loan_Repayment_History == "Poor":
-        recs.append("❌ **Critical:** Applicant has a history of poor loan repayments. Flag for elevated scrutiny.")
+        recs.append("❌ **Critical:** Poor loan repayment history. Requires intense scrutiny or decline.")
     elif Loan_Repayment_History == "Excellent":
-        recs.append("✅ **Strength:** Excellent historical repayment behavior indicates high reliability.")
+        recs.append("✅ **Strength:** Excellent repayment record – prime borrower candidate.")
         
     median_txns = df['Mobile_Money_Txns'].median()
     if Mobile_Money_Txns < (median_txns * 0.5):
-        recs.append("⚠️ **Digital Footprint:** Insufficient mobile money transaction volume. Gather alternative income proofs.")
+        recs.append("⚠️ **Digital Footprint:** Very low mobile money activity. Request alternative income proof.")
     elif Mobile_Money_Txns > (median_txns * 1.5):
-        recs.append("✅ **Digital Footprint:** High transaction density suggests healthy, verifiable alternative income.")
-        
+        recs.append("✅ **Digital Footprint:** High transaction volume indicates strong cash flow.")
+    
     if Utility_Payments_USD == 0:
-        recs.append("⚠️ **Verifications:** No utility payments detected on record. Require manual KYC or proof of residence.")
-        
-    if score >= 5:
-        recs.append("🎯 **Final Outcome:** Approve. Applicant is a premium candidate eligible for high credit tiering ($5,000 - $10,000) at prime rates.")
+        recs.append("⚠️ **Verifications:** No utility payments on record – manual KYC recommended.")
+    
+    if transparent_score >= 75:
+        recs.append("🎯 **Final:** Approve. Applicant qualifies for premium limits (ZWL 50,000+) at prime rates.")
         st.success("\n\n".join(recs))
-    elif score >= 3:
-        recs.append("🎯 **Final Outcome:** Conditional Approval. Applicant meets baseline criteria. Cap initial limits at $500 - $2,000.")
+    elif transparent_score >= 50:
+        recs.append("🎯 **Final:** Conditional Approval. Start with ZWL 5,000 – ZWL 15,000 limit, review after 6 months.")
         st.warning("\n\n".join(recs))
     else:
-        recs.append("🎯 **Final Outcome:** Decline. Applicant exhibits severe risk attributes below organizational thresholds.")
+        recs.append("🎯 **Final:** Decline. Risk profile below minimum threshold. Advise building credit history.")
         st.error("\n\n".join(recs))
 
-# ================= TAB 3: ANALYSIS =================
+# ================= TAB 3: ANALYSIS (unchanged but gender‑free) =================
 with tab3:
     st.markdown("### 🔍 Data Analysis")
     
@@ -545,9 +698,10 @@ with tab3:
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
     with col2:
-        st.markdown("#### Gender Distribution")
-        gender_counts = df['Gender'].value_counts()
-        fig = go.Figure(data=[go.Pie(labels=gender_counts.index, values=gender_counts.values, hole=0.3, marker_colors=['#3498db', '#e74c3c'])])
+        # Gender pie chart removed – replace with something else, e.g. Income Source distribution
+        st.markdown("#### Income Source Distribution")
+        inc_counts = df['Income_Source'].value_counts()
+        fig = go.Figure(data=[go.Pie(labels=inc_counts.index, values=inc_counts.values, hole=0.3)])
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
     
@@ -558,11 +712,9 @@ with tab3:
     fig.update_layout(height=500)
     st.plotly_chart(fig, use_container_width=True)
 
-# ================= TAB 4: MONTHLY REPORTS =================
+# ================= TAB 4: MONTHLY REPORTS (unchanged logic but score scale handled) =================
 with tab4:
     st.markdown("### 📋 Monthly Assessment Reports")
-    st.markdown("Overview of all credit scoring assessments performed in the last 30 days.")
-    
     stats = get_monthly_stats()
     
     if stats:
@@ -579,7 +731,7 @@ with tab4:
         with col2:
             st.markdown(f"""
             <div class="metric-card" style="border-left-color: #9b59b6;">
-                <div class="metric-value">{stats['avg_score']:.1f}/6</div>
+                <div class="metric-value">{stats['avg_score']:.1f}/100</div>
                 <div class="metric-label">📈 Average Score</div>
             </div>
             """, unsafe_allow_html=True)
@@ -616,11 +768,11 @@ with tab4:
                     marker=dict(size=8, color='#2980b9'),
                     fill='tozeroy', fillcolor='rgba(52, 152, 219, 0.1)'
                 ))
-                fig_trend.add_hline(y=3, line_dash="dash", line_color="#e74c3c", annotation_text="Approval Threshold")
+                fig_trend.add_hline(y=50, line_dash="dash", line_color="#e74c3c", annotation_text="Approval Threshold (50)")
                 fig_trend.update_layout(
                     height=350, margin=dict(l=0, r=0, t=30, b=0),
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                    yaxis=dict(range=[0, 6.5])
+                    yaxis=dict(range=[0, 105])
                 )
                 st.plotly_chart(fig_trend, use_container_width=True)
                 
@@ -642,15 +794,13 @@ with tab4:
                 st.plotly_chart(fig_pie, use_container_width=True)
             
             st.markdown("---")
-            st.markdown("#### �️ Assessment Register")
-            
-            display_cols = ['assessment_id', 'date', 'location', 'gender', 'score', 'risk_level']
+            st.markdown("#### 🗄️ Assessment Register")
+            display_cols = ['assessment_id', 'date', 'location', 'score', 'risk_level']
             st.dataframe(
                 df_history[display_cols].sort_values('date', ascending=False), 
                 use_container_width=True, hide_index=True
             )
             
-            st.markdown("<br>", unsafe_allow_html=True)
             csv = df_history.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download Full Monthly Report (CSV)",
@@ -662,7 +812,7 @@ with tab4:
     else:
         st.info("📭 No assessments recorded in the last 30 days. Save an assessment on the Assessment tab to populate this dashboard!")
 
-# Footer
+# Footer (unchanged)
 st.markdown("---")
 st.markdown("### 💡 About Zim Smart Credit")
 st.markdown("Leveraging alternative data (mobile money, utility payments, airtime usage) to provide fair and inclusive credit scoring for Zimbabweans.")
